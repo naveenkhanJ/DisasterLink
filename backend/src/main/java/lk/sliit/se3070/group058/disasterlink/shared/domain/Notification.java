@@ -4,7 +4,10 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Transient;
 import java.time.LocalDateTime;
 import java.util.Objects;
@@ -41,6 +44,11 @@ public class Notification {
   private String recipientId;
 
   @Transient private Recipient recipient;
+
+  // The same column that Warning.notifications writes as its join column, so this side only reads.
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "warning_id", insertable = false, updatable = false)
+  private Warning warning;
 
   /**
    * Creates a notification to send to a recipient: the drawn message of the broadcast. The delivery
@@ -164,6 +172,27 @@ public class Notification {
    */
   public String getRecipientId() {
     return recipientId;
+  }
+
+  /**
+   * Returns the warning this notification belongs to (A2, seen from the notification). The warning
+   * is set by {@code Warning.addNotification} and is read back from the stored {@code warning_id}.
+   *
+   * @return the warning, or empty if the notification has not been added to a warning yet
+   */
+  public Optional<Warning> getWarning() {
+    return Optional.ofNullable(warning);
+  }
+
+  /**
+   * Sets the warning this notification belongs to. Called by {@code Warning.addNotification},
+   * Lakmal's operation; the column is written through the warning's join column, never from here.
+   *
+   * @param warning the warning that now holds this notification
+   * @throws NullPointerException if {@code warning} is {@code null}
+   */
+  void attachTo(Warning warning) {
+    this.warning = Objects.requireNonNull(warning, "warning");
   }
 
   /**

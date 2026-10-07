@@ -288,7 +288,8 @@ public class Warning {
    * Adds a notification to the warning.
    *
    * <p>Placeholder owned by Lakmal: the body is written on his branch (implementation standards
-   * section 3, "Operations on shared entities").
+   * section 3, "Operations on shared entities"). The implementation adds the notification and calls
+   * {@code notification.attachTo(this)}.
    *
    * @param notification the notification to add
    * @throws UnsupportedOperationException always, until the operation is implemented

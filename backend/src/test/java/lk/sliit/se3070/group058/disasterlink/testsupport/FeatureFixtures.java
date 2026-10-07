@@ -116,6 +116,15 @@ public final class FeatureFixtures {
     list.addAll(List.of(notifications));
   }
 
+  /**
+   * Sets the back-reference of a notification by reflection, because {@code Notification.attachTo}
+   * is package-private to {@code shared.domain} and {@code Warning.addNotification}, which calls
+   * it, is a placeholder owned by Lakmal.
+   */
+  public static void attach(Notification notification, Warning warning) {
+    ReflectionTestUtils.setField(notification, "warning", warning);
+  }
+
   /** Builds a valid sample: report. */
   public static HazardReport report(
       String reportId,

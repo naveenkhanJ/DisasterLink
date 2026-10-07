@@ -2,6 +2,7 @@ package lk.sliit.se3070.group058.disasterlink;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 
 /**
  * Entry point of the DisasterLink back end: the Smart Disaster Early-Warning and Emergency
@@ -13,6 +14,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * only has a static method. Configuration belongs in the {@code shared.config} package.
  */
 @SpringBootApplication(proxyBeanMethods = false)
+@ConfigurationPropertiesScan
 public final class DisasterLinkApplication {
 
   private DisasterLinkApplication() {}
