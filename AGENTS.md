@@ -26,6 +26,9 @@ These rules apply to every member's coding agent, whatever the tool. Read them b
 - Shared files — `pom.xml`, `application*.properties`, `schema.sql`, the seed data, `shared.*` packages, the layout
   templates and static assets — change only on `shared/skeleton`. If your use case needs a change there, report it
   instead of making it.
+- One exception (standards §3, "Operations on shared entities"): on your own branch you may replace the body of a
+  `shared.domain` operation that standards §3 assigns to you (its placeholder throws
+  `UnsupportedOperationException("not implemented yet — <your name>")`). Change nothing else in that file.
 - A method in another member's class whose body throws "not implemented yet" belongs to that member: do not fill it
   in; mock it in your tests.
 
