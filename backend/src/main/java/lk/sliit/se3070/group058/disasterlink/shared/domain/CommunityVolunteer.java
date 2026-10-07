@@ -1,10 +1,10 @@
 package lk.sliit.se3070.group058.disasterlink.shared.domain;
 
-import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -14,7 +14,7 @@ import java.util.Optional;
  * <p>Implements CH-04 and CH-11 (A24 for the organisation).
  */
 @Entity
-@DiscriminatorValue("COMMUNITY_VOLUNTEER")
+@Table(name = "community_volunteer")
 public class CommunityVolunteer extends Citizen {
 
   private String gnDivision;

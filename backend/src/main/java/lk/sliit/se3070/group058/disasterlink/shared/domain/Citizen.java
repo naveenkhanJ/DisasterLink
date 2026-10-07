@@ -1,9 +1,9 @@
 package lk.sliit.se3070.group058.disasterlink.shared.domain;
 
-import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.Table;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -14,7 +14,7 @@ import java.util.Optional;
  * <p>Implements CH-11, CH-21 and CH-25. Realises Recipient (G7).
  */
 @Entity
-@DiscriminatorValue("CITIZEN")
+@Table(name = "citizen")
 public class Citizen extends User implements Recipient {
 
   private String nic;

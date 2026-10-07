@@ -9,15 +9,13 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
-import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 
 /**
  * Persists every shared entity, flushes, clears the persistence context and reads it back, so the
  * mapping (inheritance, embeddables, element collections, associations) is exercised against H2.
  */
-@DataJpaTest(properties = "spring.datasource.url=jdbc:h2:mem:persistence-test;DB_CLOSE_DELAY=-1")
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+@DataJpaTest
 class PersistenceRoundTripTest {
 
   @Autowired private TestEntityManager entityManager;

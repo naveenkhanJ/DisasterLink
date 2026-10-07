@@ -2,12 +2,12 @@ package lk.sliit.se3070.group058.disasterlink.shared.domain;
 
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
-import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.Table;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Objects;
@@ -20,7 +20,7 @@ import java.util.Set;
  * <p>Implements CH-11 and CH-31 (the reporting districts serve UC4's scope check).
  */
 @Entity
-@DiscriminatorValue("DMC_OFFICER")
+@Table(name = "dmc_officer")
 public class DMCOfficer extends User {
 
   private String position;

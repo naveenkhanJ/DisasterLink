@@ -5,19 +5,20 @@ import java.util.List;
 import java.util.Set;
 
 /** Builds valid entities for the tests of {@code shared.domain}. */
-final class SampleEntities {
+public final class SampleEntities {
 
-  static final LocalDateTime NOW = LocalDateTime.of(2026, 5, 21, 8, 15);
+  public static final LocalDateTime NOW = LocalDateTime.of(2026, 5, 21, 8, 15);
 
-  static final LocalisedText TEXT = new LocalisedText("සිං", "தமிழ்", "Flood warning");
+  public static final LocalisedText TEXT = new LocalisedText("සිං", "தமிழ்", "Flood warning");
 
-  static final GeoPoint RATNAPURA_POINT = new GeoPoint(6.6828, 80.3992, 15.5);
+  public static final GeoPoint RATNAPURA_POINT = new GeoPoint(6.6828, 80.3992, 15.5);
 
   private SampleEntities() {
     throw new AssertionError("SampleEntities is a utility class");
   }
 
-  static Citizen citizen(String userId, String deviceToken) {
+  /** Builds a valid sample: citizen. */
+  public static Citizen citizen(String userId, String deviceToken) {
     return new Citizen(
         userId,
         "Nimal Perera",
@@ -30,7 +31,8 @@ final class SampleEntities {
         deviceToken);
   }
 
-  static CommunityVolunteer volunteer(String userId, Organization organization) {
+  /** Builds a valid sample: volunteer. */
+  public static CommunityVolunteer volunteer(String userId, Organization organization) {
     return new CommunityVolunteer(
         userId,
         "Kamala Silva",
@@ -45,7 +47,8 @@ final class SampleEntities {
         organization);
   }
 
-  static DistrictOfficer districtOfficer(String userId) {
+  /** Builds a valid sample: district officer. */
+  public static DistrictOfficer districtOfficer(String userId) {
     return new DistrictOfficer(
         userId,
         "Sunil Fernando",
@@ -55,17 +58,20 @@ final class SampleEntities {
         Language.ENGLISH);
   }
 
-  static DMCOfficer officer(String userId, Set<District> districts) {
+  /** Builds a valid sample: officer. */
+  public static DMCOfficer officer(String userId, Set<District> districts) {
     return new DMCOfficer(
         userId, "Nuwan Jayasinghe", "0112222222", "nuwan@dmc.example.lk", "Director", districts);
   }
 
-  static DMCDutyOfficer dutyOfficer(String userId) {
+  /** Builds a valid sample: duty officer. */
+  public static DMCDutyOfficer dutyOfficer(String userId) {
     return new DMCDutyOfficer(
         userId, "Amali Perera", "0113333333", "amali@dmc.example.lk", "Duty Officer", Set.of());
   }
 
-  static Organization organization(String organizationId) {
+  /** Builds a valid sample: organization. */
+  public static Organization organization(String organizationId) {
     return new Organization(
         organizationId,
         "Sri Lanka Red Cross",
@@ -76,7 +82,8 @@ final class SampleEntities {
         Language.ENGLISH);
   }
 
-  static Hazard hazard(String hazardId) {
+  /** Builds a valid sample: hazard. */
+  public static Hazard hazard(String hazardId) {
     return new Hazard(
         hazardId,
         HazardType.FLOOD,
@@ -92,7 +99,8 @@ final class SampleEntities {
         HazardStatus.ACTIVE);
   }
 
-  static WarningDetails details(
+  /** Builds a valid sample: details. */
+  public static WarningDetails details(
       List<District> districts, List<RiverBasin> basins, LocalDateTime expiryTime) {
     return new WarningDetails(
         WarningLevel.LEVEL_2_AMBER,
@@ -104,7 +112,8 @@ final class SampleEntities {
         expiryTime);
   }
 
-  static Warning warning(
+  /** Builds a valid sample: warning. */
+  public static Warning warning(
       String warningId,
       Hazard hazard,
       DMCOfficer officer,

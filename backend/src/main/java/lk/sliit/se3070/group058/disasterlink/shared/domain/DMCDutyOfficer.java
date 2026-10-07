@@ -1,7 +1,7 @@
 package lk.sliit.se3070.group058.disasterlink.shared.domain;
 
-import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
 import java.util.Set;
 
 /**
@@ -10,7 +10,7 @@ import java.util.Set;
  * <p>Implements CH-11 (restored by FQ1).
  */
 @Entity
-@DiscriminatorValue("DMC_DUTY_OFFICER")
+@Table(name = "dmc_duty_officer")
 public class DMCDutyOfficer extends DMCOfficer {
 
   /**

@@ -1,6 +1,5 @@
 package lk.sliit.se3070.group058.disasterlink.shared.domain;
 
-import jakarta.persistence.DiscriminatorColumn;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Inheritance;
@@ -10,15 +9,14 @@ import java.util.Objects;
 
 /**
  * A person who uses the system. The class is abstract: citizens, volunteers and officers are its
- * subclasses, all stored in one table.
+ * subclasses, each stored in its own table joined to the user table.
  *
  * <p>Implements CH-11; the login data and operations were removed by CH-09 and CH-19. The operation
  * updateProfile is design-only (D) and is not coded.
  */
 @Entity
 @Table(name = "app_user")
-@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
-@DiscriminatorColumn(name = "user_type")
+@Inheritance(strategy = InheritanceType.JOINED)
 public abstract class User {
 
   @Id private String userId;

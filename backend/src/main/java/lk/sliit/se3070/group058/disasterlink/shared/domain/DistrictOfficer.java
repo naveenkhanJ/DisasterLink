@@ -1,9 +1,9 @@
 package lk.sliit.se3070.group058.disasterlink.shared.domain;
 
-import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.Table;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -13,7 +13,7 @@ import java.util.Optional;
  * <p>Implements CH-11 and CH-06. Realises Recipient (G7).
  */
 @Entity
-@DiscriminatorValue("DISTRICT_OFFICER")
+@Table(name = "district_officer")
 public class DistrictOfficer extends User implements Recipient {
 
   @Enumerated(EnumType.STRING)
