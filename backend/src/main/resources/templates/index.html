@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<!-- Home page of the prototype: one link per page root. The five roots are fixed for the members: the sidebar links of
+     fragments/layout.html already use them (implementation-standards sections 3 and 11). -->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('DisasterLink')}">
+<meta charset="utf-8"><title>DisasterLink — DMC Sri Lanka (prototype)</title>
+<link rel="stylesheet" href="../static/css/app.css">
+</head>
+<body>
+<main class="page" style="max-width:640px;margin:48px auto">
+<section class="card">
+<div class="card__head"><div><h1 class="card__title">DisasterLink — DMC Sri Lanka (prototype)</h1>
+<p class="card__sub">Smart Disaster Early-Warning and Emergency Coordination System. Choose a part of the system.</p></div></div>
+<nav class="stack" aria-label="Pages">
+<a class="list-item" th:href="@{/warning}" href="#"><strong>Warnings</strong> <span class="muted small">DMC Officer</span></a>
+<a class="list-item" th:href="@{/hazardreport}" href="#"><strong>Verification</strong> <span class="muted small">DMC Duty Officer</span></a>
+<a class="list-item" th:href="@{/shelter}" href="#"><strong>Shelters</strong> <span class="muted small">District Officer</span></a>
+<a class="list-item" th:href="@{/analytics}" href="#"><strong>Analytics</strong> <span class="muted small">DMC Officer</span></a>
+<a class="list-item" th:href="@{/organisation}" href="#"><strong>Shared reports</strong> <span class="muted small">Organisation</span></a>
+</nav>
+</section>
+</main>
+</body>
+</html>

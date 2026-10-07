@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<!-- Generic page for a server error (MD section 0.10, C1): the common error banner and a way back. Spring Boot's default
+     error view resolution serves it for every 5xx reply to a page request; JSON requests keep ApiExceptionHandler. -->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Service unavailable')}">
+<meta charset="utf-8"><title>Service unavailable — DMC Sri Lanka</title>
+<link rel="stylesheet" href="../../static/css/app.css">
+</head>
+<body>
+<main class="page" style="max-width:640px;margin:48px auto">
+<th:block th:with="serviceUnavailable=true"><div th:replace="~{fragments/layout :: errorBanner}"></div></th:block>
+<p><a class="btn btn--secondary" th:href="@{/}" href="#">Back to the home page</a></p>
+</main>
+</body>
+</html>

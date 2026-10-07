@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ruleset name="DisasterLink PMD rule set"
+         xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+  <description>
+    Group_058 rule set (implementation-standards section 6): PMD's quickstart rule set plus GodClass,
+    CyclomaticComplexity and the unused-code rules. The whole design category is deliberately not enabled
+    (LawOfDemeter and DataClass would flood the records and entities).
+  </description>
+
+  <!-- Quickstart already references UnusedFormalParameter, UnusedLocalVariable, UnusedPrivateField and
+       UnusedPrivateMethod (PMD 7.17.0), so each of them is referenced only once, here. -->
+  <rule ref="rulesets/java/quickstart.xml"/>
+
+  <rule ref="category/java/design.xml/GodClass"/>
+  <rule ref="category/java/design.xml/CyclomaticComplexity"/>
+
+  <!-- Commented out in quickstart, so it is referenced explicitly. -->
+  <rule ref="category/java/bestpractices.xml/UnusedAssignment"/>
+</ruleset>

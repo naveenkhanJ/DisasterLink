@@ -4,6 +4,11 @@
 *.cmd text eol=crlf
 *.bat text eol=crlf
 
+# Vendored third-party files and the font licence texts are kept byte for byte (no line-ending
+# conversion), so their hashes equal those of the npm packages and the prototype (P155 D-12).
+backend/src/main/resources/static/vendor/** -text
+backend/src/main/resources/static/fonts/OFL-*.txt -text
+
 # Binary files: never converted or diffed as text.
 *.png binary
 *.jpg binary

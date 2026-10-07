@@ -13,22 +13,74 @@ Group_060's Assignment 01 design for Case Study 2.
 | UC3 Manage Emergency Shelters | H. P. Weliwitigoda |
 | UC4 Analyse Disaster Response & Generate Reports | J. Naveenkhan |
 
-## Technology
+## What the repository holds
 
-- `backend/` — Java 21, Spring Boot 4.1.x, Maven (wrapper included), Thymeleaf officer screens, H2 with seed data.
-- `mobile/` — React Native with Expo (TypeScript), the citizen app for UC2.
-- External services (push notifications, SMS) are mocked behind gateway interfaces.
+| Folder or file | What it is |
+|---|---|
+| `backend/` | The server: Java 21, Spring Boot 4.1.x, Maven (wrapper included), Thymeleaf officer screens, JSON endpoints, H2 database with seed data. The shared skeleton, the browser offline module (`static/js/offline/`) and the stubs of the four use cases are here. |
+| `web/` | The Jest test project for the browser scripts under `backend/src/main/resources/static/js/` (Node). It contains no application code. |
+| `docs/` | The binding design: `docs/design/` (implementation standards, model dictionary, scenarios, sequence diagrams, wireframes) and the lecture study guides. Read `docs/design/README.md` first. |
+| `AGENTS.md`, `CLAUDE.md` | The rules for coding agents; every member's agent reads them before any change. |
+| `THIRD-PARTY-NOTICES.md` | Licences of the vendored libraries, fonts and map data. |
+| `mobile/` | The citizen app (React Native with Expo, TypeScript). **It arrives in stage S6** and is not in the repository yet. |
 
-The folders above are added in the next set-up stages.
+External services (push notifications, SMS) are mocked behind gateway interfaces.
+
+## Build, run, test
+
+Needs JDK 21 and Node.js. On Windows use `.\mvnw.cmd`; on macOS or Linux use `./mvnw`.
+
+Back end (from the repository root):
+
+```
+cd backend
+.\mvnw.cmd clean verify                    # build, tests, Checkstyle, PMD, JaCoCo (warnings do not fail)
+.\mvnw.cmd clean verify -Pfinal-check      # the same, and every gate must be met
+.\mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=dev
+```
+
+The last command starts the seeded demo at <http://localhost:8080/>: the data of the storyline (the closed Kalu
+Ganga flood, the live flood with its warning and reports, the shelters) is created at start-up relative to the
+current time, so start it fresh for a demo. Seed photos are written to `backend/data/photos/` (git-ignored).
+
+Demo notes:
+
+* Start the app no more than 5 hours before the UC2 / Escalate Warning demo: the live warning WRN-2026-0101 is issued 19 h
+  before start-up and expires 24 h after issue. A restart reseeds the in-memory database.
+* HZ-2026-0203 has missing information (no districts) and is for UC1 A1 only; it is not assessable until A1 gives it
+  districts.
+* Escalate A4 needs a Level 1 – Yellow warning, which the seed does not have: for an A4 demo, issue the Colombo warning on
+  HZ-2026-0202 at Level 1 – Yellow, then escalate it with A4 (preview Level 3 – Red, then choose Level 2 – Amber) — this
+  also gives UC3 the Level 2 – Amber Colombo warning it needs. Without A4, issue it at Level 2 – Amber as SC1 states.
+* After one UC1 run no warning-free hazard is left: restart before showing UC1 again.
+
+The demo has no login. Each role is a fixed demo user (set in `backend/src/main/resources/application.properties`):
+
+| Role | User |
+|---|---|
+| DMC Officer | `DMC-0001` (N. Jayasinghe) |
+| DMC Duty Officer | `DMC-0002` (K. Perera) |
+| District Officer | `DO-COL-01` |
+| Resource-owning organisation | `ORG-0001` (CARE Sri Lanka) |
+| Citizen (the app) | `CIT-KLT-0001` (Asela Gunawardene) |
+
+Browser script tests:
+
+```
+cd web
+npm ci
+npm test
+npm test -- --coverage
+```
 
 ## Branches
 
 | Branch | Purpose |
 |---|---|
-| `main` | Released code only (the version demonstrated at the viva). |
-| `develop` | Integration branch; finished work is merged here. |
+| `main` | Released code only (the version demonstrated at the viva). Never commit to it. |
+| `develop` | Integration branch; finished work is merged here. Never commit to it; switch to it to read the latest shared code (`git switch develop`). |
 | `shared/skeleton` | Shared code used by all four use cases. |
-| `feature/uc1-lakmal`, `feature/uc2-afham`, `feature/uc3-weliwitigoda`, `feature/uc4-naveenkhan` | One branch per member and use case. |
+| `feature/uc1-lakmal`, `feature/uc2-afham`, `feature/uc3-weliwitigoda`, `feature/uc4-naveenkhan` | One branch per member and use case: work on your own `feature/…` branch. |
 
 Rules: nobody commits directly to `main` or `develop`; branches are merged into `develop` with `--no-ff` after review;
 members bring shared changes into their branch by merging `develop` (no rebase of pushed commits); shared files change
