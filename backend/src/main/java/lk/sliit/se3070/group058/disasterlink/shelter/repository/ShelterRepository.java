@@ -2,11 +2,13 @@ package lk.sliit.se3070.group058.disasterlink.shelter.repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.District;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.HazardType;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.ReportCriteria;
 import lk.sliit.se3070.group058.disasterlink.shelter.domain.Shelter;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -16,8 +18,16 @@ import org.springframework.transaction.annotation.Transactional;
  * Data access for shelters (model dictionary section 6, ShelterRepository). The period of a {@link
  * ReportCriteria} is whole days: from {@code periodStart} at 00:00, inclusive, to the day after
  * {@code periodEnd} at 00:00, exclusive (a Group_058 assumption).
+ *
+ * <p>The finders that the UC3 JSON endpoints read ({@code findByDistrict}, {@code findWithSpace}
+ * and {@code findById}) fetch the operating organisation with an entity graph, because the
+ * endpoints map {@code Shelter.operator} after the control's transaction has ended and open-in-view
+ * is off (standards section 12.4, "Lazy reads"; P155 X2).
  */
 public interface ShelterRepository extends JpaRepository<Shelter, String> {
+
+  /** The association that the UC3 endpoints read after the transaction (P155 X2). */
+  String OPERATOR = "operator";
 
   /**
    * Finds the shelters of a district (MD section 6, {@code findByDistrict}; derived from the name).
@@ -25,7 +35,18 @@ public interface ShelterRepository extends JpaRepository<Shelter, String> {
    * @param district the district
    * @return the shelters of the district
    */
+  @EntityGraph(attributePaths = OPERATOR)
   List<Shelter> findByDistrict(District district);
+
+  /**
+   * Finds a shelter by its identifier, with its operating organisation loaded (P155 X2).
+   *
+   * @param shelterId the identifier
+   * @return the shelter, or empty if there is none
+   */
+  @Override
+  @EntityGraph(attributePaths = OPERATOR)
+  Optional<Shelter> findById(String shelterId);
 
   /**
    * Finds the open shelters of a district that can take a number of people: status OPEN and
@@ -36,6 +57,7 @@ public interface ShelterRepository extends JpaRepository<Shelter, String> {
    * @param needed the number of people to accommodate
    * @return the shelters with enough space
    */
+  @EntityGraph(attributePaths = OPERATOR)
   @Query(
       "select s from Shelter s where s.district = :district and s.status = OPEN"
           + " and s.capacity - s.currentOccupancy >= :needed"

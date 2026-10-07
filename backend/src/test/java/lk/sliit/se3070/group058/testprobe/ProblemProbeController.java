@@ -62,7 +62,7 @@ public class ProblemProbeController {
 
   @GetMapping("/probe/framework")
   String framework() {
-    throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Cannot process this");
+    throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT, "Cannot process this");
   }
 
   @GetMapping("/probe/failure")

@@ -122,7 +122,8 @@ class ShelterApiControllerTest {
         .andExpect(jsonPath("$[0].capacity").value(500))
         .andExpect(jsonPath("$[0].currentOccupancy").value(0))
         .andExpect(jsonPath("$[0].status").value("OPEN"))
-        .andExpect(jsonPath("$[0].operatorName").value("CARE Sri Lanka"));
+        .andExpect(jsonPath("$[0].operatorName").value("CARE Sri Lanka"))
+        .andExpect(jsonPath("$[0].operatorId").value("ORG-0001"));
   }
 
   @Test
@@ -139,7 +140,8 @@ class ShelterApiControllerTest {
     mockMvc
         .perform(get("/api/shelters"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$[0].operatorName").doesNotExist());
+        .andExpect(jsonPath("$[0].operatorName").doesNotExist())
+        .andExpect(jsonPath("$[0].operatorId").doesNotExist());
   }
 
   @Test
@@ -417,5 +419,83 @@ class ShelterApiControllerTest {
         .andExpect(status().isInternalServerError())
         .andExpect(jsonPath("$.status").value(500))
         .andExpect(jsonPath("$.detail").value(containsString("nothing was changed")));
+  }
+
+  @Test
+  @DisplayName("Unentered shelter details reach validateShelterDetails instead of a 400 (SC3 E2)")
+  void unenteredDetailsAreValidatedByTheControl() throws Exception {
+    when(shelterController.validateShelterDetails(any(ShelterDetails.class), eq(null)))
+        .thenReturn(new ValidationResult(false, List.of("name: required", "district: required")));
+
+    mockMvc
+        .perform(
+            post("/api/shelters/validation")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"details\":{\"address\":\"Road\",\"capacity\":250}}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.valid").value(false))
+        .andExpect(jsonPath("$.errors[0]").value("name: required"));
+
+    ArgumentCaptor<ShelterDetails> captor = ArgumentCaptor.forClass(ShelterDetails.class);
+    verify(shelterController).validateShelterDetails(captor.capture(), eq(null));
+    assertThat(captor.getValue().name()).isNull();
+    assertThat(captor.getValue().district()).isNull();
+    assertThat(captor.getValue().contactNumber()).isNull();
+  }
+
+  @Test
+  @DisplayName("A missing capacity is a 400: the page blocks a non-numeric capacity itself")
+  void missingCapacityIs400() throws Exception {
+    mockMvc
+        .perform(
+            post("/api/shelters/validation")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"details\":{\"name\":\"Hall\"}}"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @DisplayName("A decimal newTotal is a 400 problem, not a truncated whole number (P155 D-18)")
+  void decimalNewTotalIs400() throws Exception {
+    mockMvc
+        .perform(
+            post("/api/shelters/SHL-COL-0001/occupancy")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"newTotal\":350.5,\"meta\":" + META_JSON + "}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.status").value(400));
+
+    verifyNoInteractions(shelterController);
+  }
+
+  @Test
+  @DisplayName("A whole number written with a zero decimal is also refused")
+  void wholeNumberWithDecimalPointIs400() throws Exception {
+    mockMvc
+        .perform(
+            post("/api/shelters/SHL-COL-0001/occupancy")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"newTotal\":350.0,\"meta\":" + META_JSON + "}"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @DisplayName("A capturedAt with milliseconds is accepted and bound to Asia/Colombo (P155 D-10)")
+  void capturedAtWithMillisecondsIsBound() throws Exception {
+    when(shelterController.updateOccupancy(any(OccupancyUpdate.class)))
+        .thenReturn(accepted(shelter, "s-1"));
+    String meta = META_JSON.replace("2026-05-21T14:05:00+05:30", "2026-05-21T14:05:00.123+05:30");
+
+    mockMvc
+        .perform(
+            post("/api/shelters/SHL-COL-0001/occupancy")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"newTotal\":350,\"meta\":" + meta + "}"))
+        .andExpect(status().isOk());
+
+    ArgumentCaptor<OccupancyUpdate> captor = ArgumentCaptor.forClass(OccupancyUpdate.class);
+    verify(shelterController).updateOccupancy(captor.capture());
+    assertThat(captor.getValue().meta().capturedAt())
+        .isEqualTo(LocalDateTime.of(2026, 5, 21, 14, 5, 0, 123_000_000));
   }
 }

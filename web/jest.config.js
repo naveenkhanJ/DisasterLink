@@ -19,7 +19,7 @@ module.exports = {
   coverageProvider: 'v8',
   coverageDirectory: '<rootDir>/web/coverage',
   coverageThreshold: {
-    global: { lines: 80 },
+    global: { lines: 80, branches: 80 },
     // The browser offline module is the skeleton's own code (standards section 8): 90 % lines and branches.
     [path.resolve(__dirname, '../backend/src/main/resources/static/js/offline') + path.sep]: { lines: 90, branches: 90 },
   },

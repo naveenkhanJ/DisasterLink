@@ -214,7 +214,7 @@
 				<artifactId>jacoco-maven-plugin</artifactId>
 				<version>${jacoco.version}</version>
 				<configuration>
-					<!-- Skeleton classes inside member packages are excluded by name from member gates in later stages (standards section 8). -->
+					<!-- Skeleton code that no member gate measures: the application class, configuration, the seed, wire records and mappers (standards section 8). The check executions below repeat this list and add the one skeleton class that lives in a member package. -->
 					<excludes>
 						<exclude>**/disasterlink/DisasterLinkApplication.class</exclude>
 						<exclude>**/disasterlink/shared/config/**</exclude>
@@ -245,9 +245,49 @@
 						</goals>
 						<configuration>
 							<haltOnFailure>${jacoco.haltOnFailure}</haltOnFailure>
+							<!-- The member packages' gate leaves out the skeleton's class in shelter.web (a rule's own excludes match package names, so the exclusion is made for the whole execution); the next execution gates that class. -->
+							<excludes>
+								<exclude>**/disasterlink/DisasterLinkApplication.class</exclude>
+								<exclude>**/disasterlink/shared/config/**</exclude>
+								<exclude>**/disasterlink/shared/seed/**</exclude>
+								<exclude>**/web/dto/**</exclude>
+								<exclude>**/web/mapper/**</exclude>
+								<exclude>**/shelter/web/ShelterApiController.class</exclude>
+							</excludes>
 							<rules>
 								<rule>
 									<element>PACKAGE</element>
+									<limits>
+										<limit>
+											<counter>LINE</counter>
+											<value>COVEREDRATIO</value>
+											<minimum>0.81</minimum>
+										</limit>
+										<limit>
+											<counter>BRANCH</counter>
+											<value>COVEREDRATIO</value>
+											<minimum>0.81</minimum>
+										</limit>
+									</limits>
+								</rule>
+							</rules>
+						</configuration>
+					</execution>
+					<!-- The skeleton's class in Weliwitigoda's shelter.web package: his package gate leaves it out, this gate keeps it at the same limits (standards section 8; P155 G1). Further skeleton classes in member packages (the two control stubs are not among them) would be added here. -->
+					<execution>
+						<id>jacoco-check-skeleton-classes</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
+						<configuration>
+							<haltOnFailure>${jacoco.haltOnFailure}</haltOnFailure>
+							<includes>
+								<include>**/shelter/web/ShelterApiController.class</include>
+							</includes>
+							<rules>
+								<rule>
+									<element>CLASS</element>
 									<limits>
 										<limit>
 											<counter>LINE</counter>

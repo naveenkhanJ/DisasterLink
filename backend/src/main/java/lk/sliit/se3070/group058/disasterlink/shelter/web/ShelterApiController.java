@@ -32,8 +32,9 @@ import org.springframework.web.bind.annotation.RestController;
  * unknown identifier (404) or a fault (500) is an error, answered by {@code ApiExceptionHandler} as
  * a problem detail that the page logs and shows in the common error banner.
  *
- * <p>Written by the skeleton and excluded by name from the use-case owner's coverage gate
- * (standards sections 8 and 12.4). Implements CH-28 and CH-05.
+ * <p>Written by the skeleton, not by the use-case owner. The POM's package rule for {@code
+ * shelter.web} excludes this class by name, and a class-level rule gates it at the same limits
+ * (standards sections 8 and 12.4; P155 G1). Implements CH-28 and CH-05.
  */
 @RestController
 @RequestMapping("/api/shelters")

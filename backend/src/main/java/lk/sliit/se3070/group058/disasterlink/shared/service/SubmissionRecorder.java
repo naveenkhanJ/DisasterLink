@@ -80,8 +80,22 @@ public class SubmissionRecorder {
    * Records an accepted submission. The caller decides when: only accepted submissions are
    * recorded, so a corrected resubmission of a rejected draft is processed again.
    *
+   * <p>The {@code resultId} each kind of submission records (standards section 12.4 leaves this to
+   * the skeleton; P155 G3):
+   *
+   * <ul>
+   *   <li>a hazard report (UC2 {@code receiveReport}): the new {@code reportId};
+   *   <li>{@code UPDATE_OCCUPANCY}: the {@code shelterId} of the shelter updated;
+   *   <li>{@code REGISTER_SHELTER}: the new {@code shelterId};
+   *   <li>{@code UPDATE_SHELTER_DETAILS}: the {@code shelterId} of the shelter changed.
+   * </ul>
+   *
+   * <p>{@link #check} returns the record with this identifier when the same submission arrives
+   * again, so a control can say which record the first submission created.
+   *
    * @param meta the client metadata of the submission
-   * @param resultId the identifier of what the submission created, or {@code null} if nothing
+   * @param resultId the identifier of what the submission created or changed (see the list), or
+   *     {@code null} if nothing
    */
   @Transactional
   public void record(ClientMeta meta, String resultId) {

@@ -1,7 +1,6 @@
 package lk.sliit.se3070.group058.disasterlink.shared.seed;
 
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -9,6 +8,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import lk.sliit.se3070.group058.disasterlink.analytics.domain.CriteriaTemplate;
 import lk.sliit.se3070.group058.disasterlink.hazardreport.domain.HazardReport;
+import lk.sliit.se3070.group058.disasterlink.shared.config.DemoSeedProperties;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.AuditRecord;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.Citizen;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.ClientSyncStatus;
@@ -23,7 +23,6 @@ import lk.sliit.se3070.group058.disasterlink.shelter.domain.OccupancyRecord;
 import lk.sliit.se3070.group058.disasterlink.shelter.domain.Shelter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Profile;
@@ -65,11 +64,11 @@ public class SeedDataRunner implements ApplicationRunner {
           CriteriaTemplate.class,
           ClientSyncStatus.class);
 
-  @PersistenceContext private EntityManager entityManager;
+  private final EntityManager entityManager;
 
   private final Clock clock;
 
-  private final boolean pendingClient;
+  private final DemoSeedProperties demo;
 
   private final PeopleSeed people;
 
@@ -81,21 +80,27 @@ public class SeedDataRunner implements ApplicationRunner {
 
   private final ReportingSeed reporting;
 
+  private final PhotoSeed photos;
+
   SeedDataRunner(
+      EntityManager entityManager,
       Clock clock,
-      @Value("${demo.pending-client:false}") boolean pendingClient,
+      DemoSeedProperties demo,
       PeopleSeed people,
       CompletedStorySeed completed,
       LiveStorySeed live,
       ShelterSeed shelters,
-      ReportingSeed reporting) {
+      ReportingSeed reporting,
+      PhotoSeed photos) {
+    this.entityManager = entityManager;
     this.clock = clock;
-    this.pendingClient = pendingClient;
+    this.demo = demo;
     this.people = people;
     this.completed = completed;
     this.live = live;
     this.shelters = shelters;
     this.reporting = reporting;
+    this.photos = photos;
   }
 
   @Override
@@ -108,16 +113,17 @@ public class SeedDataRunner implements ApplicationRunner {
     shelters.seedColombo(context, seeded);
     shelters.seedEvent(context, seeded, story.warning());
     reporting.seedTemplate(context, seeded);
-    if (pendingClient) {
+    if (demo.pendingClient()) {
       reporting.seedPendingClient(context);
     }
     entityManager.flush();
-    logCounts();
+    int photoFiles = photos.seed();
+    logCounts(photoFiles);
   }
 
-  private void logCounts() {
+  private void logCounts(int photoFiles) {
     String counts = COUNTED.stream().map(this::count).collect(Collectors.joining(", "));
-    LOG.info("Seed data saved: {}", counts);
+    LOG.info("Seed data saved: {}, PhotoFiles={}", counts, photoFiles);
   }
 
   private String count(Class<?> entity) {

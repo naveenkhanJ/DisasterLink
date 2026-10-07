@@ -1,7 +1,6 @@
 package lk.sliit.se3070.group058.disasterlink.shared.seed;
 
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -57,7 +56,7 @@ class CompletedStorySeed {
   private static final GeoPoint RATNAPURA_GAUGE =
       new GeoPoint(6.6828, 80.3992, null); // Group_058 assumption
 
-  @PersistenceContext private EntityManager entityManager;
+  private final EntityManager entityManager;
 
   private final HazardRepository hazards;
 
@@ -70,11 +69,13 @@ class CompletedStorySeed {
   private final ResourceDistributionRepository distributions;
 
   CompletedStorySeed(
+      EntityManager entityManager,
       HazardRepository hazards,
       WarningRepository warnings,
       AuditRecordRepository auditRecords,
       HazardReportRepository reports,
       ResourceDistributionRepository distributions) {
+    this.entityManager = entityManager;
     this.hazards = hazards;
     this.warnings = warnings;
     this.auditRecords = auditRecords;
@@ -86,9 +87,8 @@ class CompletedStorySeed {
   CompletedStory seed(SeedContext context, SeedPeople people) {
     Hazard hazard = hazards.save(hazard(context));
     Warning warning = warnings.save(warning(context, people, hazard));
-    // Escalate Warning step 10: the audit record of the escalation, performed by DMC-0002 (K.
-    // Perera,
-    // the duty officer who escalates; S5 STEP 0, E1). The warning's issuing officer stays DMC-0001.
+    // Escalate Warning step 10: the audit record of the escalation, performed by DMC-0002
+    // (K. Perera, the duty officer who escalates). The warning's issuing officer stays DMC-0001.
     auditRecords.save(
         new AuditRecord(
             AuditAction.WARNING_ESCALATED,
@@ -102,8 +102,7 @@ class CompletedStorySeed {
   }
 
   // SC1 step 5, Escalate Warning preconditions, SC4 preconditions: closed on 25 May (day 5; the
-  // time of
-  // day is a Group_058 assumption).
+  // time of day is a Group_058 assumption).
   private Hazard hazard(SeedContext context) {
     return new Hazard(
         "HZ-2026-0142",
@@ -120,11 +119,10 @@ class CompletedStorySeed {
         HazardStatus.CLOSED);
   }
 
-  // SC1 steps 13-16 (issued 20 May 10:45, Level 2 - Amber, 24 hours); Escalate Warning steps 10-12
-  // (21 May 08:25, Level 3 - Red, expires 22 May 08:25). Stored at its final state: Level 3 text
-  // and
-  // expiry, with the notifications of round 1 (Level 2 texts) and round 2 (Level 3 texts, plus the
-  // district officers).
+  // SC1 steps 13-16 (issued 20 May 10:45, Level 2 - Amber, 24 hours); Escalate Warning steps
+  // 10-12 (21 May 08:25, Level 3 - Red, expires 22 May 08:25). Stored at its final state: Level 3
+  // text and expiry, with the notifications of round 1 (Level 2 texts) and round 2 (Level 3
+  // texts, plus the district officers).
   private Warning warning(SeedContext context, SeedPeople people, Hazard hazard) {
     WarningDetails details =
         new WarningDetails(
@@ -264,122 +262,67 @@ class CompletedStorySeed {
         hazard);
   }
 
-  // SC4 step 7, resource distribution: the five lines of the report (Ratnapura: CARE Sri Lanka
-  // 1,200
-  // dry-ration packs, Sri Lanka Army 18,000 litres of water, a private individual 480 dry-ration
-  // packs; Kalutara: Sri Lanka Red Cross Society 350 tarpaulins, CARE Sri Lanka 220 first-aid kits)
-  // and a sixth, 6,000 litres of water delivered to Kalutara on 22 May and recorded without a
-  // hazard
-  // link, which the hazard-type filter leaves out. The quantities of the lines are SC4's; the stock
-  // quantities, locations, delivery times and identifiers are Group_058 assumptions. CARE Sri Lanka
-  // owns two lines, Sarvodaya none (SC4 step 15, E5, E6).
+  // SC4 step 7, resource distribution. The five lines of the report: in Ratnapura CARE Sri Lanka
+  // 1,200 dry-ration packs, Sri Lanka Army 18,000 litres of water and a private individual 480
+  // dry-ration packs; in Kalutara Sri Lanka Red Cross Society 350 tarpaulins and CARE Sri Lanka
+  // 220 first-aid kits. A sixth line, 6,000 litres of water delivered to Kalutara on 22 May, has
+  // no hazard link, so the hazard-type filter leaves it out. The quantities of the lines are
+  // SC4's; the stock quantities, locations, delivery times and identifiers are Group_058
+  // assumptions. CARE Sri Lanka owns two lines, Sarvodaya none (SC4 step 15, E5, E6).
   private void seedDistributions(SeedContext context, SeedPeople people, Hazard hazard) {
-    ReliefSupply rations =
+    List<ReliefSupply> stock = seedSupplies(people);
+    DistrictOfficer rat = people.districtOfficer("DO-RAT-01");
+    DistrictOfficer klt = people.districtOfficer("DO-KLT-01");
+    District ratnapura = District.RATNAPURA;
+    District kalutara = District.KALUTARA;
+    distributions.saveAll(
+        List.of(
+            line("DIST-0001", 1200, context.event(2, 10, 0), ratnapura, stock.get(0), rat, hazard),
+            line(
+                "DIST-0002", 18000, context.event(2, 11, 30), ratnapura, stock.get(1), rat, hazard),
+            line("DIST-0003", 480, context.event(3, 9, 0), ratnapura, stock.get(2), rat, hazard),
+            line("DIST-0004", 350, context.event(2, 14, 0), kalutara, stock.get(3), klt, hazard),
+            line("DIST-0005", 220, context.event(3, 10, 30), kalutara, stock.get(4), klt, hazard),
+            line("DIST-0006", 6000, context.event(2, 15, 0), kalutara, stock.get(5), klt, null)));
+  }
+
+  private List<ReliefSupply> seedSupplies(SeedPeople people) {
+    String packs = "dry-ration packs";
+    String litres = "litres";
+    Organization care = people.organization("ORG-0001");
+    Organization redCross = people.organization("ORG-0002");
+    Organization army = people.organization("ORG-0003");
+    Organization navy = people.organization("ORG-0005");
+    Citizen donor = people.citizen("CIT-RAT-0005");
+    return List.of(
+        supply("SUP-0001", "Dry-ration packs", SupplyCategory.FOOD, 3000, packs, care, null),
+        supply("SUP-0002", "Drinking water", SupplyCategory.WATER, 40000, litres, army, null),
         supply(
-            "SUP-0001",
-            "Dry-ration packs",
-            SupplyCategory.FOOD,
-            3000,
-            "dry-ration packs",
-            people.organization("ORG-0001"),
-            null);
-    ReliefSupply water =
-        supply(
-            "SUP-0002",
-            "Drinking water",
-            SupplyCategory.WATER,
-            40000,
-            "litres",
-            people.organization("ORG-0003"),
-            null);
-    ReliefSupply privateRations =
-        supply(
-            "SUP-0003",
-            "Dry-ration packs (private donation)",
-            SupplyCategory.FOOD,
-            600,
-            "dry-ration packs",
-            null,
-            people.citizen("CIT-RAT-0005"));
-    ReliefSupply tarpaulins =
+            "SUP-0003", "Dry-ration packs (private)", SupplyCategory.FOOD, 600, packs, null, donor),
         supply(
             "SUP-0004",
             "Tarpaulins",
             SupplyCategory.SHELTER_MATERIAL,
             800,
             "tarpaulins",
-            people.organization("ORG-0002"),
-            null);
-    ReliefSupply kits =
+            redCross,
+            null),
         supply(
             "SUP-0005",
             "First-aid kits",
             SupplyCategory.MEDICINE,
             500,
             "first-aid kits",
-            people.organization("ORG-0001"),
-            null);
-    ReliefSupply navyWater =
+            care,
+            null),
         supply(
             "SUP-0006",
             "Drinking water (Navy bowser)",
             SupplyCategory.WATER,
             9000,
-            "litres",
-            people.organization("ORG-0005"),
-            null);
-    DistrictOfficer ratnapura = people.districtOfficer("DO-RAT-01");
-    DistrictOfficer kalutara = people.districtOfficer("DO-KLT-01");
-    distributions.saveAll(
-        List.of(
-            distribution(
-                "DIST-0001",
-                1200,
-                context.event(2, 10, 0),
-                District.RATNAPURA,
-                rations,
-                ratnapura,
-                hazard),
-            distribution(
-                "DIST-0002",
-                18000,
-                context.event(2, 11, 30),
-                District.RATNAPURA,
-                water,
-                ratnapura,
-                hazard),
-            distribution(
-                "DIST-0003",
-                480,
-                context.event(3, 9, 0),
-                District.RATNAPURA,
-                privateRations,
-                ratnapura,
-                hazard),
-            distribution(
-                "DIST-0004",
-                350,
-                context.event(2, 14, 0),
-                District.KALUTARA,
-                tarpaulins,
-                kalutara,
-                hazard),
-            distribution(
-                "DIST-0005",
-                220,
-                context.event(3, 10, 30),
-                District.KALUTARA,
-                kits,
-                kalutara,
-                hazard),
-            distribution(
-                "DIST-0006",
-                6000,
-                context.event(2, 15, 0),
-                District.KALUTARA,
-                navyWater,
-                kalutara,
-                null)));
+            litres,
+            navy,
+            null));
   }
 
   private ReliefSupply supply(
@@ -405,7 +348,7 @@ class CompletedStorySeed {
     return supply;
   }
 
-  private static ResourceDistribution distribution(
+  private static ResourceDistribution line(
       String id,
       double quantity,
       LocalDateTime date,

@@ -70,6 +70,18 @@ public final class SampleEntities {
         userId, "Amali Perera", "0113333333", "amali@dmc.example.lk", "Duty Officer", Set.of());
   }
 
+  /** Builds a valid sample: a community volunteer group (the type A24 requires of a membership). */
+  public static Organization volunteerGroup(String organizationId) {
+    return new Organization(
+        organizationId,
+        "Kalutara Volunteers",
+        OrganizationType.COMMUNITY_VOLUNTEER_GROUP,
+        "0110000014",
+        "Kalutara",
+        List.of(District.KALUTARA),
+        Language.ENGLISH);
+  }
+
   /** Builds a valid sample: organization. */
   public static Organization organization(String organizationId) {
     return new Organization(

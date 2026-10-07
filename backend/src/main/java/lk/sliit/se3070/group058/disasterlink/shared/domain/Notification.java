@@ -23,12 +23,20 @@ import java.util.UUID;
 @Entity
 public class Notification {
 
+  /**
+   * The one separator between a language's message and its instructions in an SMS (one GSM-7
+   * character, counted as 1; standards section 4 "SMS text separator", FX-09). Used by {@code
+   * WarningTextValidator} (the length rule), {@code WarningBroadcaster} (the text sent) and the
+   * seed.
+   */
+  public static final String SMS_TEXT_SEPARATOR = "\n";
+
   @Id private String notificationId;
 
   @Enumerated(EnumType.STRING)
   private NotificationChannel type;
 
-  @Column(length = 2000)
+  @Column(length = ColumnLengths.LONG_TEXT)
   private String message;
 
   private LocalDateTime sentTime;

@@ -27,10 +27,12 @@ class LocalisedTextTest {
   }
 
   @Test
-  @DisplayName("A text needs all three languages")
-  void allThreeLanguagesAreRequired() {
-    assertThatNullPointerException().isThrownBy(() -> new LocalisedText(null, "ta", "en"));
-    assertThatNullPointerException().isThrownBy(() -> new LocalisedText("si", null, "en"));
-    assertThatNullPointerException().isThrownBy(() -> new LocalisedText("si", "ta", null));
+  @DisplayName("A language that was not entered is null, and textIn returns it as null (P155 X1)")
+  void missingLanguageIsAccepted() {
+    LocalisedText text = new LocalisedText(null, "ta", null);
+
+    assertThat(text.textIn(Language.SINHALA)).isNull();
+    assertThat(text.textIn(Language.TAMIL)).isEqualTo("ta");
+    assertThat(text.textIn(Language.ENGLISH)).isNull();
   }
 }

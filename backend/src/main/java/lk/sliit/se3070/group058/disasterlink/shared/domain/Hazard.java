@@ -33,7 +33,7 @@ public class Hazard {
   @Enumerated(EnumType.STRING)
   private HazardType type;
 
-  @Column(length = 2000)
+  @Column(length = ColumnLengths.LONG_TEXT)
   private String description;
 
   @Enumerated(EnumType.STRING)
@@ -119,8 +119,11 @@ public class Hazard {
    * @param type the hazard type of the report
    * @param location the location of the report
    * @param capturedAt when the report was captured
-   * @param details the severity, districts, location name and description the officer entered
-   * @throws NullPointerException if an argument is {@code null}
+   * @param details the severity, districts, location name and description the officer entered; the
+   *     hazard is created only after {@code verifyAsNewHazard} has checked them, so the components
+   *     that the record accepts as {@code null} are required here (P155 X1)
+   * @throws NullPointerException if an argument, or a required component of {@code details}, is
+   *     {@code null}
    */
   public Hazard(
       String hazardId,

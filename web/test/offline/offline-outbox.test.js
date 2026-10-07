@@ -55,6 +55,56 @@ describe('newPendingSubmission and withStatus', () => {
   });
 });
 
+describe('randomUuid', () => {
+  const originalCrypto = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+
+  afterEach(() => {
+    Object.defineProperty(globalThis, 'crypto', originalCrypto);
+  });
+
+  const V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+  test('uses crypto.randomUUID when the browser has it', () => {
+    Object.defineProperty(globalThis, 'crypto', {
+      value: { randomUUID: () => 'from-random-uuid' },
+      configurable: true,
+    });
+
+    expect(randomUuid()).toBe('from-random-uuid');
+  });
+
+  test('builds an RFC 4122 version 4 UUID from getRandomValues when randomUUID is missing (P155 D-11)', () => {
+    Object.defineProperty(globalThis, 'crypto', {
+      value: { getRandomValues: (bytes) => bytes.fill(255) },
+      configurable: true,
+    });
+
+    const uuid = randomUuid();
+
+    expect(uuid).toMatch(V4);
+    expect(uuid).toBe('ffffffff-ffff-4fff-bfff-ffffffffffff');
+  });
+
+  test('the fallback sets the version and variant bits whatever the random bytes are', () => {
+    Object.defineProperty(globalThis, 'crypto', {
+      value: { getRandomValues: (bytes) => bytes.fill(0) },
+      configurable: true,
+    });
+
+    expect(randomUuid()).toBe('00000000-0000-4000-8000-000000000000');
+  });
+
+  test('two fallback UUIDs differ when the bytes differ', () => {
+    let seed = 0;
+    Object.defineProperty(globalThis, 'crypto', {
+      value: { getRandomValues: (bytes) => bytes.map(() => (seed += 7) % 256) },
+      configurable: true,
+    });
+
+    expect(randomUuid()).not.toBe(randomUuid());
+  });
+});
+
 describe('the client id', () => {
   test('is a UUID made once and the same in every instance over the same database', async () => {
     const indexedDB = new IDBFactory();

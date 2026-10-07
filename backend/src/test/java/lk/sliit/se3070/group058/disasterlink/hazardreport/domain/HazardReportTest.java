@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.Citizen;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.District;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.GeoPoint;
@@ -179,5 +180,23 @@ class HazardReportTest {
     assertThat(nearby.distanceKm()).isEqualTo(1.2);
     assertThat(nearby.report().getDistrict()).isEqualTo(District.KALUTARA);
     assertThatNullPointerException().isThrownBy(() -> new NearbyReport(null, 1.0));
+  }
+
+  @Test
+  @DisplayName("A report needs the draft fields validateReport checks (P155 X1)")
+  void constructorRequiresValidatedDraft() {
+    ReportDraft noType =
+        new ReportDraft("d", null, "text", LOCATION, false, District.KALUTARA, CAPTURED);
+    ReportDraft noText =
+        new ReportDraft("d", HazardType.FLOOD, null, LOCATION, false, District.KALUTARA, CAPTURED);
+    ReportDraft noLocation =
+        new ReportDraft("d", HazardType.FLOOD, "text", null, false, District.KALUTARA, CAPTURED);
+    ReportDraft noDistrict =
+        new ReportDraft("d", HazardType.FLOOD, "text", LOCATION, false, null, CAPTURED);
+
+    for (ReportDraft draft : List.of(noType, noText, noLocation, noDistrict)) {
+      assertThatNullPointerException()
+          .isThrownBy(() -> new HazardReport("RPT-1", REPORTER, draft, "p.jpg", RECEIVED));
+    }
   }
 }

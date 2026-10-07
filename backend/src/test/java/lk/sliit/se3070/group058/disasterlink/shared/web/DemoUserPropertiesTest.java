@@ -55,4 +55,41 @@ class DemoUserPropertiesTest {
               assertThat(bound.citizenId()).isEqualTo("e");
             });
   }
+
+  @Test
+  @DisplayName("A missing demo user id stops the start-up with a message that names the property")
+  void missingIdFailsAtStartUp() {
+    new ApplicationContextRunner()
+        .withUserConfiguration(PropertiesConfiguration.class)
+        .withPropertyValues(
+            "demo.users.dmc-officer-id=a",
+            "demo.users.dmc-duty-officer-id=b",
+            "demo.users.district-officer-id=c",
+            "demo.users.organization-id=d")
+        .run(
+            context ->
+                assertThat(context)
+                    .hasFailed()
+                    .getFailure()
+                    .hasStackTraceContaining("demo.users.citizen-id must name the demo citizen"));
+  }
+
+  @Test
+  @DisplayName("A blank demo user id also stops the start-up")
+  void blankIdFailsAtStartUp() {
+    new ApplicationContextRunner()
+        .withUserConfiguration(PropertiesConfiguration.class)
+        .withPropertyValues(
+            "demo.users.dmc-officer-id= ",
+            "demo.users.dmc-duty-officer-id=b",
+            "demo.users.district-officer-id=c",
+            "demo.users.organization-id=d",
+            "demo.users.citizen-id=e")
+        .run(
+            context ->
+                assertThat(context)
+                    .hasFailed()
+                    .getFailure()
+                    .hasStackTraceContaining("demo.users.dmc-officer-id must name"));
+  }
 }

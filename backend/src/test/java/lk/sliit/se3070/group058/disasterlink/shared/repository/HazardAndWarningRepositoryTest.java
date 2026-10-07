@@ -266,8 +266,8 @@ class HazardAndWarningRepositoryTest {
         warning(
             "W6", hazard, officer, NOW.minusHours(2), later, List.of(District.GALLE), List.of()));
 
-    // W3 expires exactly now (expired); W4 is issued a second from now; W5 is issued exactly now
-    // (active).
+    // W3 expires exactly now (expired); W4 is issued a second from now; W5 is issued exactly
+    // now (active).
     assertThat(warningIds(warnings.findActiveByDistrict(District.COLOMBO, NOW)))
         .containsExactlyInAnyOrder("W1", "W5");
     assertThat(warningIds(warnings.findActiveByDistrict(District.KALUTARA, NOW)))
@@ -355,9 +355,8 @@ class HazardAndWarningRepositoryTest {
         FeatureFixtures.criteria(Set.of(District.RATNAPURA), null, PERIOD_START, PERIOD_END);
 
     // X1 issued at the start (counts); X2 at the end (does not); X3 a minute before the end,
-    // covered
-    // through the Kalu basin; X4 a minute before the start; X5 another hazard type; X6 another
-    // district.
+    // covered through the Kalu basin; X4 a minute before the start; X5 another hazard type; X6
+    // another district.
     assertThat(warningIds(warnings.findMatching(floodInRatnapura))).containsExactly("X1", "X3");
     assertThat(warningIds(warnings.findMatching(anyType))).containsExactly("X1", "X5", "X3");
   }

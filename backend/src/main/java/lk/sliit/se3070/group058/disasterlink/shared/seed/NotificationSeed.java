@@ -20,9 +20,6 @@ import lk.sliit.se3070.group058.disasterlink.shared.domain.Recipient;
  */
 final class NotificationSeed {
 
-  /** The one line break between an SMS's message and instructions (MD section 6, FX-09). */
-  private static final String SMS_TEXT_SEPARATOR = "\n";
-
   /** The channels of the seeded warnings, in the order SC1 step 10 names them. */
   private static final List<NotificationChannel> CHANNELS =
       List.of(NotificationChannel.PUSH, NotificationChannel.AUDIBLE_ALERT, NotificationChannel.SMS);
@@ -119,7 +116,9 @@ final class NotificationSeed {
       LocalisedText instructions) {
     String body = message.textIn(recipient.getPreferredLanguage());
     if (channel == NotificationChannel.SMS) {
-      return body + SMS_TEXT_SEPARATOR + instructions.textIn(recipient.getPreferredLanguage());
+      return body
+          + Notification.SMS_TEXT_SEPARATOR
+          + instructions.textIn(recipient.getPreferredLanguage());
     }
     return body;
   }

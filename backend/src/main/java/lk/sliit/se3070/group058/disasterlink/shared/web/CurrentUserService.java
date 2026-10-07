@@ -1,10 +1,14 @@
 package lk.sliit.se3070.group058.disasterlink.shared.web;
 
 import java.util.Arrays;
+import java.util.EnumMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
 import lk.sliit.se3070.group058.disasterlink.shared.config.DemoUserProperties;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.District;
+import lk.sliit.se3070.group058.disasterlink.shared.domain.DistrictOfficer;
 import lk.sliit.se3070.group058.disasterlink.shared.repository.DMCDutyOfficerRepository;
 import lk.sliit.se3070.group058.disasterlink.shared.repository.DMCOfficerRepository;
 import lk.sliit.se3070.group058.disasterlink.shared.repository.DistrictOfficerRepository;
@@ -29,15 +33,12 @@ public class CurrentUserService {
 
   private static final String ORGANIZATION_LABEL = "Resource-Owning Organisation";
 
-  private final DemoUserProperties users;
+  /** The configured identifier of each role's demo user. */
+  private final Map<DemoRole, String> ids = new EnumMap<>(DemoRole.class);
 
-  private final DMCOfficerRepository dmcOfficers;
-
-  private final DMCDutyOfficerRepository dutyOfficers;
-
-  private final DistrictOfficerRepository districtOfficers;
-
-  private final OrganizationRepository organizations;
+  /** How each role's demo user is loaded and shown in the top bar (identifier to view). */
+  private final Map<DemoRole, Function<String, CurrentUserView>> views =
+      new EnumMap<>(DemoRole.class);
 
   /**
    * Creates the service.
@@ -54,11 +55,30 @@ public class CurrentUserService {
       DMCDutyOfficerRepository dutyOfficers,
       DistrictOfficerRepository districtOfficers,
       OrganizationRepository organizations) {
-    this.users = Objects.requireNonNull(users, "users");
-    this.dmcOfficers = Objects.requireNonNull(dmcOfficers, "dmcOfficers");
-    this.dutyOfficers = Objects.requireNonNull(dutyOfficers, "dutyOfficers");
-    this.districtOfficers = Objects.requireNonNull(districtOfficers, "districtOfficers");
-    this.organizations = Objects.requireNonNull(organizations, "organizations");
+    Objects.requireNonNull(users, "users");
+    Objects.requireNonNull(dmcOfficers, "dmcOfficers");
+    Objects.requireNonNull(dutyOfficers, "dutyOfficers");
+    Objects.requireNonNull(districtOfficers, "districtOfficers");
+    Objects.requireNonNull(organizations, "organizations");
+    ids.put(DemoRole.DMC_OFFICER, users.dmcOfficerId());
+    ids.put(DemoRole.DMC_DUTY_OFFICER, users.dmcDutyOfficerId());
+    ids.put(DemoRole.DISTRICT_OFFICER, users.districtOfficerId());
+    ids.put(DemoRole.ORGANIZATION, users.organizationId());
+    views.put(
+        DemoRole.DMC_OFFICER,
+        id -> view(dmcOfficers.findById(id).orElseThrow().getName(), DMC_OFFICER_LABEL));
+    views.put(
+        DemoRole.DMC_DUTY_OFFICER,
+        id -> view(dutyOfficers.findById(id).orElseThrow().getName(), DMC_DUTY_OFFICER_LABEL));
+    views.put(
+        DemoRole.DISTRICT_OFFICER,
+        id -> {
+          DistrictOfficer officer = districtOfficers.findById(id).orElseThrow();
+          return view(officer.getName(), titleCase(officer.getDistrict()) + " District");
+        });
+    views.put(
+        DemoRole.ORGANIZATION,
+        id -> view(organizations.findById(id).orElseThrow().getName(), ORGANIZATION_LABEL));
   }
 
   /**
@@ -68,12 +88,7 @@ public class CurrentUserService {
    * @return the configured identifier
    */
   public String userId(DemoRole role) {
-    return switch (role) {
-      case DMC_OFFICER -> users.dmcOfficerId();
-      case DMC_DUTY_OFFICER -> users.dmcDutyOfficerId();
-      case DISTRICT_OFFICER -> users.districtOfficerId();
-      case ORGANIZATION -> users.organizationId();
-    };
+    return ids.get(role);
   }
 
   /**
@@ -85,18 +100,7 @@ public class CurrentUserService {
    */
   @Transactional(readOnly = true)
   public CurrentUserView currentUser(DemoRole role) {
-    String id = userId(role);
-    return switch (role) {
-      case DMC_OFFICER -> view(dmcOfficers.findById(id).orElseThrow().getName(), DMC_OFFICER_LABEL);
-      case DMC_DUTY_OFFICER ->
-          view(dutyOfficers.findById(id).orElseThrow().getName(), DMC_DUTY_OFFICER_LABEL);
-      case DISTRICT_OFFICER -> {
-        var officer = districtOfficers.findById(id).orElseThrow();
-        yield view(officer.getName(), titleCase(officer.getDistrict()) + " District");
-      }
-      case ORGANIZATION ->
-          view(organizations.findById(id).orElseThrow().getName(), ORGANIZATION_LABEL);
-    };
+    return views.get(role).apply(ids.get(role));
   }
 
   private static CurrentUserView view(String name, String roleLabel) {

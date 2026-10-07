@@ -1,6 +1,7 @@
 package lk.sliit.se3070.group058.disasterlink.shared.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -58,10 +59,20 @@ class RecipientTest {
   @Test
   @DisplayName("A community volunteer keeps the organisation it belongs to")
   void volunteerKeepsItsOrganisation() {
-    Organization group = SampleEntities.organization("ORG-0001");
+    Organization group = SampleEntities.volunteerGroup("ORG-0001");
 
     assertThat(SampleEntities.volunteer("CIT-RAT-0002", group).getOrganization())
         .containsSame(group);
+  }
+
+  @Test
+  @DisplayName("A volunteer can only belong to a community volunteer group (A24; P155 A-11)")
+  void volunteerRejectsOtherOrganisationTypes() {
+    Organization ngo = SampleEntities.organization("ORG-0002");
+
+    assertThatIllegalArgumentException()
+        .isThrownBy(() -> SampleEntities.volunteer("CIT-RAT-0003", ngo))
+        .withMessageContaining("COMMUNITY_VOLUNTEER_GROUP");
   }
 
   @Test

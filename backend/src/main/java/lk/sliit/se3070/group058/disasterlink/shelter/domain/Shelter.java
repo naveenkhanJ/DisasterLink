@@ -79,10 +79,13 @@ public class Shelter {
    *
    * @param shelterId the identifier, a UUID made by the control for a shelter registered at run
    *     time
-   * @param details the name, address, district, capacity and contact number
+   * @param details the name, address, district, capacity and contact number; the shelter is created
+   *     only after {@code validateShelterDetails}, so the components that the record accepts as
+   *     {@code null} are required here (P155 X1)
    * @param officer the district officer who registers the shelter
    * @param operator the operating organisation, or {@code null} if there is none
-   * @throws NullPointerException if an argument other than {@code operator} is {@code null}
+   * @throws NullPointerException if an argument other than {@code operator}, or a required
+   *     component of {@code details}, is {@code null}
    */
   public Shelter(
       String shelterId, ShelterDetails details, DistrictOfficer officer, Organization operator) {
@@ -90,11 +93,11 @@ public class Shelter {
     Objects.requireNonNull(details, "details");
     this.officer = Objects.requireNonNull(officer, "officer");
     this.operator = operator;
-    this.name = details.name();
-    this.address = details.address();
-    this.district = details.district();
+    this.name = Objects.requireNonNull(details.name(), "name");
+    this.address = Objects.requireNonNull(details.address(), "address");
+    this.district = Objects.requireNonNull(details.district(), "district");
     this.capacity = details.capacity();
-    this.contactNumber = details.contactNumber();
+    this.contactNumber = Objects.requireNonNull(details.contactNumber(), "contactNumber");
     this.currentOccupancy = 0;
     this.status = ShelterStatus.OPEN;
     this.occupancyRecords = new ArrayList<>();
@@ -212,6 +215,17 @@ public class Shelter {
    */
   public ShelterStatus getStatus() {
     return status;
+  }
+
+  /**
+   * Returns the occupancy history of the shelter (MD section 3 Shelter, PR8), in the order the
+   * records were added. Written by the skeleton because UC4's {@code OccupancyTrendCalculator}
+   * reads it and cannot wait for UC3 (P155 X5).
+   *
+   * @return an unmodifiable view of the occupancy records
+   */
+  public List<OccupancyRecord> getOccupancyRecords() {
+    return Collections.unmodifiableList(occupancyRecords);
   }
 
   /**

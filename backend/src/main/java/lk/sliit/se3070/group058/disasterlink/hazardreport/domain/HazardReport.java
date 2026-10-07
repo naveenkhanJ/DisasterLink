@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
 import java.util.Objects;
 import java.util.Optional;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.Citizen;
+import lk.sliit.se3070.group058.disasterlink.shared.domain.ColumnLengths;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.DMCDutyOfficer;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.District;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.GeoPoint;
@@ -38,7 +39,7 @@ public class HazardReport {
   @Enumerated(EnumType.STRING)
   private HazardType hazardType;
 
-  @Column(length = 2000)
+  @Column(length = ColumnLengths.LONG_TEXT)
   private String description;
 
   private String photo;
@@ -65,7 +66,7 @@ public class HazardReport {
 
   private LocalDateTime verificationTime;
 
-  @Column(length = 2000)
+  @Column(length = ColumnLengths.LONG_TEXT)
   private String rejectionReason;
 
   @Version private long version;
@@ -88,10 +89,12 @@ public class HazardReport {
    *
    * @param reportId the identifier from {@code IdGenerator}
    * @param reporter the citizen who submitted the report
-   * @param draft the draft the app sent
+   * @param draft the draft the app sent; the report is created only after {@code validateReport},
+   *     so the components that a draft accepts as {@code null} are required here (P155 X1)
    * @param photo the stored file name of the photo
    * @param receivedAt when the server received the report
-   * @throws NullPointerException if an argument is {@code null}
+   * @throws NullPointerException if an argument, or a required component of {@code draft}, is
+   *     {@code null}
    */
   public HazardReport(
       String reportId,
@@ -104,11 +107,11 @@ public class HazardReport {
     Objects.requireNonNull(draft, "draft");
     this.photo = Objects.requireNonNull(photo, "photo");
     this.reportTime = Objects.requireNonNull(receivedAt, "receivedAt");
-    this.hazardType = draft.hazardType();
-    this.description = draft.description();
-    this.location = draft.location();
+    this.hazardType = Objects.requireNonNull(draft.hazardType(), "hazardType");
+    this.description = Objects.requireNonNull(draft.description(), "description");
+    this.location = Objects.requireNonNull(draft.location(), "location");
     this.locationFromGps = draft.locationFromGps();
-    this.district = draft.district();
+    this.district = Objects.requireNonNull(draft.district(), "district");
     this.capturedAt = draft.capturedAt();
     this.status = ReportStatus.PENDING_VERIFICATION;
   }

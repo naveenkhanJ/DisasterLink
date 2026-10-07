@@ -9,12 +9,21 @@ import java.util.Objects;
  *
  * <p>Implements CH-26.
  *
+ * <p>An input value record (MD section 0.13, P155 X1): a field the citizen has not entered is
+ * {@code null}, so that {@code ReportSubmissionController.validateReport} and {@code
+ * ReportCaptureController.validateDraft} report it. {@code draftId} and {@code capturedAt} are made
+ * by the device, not typed by the citizen, and stay required.
+ *
  * @param draftId the identifier made on the device, sent as the submission identifier
- * @param hazardType the type of the hazard
- * @param description the citizen's description
- * @param location the place of the hazard
+ * @param hazardType the type of the hazard, or {@code null} if not entered — checked by {@code
+ *     ReportSubmissionController.validateReport}
+ * @param description the citizen's description, or {@code null} if not entered — checked by {@code
+ *     ReportSubmissionController.validateReport}
+ * @param location the place of the hazard, or {@code null} if not entered — checked by {@code
+ *     ReportSubmissionController.validateReport}
  * @param locationFromGps whether the location came from the phone's GPS
- * @param district the district of the hazard
+ * @param district the district of the hazard, or {@code null} if not entered — checked by {@code
+ *     ReportSubmissionController.validateReport}
  * @param capturedAt when the report was captured on the phone
  */
 public record ReportDraft(
@@ -27,9 +36,9 @@ public record ReportDraft(
     LocalDateTime capturedAt) {
 
   /**
-   * Creates the record, checking the required components and copying the collections.
+   * Creates the record, checking the two structural components.
    *
-   * @throws NullPointerException if a required component is {@code null}
+   * @throws NullPointerException if {@code draftId} or {@code capturedAt} is {@code null}
    */
   public ReportDraft(
       String draftId,
@@ -40,11 +49,11 @@ public record ReportDraft(
       District district,
       LocalDateTime capturedAt) {
     this.draftId = Objects.requireNonNull(draftId, "draftId");
-    this.hazardType = Objects.requireNonNull(hazardType, "hazardType");
-    this.description = Objects.requireNonNull(description, "description");
-    this.location = Objects.requireNonNull(location, "location");
+    this.hazardType = hazardType;
+    this.description = description;
+    this.location = location;
     this.locationFromGps = locationFromGps;
-    this.district = Objects.requireNonNull(district, "district");
+    this.district = district;
     this.capturedAt = Objects.requireNonNull(capturedAt, "capturedAt");
   }
 }

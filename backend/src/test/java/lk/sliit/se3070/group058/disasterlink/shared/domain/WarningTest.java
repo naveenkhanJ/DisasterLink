@@ -161,4 +161,69 @@ class WarningTest {
   void plainConstructorHasNoNotifications() {
     assertThat(warning(List.of(District.GALLE), List.of()).getNotifications()).isEmpty();
   }
+
+  @Test
+  @DisplayName("The constructor needs the components validateWarning checks (P155 X1)")
+  void constructorRequiresValidatedComponents() {
+    LocalisedText text = SampleEntities.TEXT;
+    Set<NotificationChannel> channels = Set.of(NotificationChannel.SMS);
+
+    assertThatNullPointerException()
+        .isThrownBy(
+            () ->
+                new Warning(
+                    "W",
+                    HAZARD,
+                    new WarningDetails(null, text, text, List.of(), List.of(), channels, NOW),
+                    OFFICER,
+                    NOW));
+    assertThatNullPointerException()
+        .isThrownBy(
+            () ->
+                new Warning(
+                    "W",
+                    HAZARD,
+                    new WarningDetails(
+                        WarningLevel.LEVEL_2_AMBER,
+                        null,
+                        text,
+                        List.of(),
+                        List.of(),
+                        channels,
+                        NOW),
+                    OFFICER,
+                    NOW));
+    assertThatNullPointerException()
+        .isThrownBy(
+            () ->
+                new Warning(
+                    "W",
+                    HAZARD,
+                    new WarningDetails(
+                        WarningLevel.LEVEL_2_AMBER,
+                        text,
+                        null,
+                        List.of(),
+                        List.of(),
+                        channels,
+                        NOW),
+                    OFFICER,
+                    NOW));
+    assertThatNullPointerException()
+        .isThrownBy(
+            () ->
+                new Warning(
+                    "W",
+                    HAZARD,
+                    new WarningDetails(
+                        WarningLevel.LEVEL_2_AMBER,
+                        text,
+                        text,
+                        List.of(),
+                        List.of(),
+                        channels,
+                        null),
+                    OFFICER,
+                    NOW));
+  }
 }

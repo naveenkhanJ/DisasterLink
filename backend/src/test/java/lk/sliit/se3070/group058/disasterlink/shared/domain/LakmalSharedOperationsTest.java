@@ -9,10 +9,11 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Documents the placeholder operations of the shared entities. Each throws until its owner writes
- * the body on his branch and replaces the matching test (implementation standards section 3).
+ * Documents Lakmal's seven placeholder operations on the shared entities. Each throws until he
+ * writes the body on his branch; he replaces this file's tests with the real tests of his
+ * operations (implementation standards section 3, P155 X4).
  */
-class PlaceholderOperationsTest {
+class LakmalSharedOperationsTest {
 
   private static final Hazard HAZARD = SampleEntities.hazard("HZ-2026-0201");
 
@@ -88,15 +89,5 @@ class PlaceholderOperationsTest {
     assertThatThrownBy(() -> NOTIFICATION.markFailed(NOW))
         .isInstanceOf(UnsupportedOperationException.class)
         .hasMessage("not implemented yet — Lakmal");
-  }
-
-  @Test
-  @DisplayName("Citizen.changePreferredLanguage is Afham's placeholder")
-  void changePreferredLanguage() {
-    Citizen citizen = SampleEntities.citizen("CIT-KLT-0001", null);
-
-    assertThatThrownBy(() -> citizen.changePreferredLanguage(Language.TAMIL))
-        .isInstanceOf(UnsupportedOperationException.class)
-        .hasMessage("not implemented yet — Afham");
   }
 }

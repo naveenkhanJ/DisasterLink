@@ -8,17 +8,21 @@ import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/** Tests of {@link ReportResults}. */
-class ReportResultsTest {
+/**
+ * Documents Naveenkhan's placeholder operation on the shared entities. It throws until he writes
+ * the body on his branch; he replaces this file's test with the real tests of the operation
+ * (implementation standards section 3, P155 X4).
+ */
+class NaveenkhanSharedOperationsTest {
 
   @Test
-  @DisplayName("merge is a placeholder owned by Naveenkhan and throws until he writes it")
+  @DisplayName("ReportResults.merge is Naveenkhan's placeholder")
   void mergeIsNotImplementedYet() {
     ReportResults results =
         new ReportResults(0, List.of(), Map.of(), 0, List.of(), 0, List.of(), Set.of());
 
     assertThatThrownBy(() -> results.merge(results))
         .isInstanceOf(UnsupportedOperationException.class)
-        .hasMessageContaining("Naveenkhan");
+        .hasMessage("not implemented yet — Naveenkhan");
   }
 }

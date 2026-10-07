@@ -40,9 +40,15 @@ public class Warning {
 
   @Embedded
   @AttributeOverrides({
-    @AttributeOverride(name = "sinhala", column = @Column(name = "message_sinhala", length = 2000)),
-    @AttributeOverride(name = "tamil", column = @Column(name = "message_tamil", length = 2000)),
-    @AttributeOverride(name = "english", column = @Column(name = "message_english", length = 2000))
+    @AttributeOverride(
+        name = "sinhala",
+        column = @Column(name = "message_sinhala", length = ColumnLengths.LONG_TEXT)),
+    @AttributeOverride(
+        name = "tamil",
+        column = @Column(name = "message_tamil", length = ColumnLengths.LONG_TEXT)),
+    @AttributeOverride(
+        name = "english",
+        column = @Column(name = "message_english", length = ColumnLengths.LONG_TEXT))
   })
   private LocalisedText message;
 
@@ -50,13 +56,13 @@ public class Warning {
   @AttributeOverrides({
     @AttributeOverride(
         name = "sinhala",
-        column = @Column(name = "instructions_sinhala", length = 2000)),
+        column = @Column(name = "instructions_sinhala", length = ColumnLengths.LONG_TEXT)),
     @AttributeOverride(
         name = "tamil",
-        column = @Column(name = "instructions_tamil", length = 2000)),
+        column = @Column(name = "instructions_tamil", length = ColumnLengths.LONG_TEXT)),
     @AttributeOverride(
         name = "english",
-        column = @Column(name = "instructions_english", length = 2000))
+        column = @Column(name = "instructions_english", length = ColumnLengths.LONG_TEXT))
   })
   private LocalisedText instructions;
 
@@ -104,10 +110,13 @@ public class Warning {
    *
    * @param warningId the identifier from {@code IdGenerator}
    * @param hazard the hazard the warning is for
-   * @param details the level, texts, targets, channels and expiry time of the warning
+   * @param details the level, texts, targets, channels and expiry time of the warning; called only
+   *     after {@code validateWarning}, so the components that record accepts as {@code null} are
+   *     required here (P155 X1)
    * @param officer the officer who issues the warning
    * @param issuedTime when the warning is issued
-   * @throws NullPointerException if an argument is {@code null}
+   * @throws NullPointerException if an argument, or a required component of {@code details}, is
+   *     {@code null}
    */
   public Warning(
       String warningId,
@@ -120,10 +129,10 @@ public class Warning {
     Objects.requireNonNull(details, "details");
     this.officer = Objects.requireNonNull(officer, "officer");
     this.issuedTime = Objects.requireNonNull(issuedTime, "issuedTime");
-    this.warningLevel = details.warningLevel();
-    this.message = details.message();
-    this.instructions = details.instructions();
-    this.expiryTime = details.expiryTime();
+    this.warningLevel = Objects.requireNonNull(details.warningLevel(), "warningLevel");
+    this.message = Objects.requireNonNull(details.message(), "message");
+    this.instructions = Objects.requireNonNull(details.instructions(), "instructions");
+    this.expiryTime = Objects.requireNonNull(details.expiryTime(), "expiryTime");
     this.targetDistricts = new ArrayList<>(details.targetDistricts());
     this.targetRiverBasins = new ArrayList<>(details.targetRiverBasins());
     this.channels = EnumSet.noneOf(NotificationChannel.class);

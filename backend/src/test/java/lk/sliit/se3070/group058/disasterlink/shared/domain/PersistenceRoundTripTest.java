@@ -53,7 +53,7 @@ class PersistenceRoundTripTest {
   @Test
   @DisplayName("A volunteer keeps its organisation (A24)")
   void volunteerRoundTrip() {
-    Organization group = SampleEntities.organization("ORG-0001");
+    Organization group = SampleEntities.volunteerGroup("ORG-0001");
     entityManager.persist(group);
 
     CommunityVolunteer volunteer =

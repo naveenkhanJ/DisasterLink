@@ -1,12 +1,12 @@
 package lk.sliit.se3070.group058.disasterlink.shelter.web.mapper;
 
-import java.time.ZoneId;
 import java.util.List;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.ClientMeta;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.Organization;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.ShelterDetails;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.ShelterSubmission;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.ValidationResult;
+import lk.sliit.se3070.group058.disasterlink.shared.web.WireTime;
 import lk.sliit.se3070.group058.disasterlink.shelter.domain.Shelter;
 import lk.sliit.se3070.group058.disasterlink.shelter.domain.ShelterOutcome;
 import lk.sliit.se3070.group058.disasterlink.shelter.domain.ShelterView;
@@ -26,8 +26,6 @@ import lk.sliit.se3070.group058.disasterlink.shelter.web.dto.ValidationResultRes
  * <p>Implementation-only class (standards section 4, "No entities on the wire").
  */
 public final class ShelterMapper {
-
-  private static final ZoneId ZONE = ZoneId.of("Asia/Colombo");
 
   private ShelterMapper() {
     throw new AssertionError("ShelterMapper is a utility class");
@@ -49,7 +47,8 @@ public final class ShelterMapper {
         shelter.getCurrentOccupancy(),
         shelter.getContactNumber(),
         shelter.getStatus(),
-        shelter.getOperator().map(Organization::getName).orElse(null));
+        shelter.getOperator().map(Organization::getName).orElse(null),
+        shelter.getOperator().map(Organization::getOrganizationId).orElse(null));
   }
 
   /**
@@ -107,7 +106,7 @@ public final class ShelterMapper {
         request.clientId(),
         request.userId(),
         request.submissionId(),
-        request.capturedAt().atZoneSameInstant(ZONE).toLocalDateTime(),
+        WireTime.fromWire(request.capturedAt()),
         request.pendingCount());
   }
 

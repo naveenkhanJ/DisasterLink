@@ -20,7 +20,8 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 /**
  * Tests that every value-type record accepts a valid instance, rejects a null for each required
- * component and accepts a null for each component the dictionary marks {@code [0..1]}.
+ * component and accepts a null for each component the dictionary marks {@code [0..1]} or that is an
+ * input value record's field (MD section 0.13). The structural fields stay required.
  */
 class RequiredComponentsTest {
 
@@ -29,9 +30,32 @@ class RequiredComponentsTest {
       Map.ofEntries(
           Map.entry(GeoPoint.class, Set.of("accuracyMetres")),
           Map.entry(ReportDecisionNotice.class, Set.of("reason")),
-          Map.entry(ShelterDetails.class, Set.of("operatorId")),
+          Map.entry(
+              ShelterDetails.class,
+              Set.of("name", "address", "district", "contactNumber", "operatorId")),
           Map.entry(SyncResult.class, Set.of("reason", "message")),
-          Map.entry(ReportCriteria.class, Set.of("hazardType", "hazardId")),
+          Map.entry(
+              ReportCriteria.class,
+              Set.of("districts", "hazardType", "periodStart", "periodEnd", "metrics", "hazardId")),
+          // Input value records (MD section 0.13, P155 X1): the control validates these fields.
+          Map.entry(LocalisedText.class, Set.of("sinhala", "tamil", "english")),
+          Map.entry(
+              WarningDetails.class,
+              Set.of(
+                  "warningLevel",
+                  "message",
+                  "instructions",
+                  "targetDistricts",
+                  "targetRiverBasins",
+                  "channels",
+                  "expiryTime")),
+          Map.entry(HazardUpdate.class, Set.of("description", "severity", "districts")),
+          Map.entry(
+              EscalationDetails.class, Set.of("newLevel", "message", "instructions", "expiryTime")),
+          Map.entry(
+              NewHazardDetails.class,
+              Set.of("severity", "districts", "locationName", "description")),
+          Map.entry(ReportDraft.class, Set.of("hazardType", "description", "location", "district")),
           Map.entry(CriteriaCheck.class, Set.of("adjusted")),
           Map.entry(DistributionLine.class, Set.of("ownerId")));
 

@@ -31,7 +31,7 @@ public class AuditRecord {
 
   private String subjectId;
 
-  @Column(length = 2000)
+  @Column(length = ColumnLengths.LONG_TEXT)
   private String detail;
 
   @ManyToOne(optional = false, fetch = FetchType.LAZY)

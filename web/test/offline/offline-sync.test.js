@@ -84,7 +84,7 @@ describe('createMeta', () => {
       clientId: outbox.clientId,
       userId: USER_ID,
       submissionId: 'uuid-1',
-      capturedAt: '2026-05-21T14:05:00+05:30',
+      capturedAt: '2026-05-21T14:05:00.000+05:30',
       pendingCount: 1,
     });
   });
@@ -102,13 +102,17 @@ describe('createMeta', () => {
     const created = await defaults.createMeta();
 
     expect(created.submissionId).toMatch(/^[0-9a-f-]{36}$/);
-    expect(created.capturedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+05:30$/);
+    expect(created.capturedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}\+05:30$/);
   });
 });
 
 describe('toColomboIso and browserIsOnline', () => {
   test('toColomboIso moves to Asia/Colombo across midnight', () => {
-    expect(toColomboIso(new Date('2026-05-21T20:00:00Z'))).toBe('2026-05-22T01:30:00+05:30');
+    expect(toColomboIso(new Date('2026-05-21T20:00:00Z'))).toBe('2026-05-22T01:30:00.000+05:30');
+  });
+
+  test('toColomboIso keeps the milliseconds (P155 D-10)', () => {
+    expect(toColomboIso(new Date('2026-05-21T08:35:00.123Z'))).toBe('2026-05-21T14:05:00.123+05:30');
   });
 
   test('browserIsOnline is true without a navigator or with navigator.onLine true or absent', () => {

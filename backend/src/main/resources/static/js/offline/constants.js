@@ -51,8 +51,35 @@ export const TIME_ZONE_OFFSET_MINUTES = 330;
 /** Milliseconds in a minute. */
 export const MILLIS_PER_MINUTE = 60000;
 
-/** The length of `YYYY-MM-DDTHH:mm:ss` in an ISO-8601 string. */
-export const ISO_SECONDS_LENGTH = 19;
+/** The length of `YYYY-MM-DDTHH:mm:ss.SSS` in an ISO-8601 string: seconds and milliseconds are kept. */
+export const ISO_MILLIS_LENGTH = 23;
+
+/** The number of random bytes in a UUID. */
+export const UUID_BYTES = 16;
+
+/** The index of the byte that holds the UUID version (RFC 4122 section 4.4). */
+export const UUID_VERSION_BYTE = 6;
+
+/** The index of the byte that holds the UUID variant (RFC 4122 section 4.4). */
+export const UUID_VARIANT_BYTE = 8;
+
+/** Keeps the low four bits of the version byte. */
+export const UUID_VERSION_KEEP_MASK = 0x0f;
+
+/** Sets the version to 4 (random). */
+export const UUID_VERSION_4 = 0x40;
+
+/** Keeps the low six bits of the variant byte. */
+export const UUID_VARIANT_KEEP_MASK = 0x3f;
+
+/** Sets the variant to RFC 4122. */
+export const UUID_VARIANT_RFC4122 = 0x80;
+
+/** The hexadecimal digits of one byte. */
+export const HEX_RADIX = 16;
+
+/** The hexadecimal groups of a UUID, as the lengths of its five parts in digits. */
+export const UUID_GROUPS = Object.freeze([8, 4, 4, 4, 12]);
 
 /** The first HTTP status of a client error (a refused request: a 4xx problem detail). */
 export const CLIENT_ERROR_MIN = 400;

@@ -189,4 +189,70 @@ class ShelterTest {
     assertThatNullPointerException().isThrownBy(() -> new ShelterOutcome(null, null, 0, List.of()));
     assertThatNullPointerException().isThrownBy(() -> new ShelterOutcome(result, null, 0, null));
   }
+
+  @Test
+  @DisplayName("A shelter needs the details validateShelterDetails checks (P155 X1)")
+  void constructorRequiresValidatedDetails() {
+    assertThatNullPointerException()
+        .isThrownBy(
+            () ->
+                new Shelter(
+                    "S",
+                    new ShelterDetails(null, "a", District.GALLE, 10, "0112345678", null),
+                    OFFICER,
+                    null));
+    assertThatNullPointerException()
+        .isThrownBy(
+            () ->
+                new Shelter(
+                    "S",
+                    new ShelterDetails("n", null, District.GALLE, 10, "0112345678", null),
+                    OFFICER,
+                    null));
+    assertThatNullPointerException()
+        .isThrownBy(
+            () ->
+                new Shelter(
+                    "S",
+                    new ShelterDetails("n", "a", null, 10, "0112345678", null),
+                    OFFICER,
+                    null));
+    assertThatNullPointerException()
+        .isThrownBy(
+            () ->
+                new Shelter(
+                    "S",
+                    new ShelterDetails("n", "a", District.GALLE, 10, null, null),
+                    OFFICER,
+                    null));
+  }
+
+  @Test
+  @DisplayName("getOccupancyRecords returns the history in order and cannot be changed (P155 X5)")
+  void occupancyRecordsAreAnUnmodifiableView() {
+    LocalDateTime first = LocalDateTime.of(2026, 5, 21, 8, 0);
+    OccupancyRecord early = new OccupancyRecord(100, first, first, OFFICER);
+    OccupancyRecord late =
+        new OccupancyRecord(150, first.plusHours(2), first.plusHours(2), OFFICER);
+    Shelter shelter =
+        new Shelter(
+            "SHL-5",
+            "Hall",
+            "Road",
+            District.GALLE,
+            200,
+            150,
+            "0112345678",
+            ShelterStatus.OPEN,
+            OFFICER,
+            null,
+            List.of(early, late),
+            List.of());
+
+    List<OccupancyRecord> records = shelter.getOccupancyRecords();
+
+    assertThat(records).containsExactly(early, late);
+    assertThatThrownBy(() -> records.add(early)).isInstanceOf(UnsupportedOperationException.class);
+    assertThat(new Shelter("SHL-6", details(), OFFICER, null).getOccupancyRecords()).isEmpty();
+  }
 }

@@ -13,15 +13,39 @@ import {
   DB_VERSION,
   ITEMS_KEY_PATH,
   ITEMS_STORE,
+  HEX_RADIX,
   PendingStatus,
+  UUID_BYTES,
+  UUID_GROUPS,
+  UUID_VARIANT_BYTE,
+  UUID_VARIANT_KEEP_MASK,
+  UUID_VARIANT_RFC4122,
+  UUID_VERSION_4,
+  UUID_VERSION_BYTE,
+  UUID_VERSION_KEEP_MASK,
 } from './constants.js';
 
 /**
- * A new UUID from the browser.
+ * A new random (version 4) UUID. It uses `crypto.randomUUID` when the browser has it; a page served
+ * over plain HTTP from a LAN address is not a secure context and has no `randomUUID`, so then the
+ * UUID is built from `crypto.getRandomValues` as RFC 4122 section 4.4 describes.
  * @returns {string} the UUID
  */
 export function randomUuid() {
-  return globalThis.crypto.randomUUID();
+  const cryptoApi = globalThis.crypto;
+  if (typeof cryptoApi.randomUUID === 'function') {
+    return cryptoApi.randomUUID();
+  }
+  const bytes = cryptoApi.getRandomValues(new Uint8Array(UUID_BYTES));
+  bytes[UUID_VERSION_BYTE] = (bytes[UUID_VERSION_BYTE] & UUID_VERSION_KEEP_MASK) | UUID_VERSION_4;
+  bytes[UUID_VARIANT_BYTE] = (bytes[UUID_VARIANT_BYTE] & UUID_VARIANT_KEEP_MASK) | UUID_VARIANT_RFC4122;
+  const digits = Array.from(bytes, (byte) => byte.toString(HEX_RADIX).padStart(2, '0')).join('');
+  let start = 0;
+  return UUID_GROUPS.map((length) => {
+    const group = digits.slice(start, start + length);
+    start += length;
+    return group;
+  }).join('-');
 }
 
 /**

@@ -147,4 +147,36 @@ class HazardAndNotificationTest {
                 new Notification(
                     null, "ORG-1", NotificationChannel.SMS, "t", 1, DeliveryStatus.FAILED, null));
   }
+
+  @Test
+  @DisplayName("A hazard from verified-report details needs the severity, name and description")
+  void hazardNeedsValidatedDetails() {
+    assertThatNullPointerException()
+        .isThrownBy(
+            () ->
+                new Hazard(
+                    "HZ",
+                    HazardType.FLOOD,
+                    SampleEntities.RATNAPURA_POINT,
+                    NOW,
+                    new NewHazardDetails(null, List.of(District.GALLE), "Place", "Text")));
+    assertThatNullPointerException()
+        .isThrownBy(
+            () ->
+                new Hazard(
+                    "HZ",
+                    HazardType.FLOOD,
+                    SampleEntities.RATNAPURA_POINT,
+                    NOW,
+                    new NewHazardDetails(HazardSeverity.LOW, List.of(), null, "Text")));
+    assertThatNullPointerException()
+        .isThrownBy(
+            () ->
+                new Hazard(
+                    "HZ",
+                    HazardType.FLOOD,
+                    SampleEntities.RATNAPURA_POINT,
+                    NOW,
+                    new NewHazardDetails(HazardSeverity.LOW, List.of(), "Place", null)));
+  }
 }

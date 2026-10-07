@@ -8,29 +8,31 @@ import java.util.Objects;
  *
  * <p>Implements CH-21.
  *
- * @param sinhala the text in Sinhala
- * @param tamil the text in Tamil
- * @param english the text in English
+ * <p>An input value record (MD section 0.13, P155 X1): a language the officer has not written is
+ * {@code null}, so that {@code WarningTextValidator} reports the missing text.
+ *
+ * @param sinhala the text in Sinhala, or {@code null} if not entered — checked by {@code
+ *     WarningTextValidator}
+ * @param tamil the text in Tamil, or {@code null} if not entered — checked by {@code
+ *     WarningTextValidator}
+ * @param english the text in English, or {@code null} if not entered — checked by {@code
+ *     WarningTextValidator}
  */
 @Embeddable
 public record LocalisedText(String sinhala, String tamil, String english) {
 
-  /**
-   * Creates the text, checking that it exists in all three languages.
-   *
-   * @throws NullPointerException if a language has no text
-   */
+  /** Creates the text; a language may be {@code null} (not entered). */
   public LocalisedText(String sinhala, String tamil, String english) {
-    this.sinhala = Objects.requireNonNull(sinhala, "sinhala");
-    this.tamil = Objects.requireNonNull(tamil, "tamil");
-    this.english = Objects.requireNonNull(english, "english");
+    this.sinhala = sinhala;
+    this.tamil = tamil;
+    this.english = english;
   }
 
   /**
    * Returns the text in one language.
    *
    * @param language the language wanted
-   * @return the text in that language
+   * @return the text in that language, or {@code null} if it was not entered
    * @throws NullPointerException if {@code language} is {@code null}
    */
   public String textIn(Language language) {

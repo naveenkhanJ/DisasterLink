@@ -4,6 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -16,7 +19,9 @@ import java.util.stream.Stream;
 import lk.sliit.se3070.group058.disasterlink.analytics.repository.CriteriaTemplateRepository;
 import lk.sliit.se3070.group058.disasterlink.hazardreport.domain.HazardReport;
 import lk.sliit.se3070.group058.disasterlink.hazardreport.repository.HazardReportRepository;
+import lk.sliit.se3070.group058.disasterlink.shared.config.DemoSeedProperties;
 import lk.sliit.se3070.group058.disasterlink.shared.config.DemoUserProperties;
+import lk.sliit.se3070.group058.disasterlink.shared.config.PhotoStorageProperties;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.AuditAction;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.AuditRecord;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.Citizen;
@@ -52,11 +57,13 @@ import lk.sliit.se3070.group058.disasterlink.shared.service.IdGenerator;
 import lk.sliit.se3070.group058.disasterlink.shared.service.IdKind;
 import lk.sliit.se3070.group058.disasterlink.shared.web.CurrentUserService;
 import lk.sliit.se3070.group058.disasterlink.shared.web.DemoRole;
+import lk.sliit.se3070.group058.disasterlink.shelter.domain.OccupancyRecord;
 import lk.sliit.se3070.group058.disasterlink.shelter.domain.Shelter;
 import lk.sliit.se3070.group058.disasterlink.shelter.repository.ShelterRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -66,6 +73,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 
 /**
  * Proves the seed of stage S4: every fixed identifier and fact of the seed plan, the finders the
@@ -82,12 +91,25 @@ import org.springframework.test.context.ActiveProfiles;
   LiveStorySeed.class,
   ShelterSeed.class,
   ReportingSeed.class,
+  PhotoSeed.class,
   IdGenerator.class,
   CurrentUserService.class,
   SeedDataRunnerTest.FixedClockConfiguration.class
 })
-@EnableConfigurationProperties(DemoUserProperties.class)
+@EnableConfigurationProperties({
+  DemoUserProperties.class,
+  DemoSeedProperties.class,
+  PhotoStorageProperties.class
+})
 class SeedDataRunnerTest {
+
+  /** The directory the seed writes the photos to; the test owns it. */
+  @TempDir static Path photoDirectory;
+
+  @DynamicPropertySource
+  static void photoStorage(DynamicPropertyRegistry registry) {
+    registry.add("photo.storage-dir", () -> photoDirectory.toString());
+  }
 
   /** The moment the seed runs: 12 October 2026, 10:30 in Colombo. */
   static final Instant INSTANT = Instant.parse("2026-10-12T05:00:00Z");
@@ -364,42 +386,134 @@ class SeedDataRunnerTest {
 
   @Test
   @DisplayName(
-      "The event shelters of Ratnapura and Kalutara are linked to WRN-2026-0087 and peak at 94 %")
+      "The event shelters are linked to WRN-2026-0087 except Kalutara Town Hall; the peak is 94 %")
   void eventShelters() {
     List<Shelter> event =
         Stream.of(District.RATNAPURA, District.KALUTARA)
             .flatMap(district -> shelters.findByDistrict(district).stream())
             .toList();
 
+    assertThat(event).hasSize(8);
     assertThat(event)
-        .hasSize(8)
+        .filteredOn(shelter -> !"SHL-KLT-0001".equals(shelter.getShelterId()))
+        .hasSize(7)
         .allSatisfy(
             shelter ->
                 assertThat(shelter.getWarnings())
                     .extracting(Warning::getWarningId)
                     .containsExactly("WRN-2026-0087"));
     int capacity = event.stream().mapToInt(Shelter::getCapacity).sum();
-    long records =
-        entityManager
-            .createQuery(
-                "select count(r) from Shelter s join s.occupancyRecords r"
-                    + " where s.district in :districts",
-                Long.class)
-            .setParameter("districts", List.of(District.RATNAPURA, District.KALUTARA))
-            .getSingleResult();
+    long records = event.stream().mapToLong(shelter -> shelter.getOccupancyRecords().size()).sum();
     long peak =
-        entityManager
-            .createQuery(
-                "select max(r.occupantCount) from Shelter s join s.occupancyRecords r"
-                    + " where s.district in :districts group by s.shelterId",
-                Integer.class)
-            .setParameter("districts", List.of(District.RATNAPURA, District.KALUTARA))
-            .getResultList()
-            .stream()
-            .mapToLong(Integer::longValue)
+        event.stream()
+            .mapToLong(
+                shelter ->
+                    shelter.getOccupancyRecords().stream()
+                        .mapToInt(OccupancyRecord::getOccupantCount)
+                        .max()
+                        .orElse(0))
             .sum();
-    assertThat(records).isEqualTo(48);
+    assertThat(records).isEqualTo(49);
     assertThat(peak * 100.0 / capacity).isEqualTo(94.0);
+  }
+
+  @Test
+  @DisplayName("Kalutara Town Hall is allocated to no warning and has the offline update of SC4")
+  void kalutaraTownHall() {
+    Shelter hall = shelters.findById("SHL-KLT-0001").orElseThrow();
+    LocalDateTime eventDay = now.toLocalDate().minusDays(8).atStartOfDay();
+
+    assertThat(hall.getName()).isEqualTo("Kalutara Town Hall");
+    assertThat(hall.getWarnings()).isEmpty();
+    assertThat(hall.getOccupancyRecords())
+        .anySatisfy(
+            record -> {
+              assertThat(record.getCapturedAt())
+                  .isEqualTo(eventDay.plusDays(1).plusHours(14).plusMinutes(5));
+              assertThat(record.getRecordedAt())
+                  .isEqualTo(eventDay.plusDays(1).plusHours(14).plusMinutes(40));
+            });
+    assertThat(hall.getOccupancyRecords()).extracting(OccupancyRecord::getCapturedAt).isSorted();
+  }
+
+  @Test
+  @DisplayName("The live storyline keeps its order: hazard, warning, then the reports (P155 G8)")
+  void liveTimesFollowTheStoryline() {
+    LocalDateTime hazardStart = hazards.findById("HZ-2026-0201").orElseThrow().getStartTime();
+    Warning warning = warnings.findById("WRN-2026-0101").orElseThrow();
+
+    assertThat(hazardStart).isEqualTo(now.minusHours(20));
+    assertThat(warning.getIssuedTime()).isEqualTo(now.minusHours(19));
+    assertThat(warning.getExpiryTime()).isEqualTo(now.minusHours(19).plusHours(24));
+    assertThat(warningsActiveAt(now)).contains("WRN-2026-0101");
+    assertThat(captured("RPT-2026-KLT-0903")).isEqualTo(now.minusHours(3));
+    assertThat(captured("RPT-2026-KLT-0902")).isEqualTo(now.minusHours(2).minusMinutes(45));
+    assertThat(captured("RPT-2026-KLT-0901")).isEqualTo(now.minusHours(2).minusMinutes(30));
+    assertThat(hazardStart).isBefore(warning.getIssuedTime());
+    assertThat(warning.getIssuedTime()).isBefore(captured("RPT-2026-KLT-0903"));
+    assertThat(captured("RPT-2026-KLT-0903"))
+        .isBefore(captured("RPT-2026-KLT-0902"))
+        .isBefore(captured("RPT-2026-KLT-0901"));
+    assertThat(captured("RPT-2026-KLT-0904")).isEqualTo(now.minusHours(1).minusMinutes(30));
+    assertThat(captured("RPT-2026-COL-0905")).isEqualTo(now.minusHours(4));
+  }
+
+  private List<String> warningsActiveAt(LocalDateTime time) {
+    return warnings.findActiveAt(time).stream().map(Warning::getWarningId).toList();
+  }
+
+  private LocalDateTime captured(String reportId) {
+    return reports.findById(reportId).orElseThrow().getCapturedAt();
+  }
+
+  @Test
+  @DisplayName("Every seeded report has its photo file under the storage directory (P155 G9)")
+  void everyReportHasAPhotoFile() throws IOException {
+    byte[] placeholder =
+        PhotoSeed.class
+            .getClassLoader()
+            .getResourceAsStream("seed/photo-placeholder.jpg")
+            .readAllBytes();
+
+    List<HazardReport> all = reports.findAll();
+
+    assertThat(all).hasSize(8);
+    for (HazardReport report : all) {
+      assertThat(Files.readAllBytes(photoDirectory.resolve(report.getPhoto())))
+          .as(report.getReportId())
+          .isEqualTo(placeholder);
+    }
+    try (Stream<Path> files = Files.list(photoDirectory)) {
+      assertThat(files.count()).isEqualTo(all.size());
+    }
+  }
+
+  @Test
+  @DisplayName(
+      "The demo citizen starts in English; contact data is clearly fictional (P155 R3, E-12)")
+  void demoCitizenAndFictionalContacts() {
+    assertThat(citizens.findById("CIT-KLT-0001").orElseThrow().getPreferredLanguage())
+        .isEqualTo(Language.ENGLISH);
+    assertThat(citizens.findAll())
+        .allSatisfy(
+            citizen -> {
+              assertThat(citizen.getContactNumber()).matches("0700000\\d{3}");
+              assertThat(citizen.getNic()).matches("SEED\\d{4}");
+              assertThat(citizen.getEmail()).endsWith("example.lk");
+            });
+    assertThat(organizations.findAll())
+        .allSatisfy(
+            organization -> assertThat(organization.getContactNumber()).matches("0110000\\d{3}"));
+    assertThat(currentUsers.currentUser(DemoRole.DMC_OFFICER).name()).isEqualTo("N. Jayasinghe");
+    assertThat(
+            entityManager
+                .createQuery(
+                    "select u.phoneNumber from User u where u.userId like 'D%'", String.class)
+                .getResultList())
+        .allSatisfy(phone -> assertThat(phone).matches("0110000\\d{3}"));
+    assertThat(shelters.findAll())
+        .filteredOn(shelter -> !"SHL-COL-0001".equals(shelter.getShelterId()))
+        .allSatisfy(shelter -> assertThat(shelter.getContactNumber()).matches("0110000\\d{3}"));
   }
 
   @Test

@@ -83,15 +83,16 @@ class LiveStorySeed {
     return warning;
   }
 
-  // Standards section 11 (live copy); the severity, the start time and the location are Group_058
-  // assumptions, the name and the districts follow the completed storyline (SC1 step 5).
+  // Standards section 11 (live copy); the severity and the location are Group_058 assumptions,
+  // the name and the districts follow the completed storyline (SC1 step 5). The times keep the
+  // storyline's order: hazard (now - 20 h), warning (- 19 h), reports (- 3 h to - 2 h 30; P155 G8).
   private static Hazard kaluGanga(SeedContext context) {
     return new Hazard(
         "HZ-2026-0201",
         HazardType.FLOOD,
         "Kalu Ganga rising; minor flood level exceeded along the lower river",
         HazardSeverity.MEDIUM,
-        context.before(3, 0),
+        context.before(20, 0),
         null,
         KALUTARA_BRIDGE,
         "Kalu Ganga at Kalutara",
@@ -101,8 +102,8 @@ class LiveStorySeed {
         HazardStatus.ACTIVE);
   }
 
-  // S4 prompt, live copy: FLOOD, MEDIUM, COLOMBO and GAMPAHA, KELANI, agency bulletin, ACTIVE, no
-  // warning.
+  // S4 prompt, live copy: FLOOD, MEDIUM, COLOMBO and GAMPAHA, KELANI, agency bulletin, ACTIVE,
+  // no warning.
   private static Hazard kelaniGanga(SeedContext context) {
     return new Hazard(
         "HZ-2026-0202",
@@ -140,6 +141,7 @@ class LiveStorySeed {
   // Kalu river basin, as in SC1, so that Kalutara is covered through the basin; valid now (24 hours
   // from issue, SC1 step 13), with the round-1 notifications.
   private static Warning warning(SeedContext context, SeedPeople people, Hazard hazard) {
+    LocalDateTime issued = context.before(19, 0);
     WarningDetails details =
         new WarningDetails(
             WarningLevel.LEVEL_2_AMBER,
@@ -151,24 +153,21 @@ class LiveStorySeed {
                 NotificationChannel.PUSH,
                 NotificationChannel.SMS,
                 NotificationChannel.AUDIBLE_ALERT),
-            context.before(2, 0).plusHours(24));
+            issued.plusHours(24));
     List<Notification> notifications =
         NotificationSeed.round(
             CompletedStorySeed.recipients(people, false),
             1,
-            context.before(2, 0),
+            issued,
             SeedTexts.LEVEL_2_MESSAGE,
             SeedTexts.LEVEL_2_INSTRUCTIONS,
             true);
-    return new Warning(
-        "WRN-2026-0101", hazard, details, people.officer(), context.before(2, 0), notifications);
+    return new Warning("WRN-2026-0101", hazard, details, people.officer(), issued, notifications);
   }
 
   // S4 prompt, live copy (ii)-(iv). Distances from RPT-0901: 0902 1.2 km, 0903 2.8 km, Ingiriya
-  // about
-  // 28 km, Kaduwela about 40 km; capture times are within 24 hours of now. Descriptions, reporters
-  // and
-  // capture times are Group_058 assumptions.
+  // about 28 km, Kaduwela about 40 km; capture times are within 24 hours of now and after the
+  // warning (P155 G8). Descriptions, reporters and capture times are Group_058 assumptions.
   private void seedReports(SeedContext context, SeedPeople people) {
     List<HazardReport> live = new ArrayList<>();
     live.add(
@@ -188,7 +187,7 @@ class LiveStorySeed {
             District.KALUTARA,
             "Houses on the riverside lane are flooded up to the doorsteps.",
             north(1.2),
-            context.before(5, 0)));
+            context.before(2, 45)));
     live.add(
         pending(
             "RPT-2026-KLT-0903",
@@ -197,7 +196,7 @@ class LiveStorySeed {
             District.KALUTARA,
             "The paddy fields beside the river are under water.",
             north(2.8),
-            context.before(9, 0)));
+            context.before(3, 0)));
     live.add(
         pending(
             "RPT-2026-KLT-0904",

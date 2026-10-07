@@ -36,6 +36,18 @@ import org.springframework.stereotype.Component;
 @Profile("!test")
 class PeopleSeed {
 
+  /** The demo citizen of standards section 11 (the reporter of RPT-2026-KLT-0847 and 0901). */
+  private static final String DEMO_CITIZEN = "CIT-KLT-0001";
+
+  /** The fictional office phone series 0110000nnn (organisations 001-014, officers from 801). */
+  private static final String FICTIONAL_OFFICE_PHONE = "0110000%03d";
+
+  /** The first number of the district officers in the fictional series. */
+  private static final int FIRST_OFFICER_SERIAL = 801;
+
+  /** Citizens per block of serial numbers, so that a serial identifies district and number. */
+  private static final int SERIAL_BLOCK = 100;
+
   /** Group_058 assumption: citizens seeded per district. */
   static final int CITIZENS_PER_DISTRICT = 60;
 
@@ -143,7 +155,7 @@ class PeopleSeed {
             new DMCOfficer(
                 "DMC-0001",
                 "N. Jayasinghe",
-                "0112136222", // Group_058 assumption
+                "0110000901", // Group_058 assumption (fictional series)
                 "n.jayasinghe@dmc.example.lk", // Group_058 assumption
                 "Director, Emergency Operations", // Group_058 assumption
                 EnumSet.of(
@@ -158,7 +170,7 @@ class PeopleSeed {
             new DMCDutyOfficer(
                 "DMC-0002",
                 "K. Perera",
-                "0112136333", // Group_058 assumption
+                "0110000902", // Group_058 assumption (fictional series)
                 "k.perera@dmc.example.lk", // Group_058 assumption
                 "Duty Officer", // Group_058 assumption
                 Set.of()));
@@ -170,39 +182,36 @@ class PeopleSeed {
   }
 
   // Group_058 assumption: the names, languages and numbers of the district officers. The
-  // identifiers
-  // DO-COL-01, DO-GAM-01, DO-KLT-01 and DO-RAT-01 are fixed by the seed plan; DO-KLT-02 and
-  // DO-RAT-02
-  // are the second officer of each district that the Escalate Warning scenario counts (2 per
-  // district).
+  // identifiers DO-COL-01, DO-GAM-01, DO-KLT-01 and DO-RAT-01 are fixed by the seed plan;
+  // DO-KLT-02 and DO-RAT-02 are the second officer of each district that the Escalate Warning
+  // scenario counts (2 per district).
   private List<DistrictOfficer> districtOfficerList() {
     return List.of(
-        officerOf("DO-COL-01", "R. Wickramasinghe", District.COLOMBO, Language.SINHALA),
-        officerOf("DO-GAM-01", "M. Dissanayake", District.GAMPAHA, Language.SINHALA),
-        officerOf("DO-KLT-01", "S. Ratnayake", District.KALUTARA, Language.SINHALA),
-        officerOf("DO-KLT-02", "A. Mendis", District.KALUTARA, Language.ENGLISH),
-        officerOf("DO-RAT-01", "T. Herath", District.RATNAPURA, Language.SINHALA),
-        officerOf("DO-RAT-02", "P. Senanayake", District.RATNAPURA, Language.ENGLISH));
+        officerOf(1, "DO-COL-01", "R. Wickramasinghe", District.COLOMBO, Language.SINHALA),
+        officerOf(2, "DO-GAM-01", "M. Dissanayake", District.GAMPAHA, Language.SINHALA),
+        officerOf(3, "DO-KLT-01", "S. Ratnayake", District.KALUTARA, Language.SINHALA),
+        officerOf(4, "DO-KLT-02", "A. Mendis", District.KALUTARA, Language.ENGLISH),
+        officerOf(5, "DO-RAT-01", "T. Herath", District.RATNAPURA, Language.SINHALA),
+        officerOf(6, "DO-RAT-02", "P. Senanayake", District.RATNAPURA, Language.ENGLISH));
   }
 
+  // Phone numbers are a fictional 0110000nnn series (district officers 801 to 806), never a
+  // real-looking spread (P155 E-12).
   private static DistrictOfficer officerOf(
-      String userId, String name, District district, Language language) {
-    String suffix = userId.substring(userId.length() - 2);
+      int serial, String userId, String name, District district, Language language) {
     return new DistrictOfficer(
         userId,
         name,
-        "0775" + district.ordinal() % 10 + suffix + "000", // Group_058 assumption
+        String.format(FICTIONAL_OFFICE_PHONE, FIRST_OFFICER_SERIAL + serial - 1),
         userId.toLowerCase(Locale.ROOT) + "@ddmcu.example.lk", // Group_058 assumption
         district,
         language);
   }
 
   // The 14 response organisations: CARE Sri Lanka (the organisation demo user, SC4 step 15), the
-  // Sri
-  // Lanka Red Cross Society (SC4 A5), the Sri Lanka Army (SC4 step 7) and Sarvodaya (SC4 E5/E6) are
-  // named by the scenarios; the other ten are Group_058 assumptions. Every one serves the districts
-  // of
-  // the storylines, so all 14 are recipients of WRN-2026-0087.
+  // Sri Lanka Red Cross Society (SC4 A5), the Sri Lanka Army (SC4 step 7) and Sarvodaya (SC4
+  // E5/E6) are named by the scenarios; the other ten are Group_058 assumptions. Every one serves
+  // the districts of the storylines, so all 14 are recipients of WRN-2026-0087.
   private List<Organization> organizationList() {
     List<Organization> list = new ArrayList<>();
     list.add(organization(1, "CARE Sri Lanka", OrganizationType.NGO));
@@ -231,7 +240,7 @@ class PeopleSeed {
         String.format("ORG-%04d", number),
         name,
         type,
-        String.format("011%07d", 2_690_000 + number * 111), // Group_058 assumption
+        String.format(FICTIONAL_OFFICE_PHONE, number), // Group_058 assumption (fictional)
         "Colombo", // Group_058 assumption
         List.of(
             District.RATNAPURA,
@@ -260,22 +269,24 @@ class PeopleSeed {
     // SC2 and the seed plan: CIT-KLT-0001 is Asela Gunawardene, a Kalutara citizen with the app who
     // prefers Sinhala (he receives his decision notice in Sinhala).
     String name =
-        "CIT-KLT-0001".equals(userId)
+        DEMO_CITIZEN.equals(userId)
             ? "Asela Gunawardene"
             : FIRST_NAMES.get((number * 7 + district.ordinal()) % FIRST_NAMES.size())
                 + " "
                 + LAST_NAMES.get((number * 11 + district.ordinal()) % LAST_NAMES.size());
     // Group_058 assumption: 7 in 10 citizens use the app (a device token), the rest are SMS-only.
     String deviceToken = number % 10 < APP_USERS_IN_TEN ? "demo-device-" + userId : null;
-    // Group_058 assumption: languages in turn, starting with Sinhala for number 1 (the demo
-    // citizen).
-    Language language = Language.values()[(number + 2) % Language.values().length];
-    String phone =
-        String.format(
-            "07%d%07d", number % 8 + 1, (number * 7919 + district.ordinal() * 1301) % 10_000_000);
+    // Group_058 assumption: languages in turn; the demo citizen starts in English (standards
+    // section 11; SC2 steps 2-4 change it to Sinhala in the demo).
+    Language language =
+        DEMO_CITIZEN.equals(userId)
+            ? Language.ENGLISH
+            : Language.values()[(number + 2) % Language.values().length];
+    int serial = serial(district, number);
+    // Clearly fictional contact data: phones 0700000nnn, NICs SEED + number (P155 E-12).
+    String phone = String.format("0700000%03d", serial);
     String email = "citizen." + userId.toLowerCase(Locale.ROOT) + "@example.lk";
-    String nic =
-        String.format("19%02d%08d", 70 + number % 30, number * 104_729 + district.ordinal());
+    String nic = String.format("SEED%04d", serial);
     String address = "No. " + number + ", Main Street, " + titleCase(district);
     if (district == District.KALUTARA
         && number >= FIRST_VOLUNTEER_NUMBER
@@ -295,6 +306,11 @@ class PeopleSeed {
           group);
     }
     return new Citizen(userId, name, phone, email, nic, address, district, language, deviceToken);
+  }
+
+  // A number below 1000 that is unique over the four seeded districts: 100 per district.
+  private static int serial(District district, int number) {
+    return new ArrayList<>(DISTRICT_CODES.keySet()).indexOf(district) * SERIAL_BLOCK + number;
   }
 
   private static String titleCase(District district) {

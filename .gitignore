@@ -33,6 +33,27 @@ yarn-error.log*
 !.vscode/extensions.json
 .claude/settings.local.json
 
+# --- Eclipse / IntelliJ build output, editor leftovers and backups ---
+.project
+.classpath
+.settings/
+.factorypath
+bin/
+out/
+*.bak
+*.orig
+*.tmp
+*.swp
+
+# --- Expo native projects and signing files (the app is built with Expo, never committed native) ---
+mobile/ios/
+mobile/android/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
 # --- Operating systems ---
 .DS_Store
 Thumbs.db

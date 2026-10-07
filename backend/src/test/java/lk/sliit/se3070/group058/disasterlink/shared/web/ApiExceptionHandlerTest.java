@@ -110,7 +110,7 @@ class ApiExceptionHandlerTest {
   void frameworkStatus() throws Exception {
     mockMvc
         .perform(get("/probe/framework"))
-        .andExpect(status().isUnprocessableEntity())
+        .andExpect(status().isUnprocessableContent())
         .andExpect(jsonPath("$.detail").value("Cannot process this"));
   }
 

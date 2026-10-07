@@ -29,6 +29,9 @@ public class CommunityVolunteer extends Citizen {
    * @param organization the community group the volunteer belongs to, or {@code null} if none
    * @throws NullPointerException if an argument other than {@code deviceToken} and {@code
    *     organization} is {@code null}
+   * @throws IllegalArgumentException if {@code organization} is not of type {@code
+   *     COMMUNITY_VOLUNTEER_GROUP} (the A24 constraint, checked like the xor of {@code
+   *     ReliefSupply}; P155 A-11)
    */
   public CommunityVolunteer(
       String userId,
@@ -43,6 +46,11 @@ public class CommunityVolunteer extends Citizen {
       String gnDivision,
       Organization organization) {
     super(userId, name, phoneNumber, email, nic, address, district, preferredLanguage, deviceToken);
+    if (organization != null
+        && organization.getType() != OrganizationType.COMMUNITY_VOLUNTEER_GROUP) {
+      throw new IllegalArgumentException(
+          "a volunteer belongs to an organisation of type COMMUNITY_VOLUNTEER_GROUP");
+    }
     this.gnDivision = Objects.requireNonNull(gnDivision, "gnDivision");
     this.organization = organization;
   }

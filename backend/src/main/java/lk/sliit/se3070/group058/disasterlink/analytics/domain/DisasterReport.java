@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import lk.sliit.se3070.group058.disasterlink.shared.domain.ColumnLengths;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.DMCOfficer;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.District;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.Hazard;
@@ -57,7 +58,7 @@ public class DisasterReport {
   @Lob
   private ReportResults results;
 
-  @Column(length = 4000)
+  @Column(length = ColumnLengths.FINDINGS)
   private String findings;
 
   @ElementCollection

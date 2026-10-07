@@ -18,6 +18,8 @@ import lk.sliit.se3070.group058.disasterlink.shared.domain.ShelterStatus;
  * @param contactNumber the contact number
  * @param status OPEN or FULL
  * @param operatorName the name of the operating organisation, or {@code null} if there is none
+ * @param operatorId the identifier of the operating organisation, or {@code null} if there is none
+ *     (the edit form pre-selects it, so an edit does not clear the operator — P155 G6)
  */
 public record ShelterResponse(
     String shelterId,
@@ -28,4 +30,5 @@ public record ShelterResponse(
     int currentOccupancy,
     String contactNumber,
     ShelterStatus status,
-    String operatorName) {}
+    String operatorName,
+    String operatorId) {}

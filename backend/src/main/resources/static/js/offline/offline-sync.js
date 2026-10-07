@@ -12,7 +12,7 @@ import {
   DEFAULT_REJECTION_MESSAGE,
   JSON_HEADERS,
   MILLIS_PER_MINUTE,
-  ISO_SECONDS_LENGTH,
+  ISO_MILLIS_LENGTH,
   PendingStatus,
   RejectionReason,
   SERVER_ERROR_MIN,
@@ -63,13 +63,14 @@ export function browserIsOnline() {
 }
 
 /**
- * A time as ISO-8601 in Asia/Colombo with its offset, for example `2026-05-21T14:05:00+05:30`.
+ * A time as ISO-8601 in Asia/Colombo with its offset, keeping the milliseconds, for example
+ * `2026-05-21T14:05:00.123+05:30` (the server accepts both forms).
  * @param {Date} date the time
  * @returns {string} the text
  */
 export function toColomboIso(date) {
   const shifted = new Date(date.getTime() + TIME_ZONE_OFFSET_MINUTES * MILLIS_PER_MINUTE);
-  return shifted.toISOString().slice(0, ISO_SECONDS_LENGTH) + TIME_ZONE_OFFSET;
+  return shifted.toISOString().slice(0, ISO_MILLIS_LENGTH) + TIME_ZONE_OFFSET;
 }
 
 /**

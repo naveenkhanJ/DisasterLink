@@ -1,31 +1,33 @@
 package lk.sliit.se3070.group058.disasterlink.shared.domain;
 
 import java.util.List;
-import java.util.Objects;
 
 /**
  * The details of a hazard that an officer records while verifying a report.
  *
  * <p>Implements CH-25.
  *
- * @param severity the severity of the new hazard
- * @param districts the districts the new hazard affects
- * @param locationName the name of the place of the hazard
- * @param description the description of the hazard
+ * <p>An input value record (MD section 0.13, P155 X1): a field the officer has not entered is
+ * {@code null}, so that {@code ReportVerificationController.verifyAsNewHazard} can refuse it with
+ * {@code InvalidHazardDetailsException} (SC2 E9).
+ *
+ * @param severity the severity of the new hazard, or {@code null} if not entered — checked by
+ *     {@code ReportVerificationController.verifyAsNewHazard}
+ * @param districts the districts the new hazard affects, empty if none entered
+ * @param locationName the name of the place of the hazard, or {@code null} if not entered — checked
+ *     by {@code ReportVerificationController.verifyAsNewHazard}
+ * @param description the description of the hazard, or {@code null} if not entered — checked by
+ *     {@code ReportVerificationController.verifyAsNewHazard}
  */
 public record NewHazardDetails(
     HazardSeverity severity, List<District> districts, String locationName, String description) {
 
-  /**
-   * Creates the record, checking the required components and copying the collections.
-   *
-   * @throws NullPointerException if a required component is {@code null}
-   */
+  /** Creates the record, replacing a {@code null} collection by an empty one and copying it. */
   public NewHazardDetails(
       HazardSeverity severity, List<District> districts, String locationName, String description) {
-    this.severity = Objects.requireNonNull(severity, "severity");
-    this.districts = List.copyOf(districts);
-    this.locationName = Objects.requireNonNull(locationName, "locationName");
-    this.description = Objects.requireNonNull(description, "description");
+    this.severity = severity;
+    this.districts = districts == null ? List.of() : List.copyOf(districts);
+    this.locationName = locationName;
+    this.description = description;
   }
 }

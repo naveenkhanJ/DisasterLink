@@ -1,7 +1,7 @@
 package lk.sliit.se3070.group058.disasterlink.shared.config;
 
 import java.time.Clock;
-import java.time.ZoneId;
+import lk.sliit.se3070.group058.disasterlink.shared.web.WireTime;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -12,9 +12,6 @@ import org.springframework.context.annotation.Configuration;
 @Configuration(proxyBeanMethods = false)
 public class ClockConfiguration {
 
-  /** The zone all times of the system are in. */
-  static final ZoneId ZONE = ZoneId.of("Asia/Colombo");
-
   /**
    * Creates the system clock in the zone of Sri Lanka.
    *
@@ -22,6 +19,6 @@ public class ClockConfiguration {
    */
   @Bean
   public Clock clock() {
-    return Clock.system(ZONE);
+    return Clock.system(WireTime.ZONE);
   }
 }

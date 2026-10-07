@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import lk.sliit.se3070.group058.disasterlink.shared.domain.ColumnLengths;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.ReportDecisionNotice;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.ReportStatus;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.WarningLevel;
@@ -42,10 +43,10 @@ public class PushOutbox {
   @Enumerated(EnumType.STRING)
   private ReportStatus status;
 
-  @Column(length = 2000)
+  @Column(length = ColumnLengths.LONG_TEXT)
   private String reason;
 
-  @Column(length = 2000)
+  @Column(length = ColumnLengths.LONG_TEXT)
   private String text;
 
   private LocalDateTime createdAt;
