@@ -22,7 +22,7 @@ Group_060's Assignment 01 design for Case Study 2.
 | `docs/` | The binding design: `docs/design/` (implementation standards, model dictionary, scenarios, sequence diagrams, wireframes) and the lecture study guides. Read `docs/design/README.md` first. |
 | `AGENTS.md`, `CLAUDE.md` | The rules for coding agents; every member's agent reads them before any change. |
 | `THIRD-PARTY-NOTICES.md` | Licences of the vendored libraries, fonts and map data. |
-| `mobile/` | The citizen app (React Native with Expo, TypeScript). **It arrives in stage S6** and is not in the repository yet. |
+| `mobile/` | The citizen app (React Native with Expo SDK 57, TypeScript): the base from stage S6; UC2's screens and behaviour are Afham's. See `mobile/README.md`. |
 
 External services (push notifications, SMS) are mocked behind gateway interfaces.
 
@@ -71,6 +71,17 @@ cd web
 npm ci
 npm test
 npm test -- --coverage
+```
+
+Citizen app (`mobile/`; set-up, the `.env` file and the first-run check are in `mobile/README.md`):
+
+```
+cd mobile
+npm ci
+npm run lint
+npm run typecheck
+npm test -- --coverage
+npx expo start        # then open the QR code in Expo Go (SDK 57)
 ```
 
 ## Branches

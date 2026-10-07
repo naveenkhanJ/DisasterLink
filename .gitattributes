@@ -8,6 +8,7 @@
 # conversion), so their hashes equal those of the npm packages and the prototype (P155 D-12).
 backend/src/main/resources/static/vendor/** -text
 backend/src/main/resources/static/fonts/OFL-*.txt -text
+mobile/assets/fonts/OFL-*.txt -text
 
 # Binary files: never converted or diffed as text.
 *.png binary
