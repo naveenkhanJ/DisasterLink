@@ -217,7 +217,7 @@ class SeedDataRunnerTest {
 
   @Test
   @DisplayName(
-      "The escalation audit record names DMC-0001, the warning and LEVEL_2_AMBER→LEVEL_3_RED")
+      "The escalation audit record names DMC-0002, the warning and LEVEL_2_AMBER→LEVEL_3_RED")
   void escalationAuditRecord() {
     List<AuditRecord> escalations =
         auditRecords.findAll().stream()
@@ -227,25 +227,42 @@ class SeedDataRunnerTest {
     assertThat(escalations).hasSize(1);
     assertThat(escalations.get(0).getSubjectId()).isEqualTo("WRN-2026-0087");
     assertThat(escalations.get(0).getDetail()).contains("LEVEL_2_AMBER→LEVEL_3_RED");
-    assertThat(escalations.get(0).getPerformedBy().getUserId()).isEqualTo("DMC-0001");
+    assertThat(escalations.get(0).getPerformedBy().getUserId()).isEqualTo("DMC-0002");
   }
 
   @Test
-  @DisplayName("The completed storyline's reports have the states of the scenarios")
+  @DisplayName(
+      "The completed storyline's reports 0843, 0845 and 0847 are verified; 0852 is not stored")
   void completedReports() {
-    HazardReport verified = reports.findById("RPT-2026-KLT-0847").orElseThrow();
+    HazardReport first = reports.findById("RPT-2026-KLT-0847").orElseThrow();
 
-    assertThat(verified.getStatus()).isEqualTo(ReportStatus.VERIFIED);
-    assertThat(verified.getReviewer().orElseThrow().getUserId()).isEqualTo("DMC-0002");
-    assertThat(verified.getHazard().orElseThrow().getHazardId()).isEqualTo("HZ-2026-0142");
-    assertThat(verified.getLocation().accuracyMetres()).isEqualTo(8.0);
-    assertThat(reports.findById("RPT-2026-KLT-0843").orElseThrow().getStatus())
-        .isEqualTo(ReportStatus.PENDING_VERIFICATION);
-    assertThat(reports.findById("RPT-2026-KLT-0845").orElseThrow().getStatus())
-        .isEqualTo(ReportStatus.PENDING_VERIFICATION);
-    HazardReport road = reports.findById("RPT-2026-KLT-0852").orElseThrow();
-    assertThat(road.getHazardType()).isEqualTo(HazardType.BLOCKED_ROAD);
-    assertThat(road.getStatus()).isEqualTo(ReportStatus.PENDING_VERIFICATION);
+    assertThat(first.getStatus()).isEqualTo(ReportStatus.VERIFIED);
+    assertThat(first.getReviewer().orElseThrow().getUserId()).isEqualTo("DMC-0002");
+    assertThat(first.getHazard().orElseThrow().getHazardId()).isEqualTo("HZ-2026-0142");
+    assertThat(first.getLocation().accuracyMetres()).isEqualTo(8.0);
+    for (String id : List.of("RPT-2026-KLT-0843", "RPT-2026-KLT-0845")) {
+      HazardReport duplicate = reports.findById(id).orElseThrow();
+      assertThat(duplicate.getStatus()).isEqualTo(ReportStatus.VERIFIED);
+      assertThat(duplicate.getReviewer().orElseThrow().getUserId()).isEqualTo("DMC-0002");
+      assertThat(duplicate.getHazard().orElseThrow().getHazardId()).isEqualTo("HZ-2026-0142");
+      assertThat(duplicate.getVerificationTime().orElseThrow())
+          .isAfter(first.getVerificationTime().orElseThrow())
+          .isBefore(first.getVerificationTime().orElseThrow().plusMinutes(10));
+    }
+    assertThat(reports.findById("RPT-2026-KLT-0852")).isEmpty();
+  }
+
+  @Test
+  @DisplayName("Only the live reports 0901 to 0905 are pending")
+  void onlyLiveReportsArePending() {
+    assertThat(reports.findPending())
+        .extracting(HazardReport::getReportId)
+        .containsExactlyInAnyOrder(
+            "RPT-2026-KLT-0901",
+            "RPT-2026-KLT-0902",
+            "RPT-2026-KLT-0903",
+            "RPT-2026-KLT-0904",
+            "RPT-2026-COL-0905");
   }
 
   @Test

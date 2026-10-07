@@ -86,12 +86,13 @@ class CompletedStorySeed {
   CompletedStory seed(SeedContext context, SeedPeople people) {
     Hazard hazard = hazards.save(hazard(context));
     Warning warning = warnings.save(warning(context, people, hazard));
-    // Escalate Warning step 10: the audit record of the escalation. The seed plan names DMC-0001 as
-    // the officer (the scenario names K. Perera, who is DMC-0002).
+    // Escalate Warning step 10: the audit record of the escalation, performed by DMC-0002 (K.
+    // Perera,
+    // the duty officer who escalates; S5 STEP 0, E1). The warning's issuing officer stays DMC-0001.
     auditRecords.save(
         new AuditRecord(
             AuditAction.WARNING_ESCALATED,
-            people.officer(),
+            people.dutyOfficer(),
             warning.getWarningId(),
             "LEVEL_2_AMBER→LEVEL_3_RED",
             context.event(1, 8, 25)));
@@ -181,11 +182,13 @@ class CompletedStorySeed {
     return recipients;
   }
 
-  // SC2 steps 19 and 24-29 and Escalate Warning step 1: RPT-2026-KLT-0847 verified by K. Perera and
-  // linked to HZ-2026-0142; the two nearby pending reports 0843 (07:05, 1.2 km) and 0845 (07:20,
-  // 2.8 km); the blocked-road report 0852 at Ingiriya (SC2 A6 25m). Positions of 0843, 0845 and
-  // 0852
-  // and the descriptions of 0843, 0845 and 0852 are Group_058 assumptions; the distances are SC2's.
+  // SC2 steps 19 and 24-29 and Escalate Warning step 1: RPT-2026-KLT-0847 verified by K. Perera
+  // (DMC-0002) and linked to HZ-2026-0142. RPT-2026-KLT-0843 (07:05, 1.2 km) and RPT-2026-KLT-0845
+  // (07:20, 2.8 km) are the nearby reports of SC2 step 14; they are stored in their final state:
+  // verified by DMC-0002 a few minutes after 0847 and linked to the same hazard (S5 STEP 0, D1:
+  // duplicates of the same flood, SC2 A4). The blocked-road report of SC2 A6 25m is the live
+  // RPT-2026-KLT-0904, so none is stored here. Positions and descriptions of 0843 and 0845 are
+  // Group_058 assumptions; the distances are SC2's.
   private void seedReports(SeedContext context, SeedPeople people, Hazard hazard) {
     Citizen asela = people.citizen("CIT-KLT-0001");
     reports.save(
@@ -208,38 +211,57 @@ class CompletedStorySeed {
             people.dutyOfficer(),
             hazard));
     reports.save(
-        LiveStorySeed.pending(
+        verified(
             "RPT-2026-KLT-0843",
             people.citizen("CIT-KLT-0002"),
-            HazardType.FLOOD,
-            District.KALUTARA,
             "Water from the Kalu Ganga is rising over the riverside road at Kalutara North.",
-            new GeoPoint(
-                LiveStorySeed.KALUTARA_BRIDGE.latitude() + 1.2 * LiveStorySeed.KM_AS_DEGREES,
-                LiveStorySeed.KALUTARA_BRIDGE.longitude(),
-                12.0),
-            context.event(1, 7, 5)));
+            1.2,
+            context.event(1, 7, 5),
+            context.event(1, 8, 18), // Group_058 assumption: a few minutes after 0847
+            people,
+            hazard));
     reports.save(
-        LiveStorySeed.pending(
+        verified(
             "RPT-2026-KLT-0845",
             people.citizen("CIT-KLT-0003"),
-            HazardType.FLOOD,
-            District.KALUTARA,
             "The paddy fields beside the river are under water and the water is still rising.",
-            new GeoPoint(
-                LiveStorySeed.KALUTARA_BRIDGE.latitude() + 2.8 * LiveStorySeed.KM_AS_DEGREES,
-                LiveStorySeed.KALUTARA_BRIDGE.longitude(),
-                15.0),
-            context.event(1, 7, 20)));
-    reports.save(
-        LiveStorySeed.pending(
-            "RPT-2026-KLT-0852",
-            people.citizen("CIT-KLT-0004"),
-            HazardType.BLOCKED_ROAD,
-            District.KALUTARA,
-            "The Horana-Ratnapura road at Ingiriya is blocked by a fallen tree and flood water.",
-            LiveStorySeed.INGIRIYA,
-            context.event(1, 9, 10)));
+            2.8,
+            context.event(1, 7, 20),
+            context.event(1, 8, 21), // Group_058 assumption: a few minutes after 0847
+            people,
+            hazard));
+  }
+
+  private static HazardReport verified(
+      String reportId,
+      Citizen reporter,
+      String description,
+      double kmFromBridge,
+      LocalDateTime captured,
+      LocalDateTime verifiedAt,
+      SeedPeople people,
+      Hazard hazard) {
+    GeoPoint location =
+        new GeoPoint(
+            LiveStorySeed.KALUTARA_BRIDGE.latitude() + kmFromBridge * LiveStorySeed.KM_AS_DEGREES,
+            LiveStorySeed.KALUTARA_BRIDGE.longitude(),
+            12.0);
+    return new HazardReport(
+        reportId,
+        reporter,
+        HazardType.FLOOD,
+        description,
+        reportId + ".jpg", // Group_058 assumption
+        location,
+        true,
+        District.KALUTARA,
+        captured,
+        captured.plusMinutes(2),
+        ReportStatus.VERIFIED,
+        verifiedAt,
+        null,
+        people.dutyOfficer(),
+        hazard);
   }
 
   // SC4 step 7, resource distribution: the five lines of the report (Ratnapura: CARE Sri Lanka
