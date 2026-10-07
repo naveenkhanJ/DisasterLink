@@ -216,9 +216,9 @@
 				<configuration>
 					<!-- Skeleton classes inside member packages are excluded by name from member gates in later stages (standards section 8). -->
 					<excludes>
-						<exclude>**/dews/DisasterLinkApplication.class</exclude>
-						<exclude>**/dews/shared/config/**</exclude>
-						<exclude>**/dews/shared/seed/**</exclude>
+						<exclude>**/disasterlink/DisasterLinkApplication.class</exclude>
+						<exclude>**/disasterlink/shared/config/**</exclude>
+						<exclude>**/disasterlink/shared/seed/**</exclude>
 						<exclude>**/web/dto/**</exclude>
 						<exclude>**/web/mapper/**</exclude>
 					</excludes>

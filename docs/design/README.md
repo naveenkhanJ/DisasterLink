@@ -6,7 +6,7 @@ copies live in the group's design project; a change is made there first and then
 
 | File or folder | What it is |
 |---|---|
-| `implementation-standards.md` (v2.13) | Binding rules for all code: stack, packages, naming, SOLID, smells, patterns, logging, exceptions, testing, coverage gates, seed data, per-member contracts (§12). |
+| `implementation-standards.md` (v2.14) | Binding rules for all code: stack, packages, naming, SOLID, smells, patterns, logging, exceptions, testing, coverage gates, seed data, per-member contracts (§12). |
 | `model-dictionary.md` (v0.10) | The single source of names: every class, attribute, operation and literal the code uses. |
 | `change-list.md` (v2.11) | The approved changes CH-01…CH-33; code that implements a change cites its ID in the Javadoc ("Implements CH-nn"). |
 | `traceability.md` | Critique finding → change → artefacts; the code and test columns are filled during implementation. |
