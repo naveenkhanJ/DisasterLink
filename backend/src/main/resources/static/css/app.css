@@ -52,6 +52,7 @@ svg.icon { width: 18px; height: 18px; flex: none; stroke: currentColor; fill: no
 .nav__item { display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 12px; border-radius: 8px; font-weight: 600; text-decoration: none; color: var(--sidebar-text); }
 .nav__item.is-active { background: var(--sidebar-active-bg); color: #fff; }
 .nav__item .icon { width: 20px; height: 20px; }
+.sidebar__credit { margin: 32px 0 0; padding-left: 4px; font-size: 11px; line-height: 16px; color: #94A3B8; }
 .main { display: flex; flex-direction: column; min-width: 0; }
 .topbar { height: 80px; background: #fff; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; }
 .topbar__title { font-size: 24px; line-height: 32px; font-weight: 700; }

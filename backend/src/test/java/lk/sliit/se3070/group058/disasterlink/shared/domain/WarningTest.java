@@ -163,20 +163,12 @@ class WarningTest {
   }
 
   @Test
-  @DisplayName("The constructor needs the components validateWarning checks (P155 X1)")
+  @DisplayName(
+      "The constructor needs the texts and the expiry that validateWarning checks (P155 X1)")
   void constructorRequiresValidatedComponents() {
     LocalisedText text = SampleEntities.TEXT;
     Set<NotificationChannel> channels = Set.of(NotificationChannel.SMS);
 
-    assertThatNullPointerException()
-        .isThrownBy(
-            () ->
-                new Warning(
-                    "W",
-                    HAZARD,
-                    new WarningDetails(null, text, text, List.of(), List.of(), channels, NOW),
-                    OFFICER,
-                    NOW));
     assertThatNullPointerException()
         .isThrownBy(
             () ->

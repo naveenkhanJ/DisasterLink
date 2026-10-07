@@ -21,6 +21,7 @@ Group_060's Assignment 01 design for Case Study 2.
 | `web/` | The Jest test project for the browser scripts under `backend/src/main/resources/static/js/` (Node). It contains no application code. |
 | `docs/` | The binding design: `docs/design/` (implementation standards, model dictionary, scenarios, sequence diagrams, wireframes) and the lecture study guides. Read `docs/design/README.md` first. |
 | `AGENTS.md`, `CLAUDE.md` | The rules for coding agents; every member's agent reads them before any change. |
+| `THIRD-PARTY-NOTICES.md` | Licences of the vendored libraries, fonts and map data. |
 | `mobile/` | The citizen app (React Native with Expo, TypeScript). **It arrives in stage S6** and is not in the repository yet. |
 
 External services (push notifications, SMS) are mocked behind gateway interfaces.
@@ -42,8 +43,16 @@ The last command starts the seeded demo at <http://localhost:8080/>: the data of
 Ganga flood, the live flood with its warning and reports, the shelters) is created at start-up relative to the
 current time, so start it fresh for a demo. Seed photos are written to `backend/data/photos/` (git-ignored).
 
-**Demo note:** Restart the app within 5 hours before the UC2 / Escalate Warning demo — the live warning
-WRN-2026-0101 expires 24 h after it was issued (19 h before start-up); a restart reseeds the in-memory database.
+Demo notes:
+
+* Start the app no more than 5 hours before the UC2 / Escalate Warning demo: the live warning WRN-2026-0101 is issued 19 h
+  before start-up and expires 24 h after issue. A restart reseeds the in-memory database.
+* HZ-2026-0203 has missing information (no districts) and is for UC1 A1 only; it is not assessable until A1 gives it
+  districts.
+* Escalate A4 needs a Level 1 – Yellow warning, which the seed does not have: for an A4 demo, issue the Colombo warning on
+  HZ-2026-0202 at Level 1 – Yellow, then escalate it with A4 (preview Level 3 – Red, then choose Level 2 – Amber) — this
+  also gives UC3 the Level 2 – Amber Colombo warning it needs. Without A4, issue it at Level 2 – Amber as SC1 states.
+* After one UC1 run no warning-free hazard is left: restart before showing UC1 again.
 
 The demo has no login. Each role is a fixed demo user (set in `backend/src/main/resources/application.properties`):
 

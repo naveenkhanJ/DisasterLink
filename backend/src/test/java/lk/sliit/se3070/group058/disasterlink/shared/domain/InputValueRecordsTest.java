@@ -17,17 +17,26 @@ class InputValueRecordsTest {
   private static final LocalDateTime NOW = LocalDateTime.of(2026, 5, 21, 8, 15);
 
   @Test
-  @DisplayName("WarningDetails with nothing entered has null fields and empty collections")
+  @DisplayName("WarningDetails with nothing but the level entered has null fields and empty lists")
   void warningDetailsNothingEntered() {
-    WarningDetails details = new WarningDetails(null, null, null, null, null, null, null);
+    WarningDetails details =
+        new WarningDetails(WarningLevel.LEVEL_2_AMBER, null, null, null, null, null, null);
 
-    assertThat(details.warningLevel()).isNull();
+    assertThat(details.warningLevel()).isEqualTo(WarningLevel.LEVEL_2_AMBER);
     assertThat(details.message()).isNull();
     assertThat(details.instructions()).isNull();
     assertThat(details.expiryTime()).isNull();
     assertThat(details.targetDistricts()).isEmpty();
     assertThat(details.targetRiverBasins()).isEmpty();
     assertThat(details.channels()).isEmpty();
+  }
+
+  @Test
+  @DisplayName("A missing warning level is refused: it is a shape field (standards section 12.2)")
+  void warningLevelIsRequired() {
+    assertThatNullPointerException()
+        .isThrownBy(() -> new WarningDetails(null, null, null, null, null, null, null))
+        .withMessageContaining("warningLevel");
   }
 
   @Test

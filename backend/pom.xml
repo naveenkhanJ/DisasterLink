@@ -245,9 +245,10 @@
 						</goals>
 						<configuration>
 							<haltOnFailure>${jacoco.haltOnFailure}</haltOnFailure>
-							<!-- The member packages' gate also leaves out the skeleton's class in shelter.web (a rule's own excludes match package names, so the exclusion is made for the whole execution); the plugin-level list above is kept once and this entry is appended to it. The next execution gates that class. -->
+							<!-- The member packages' gate also leaves out the skeleton-written endpoint classes in the members' web packages (shelter.web, warning.web). A rule's own excludes match package names, so the exclusion is made for the whole execution; the plugin-level list above is kept once and these entries are appended to it. The next execution gates those classes. -->
 							<excludes combine.children="append">
 								<exclude>**/shelter/web/ShelterApiController.class</exclude>
+								<exclude>**/warning/web/WarningApiController.class</exclude>
 							</excludes>
 							<rules>
 								<rule>
@@ -268,7 +269,7 @@
 							</rules>
 						</configuration>
 					</execution>
-					<!-- The skeleton's class in Weliwitigoda's shelter.web package: his package gate leaves it out, this gate keeps it at the same limits (standards section 8; P155 G1). Further skeleton classes in member packages (the two control stubs are not among them) would be added here. -->
+					<!-- The skeleton-written endpoint classes in the members' packages (ShelterApiController in Weliwitigoda's shelter.web, WarningApiController in Lakmal's warning.web): their package gates leave them out, this gate keeps each at the same limits (standards sections 8 and 12.2; P155 G1). The two control stubs are not among them: their owners replace them. -->
 					<execution>
 						<id>jacoco-check-skeleton-classes</id>
 						<phase>verify</phase>
@@ -279,6 +280,7 @@
 							<haltOnFailure>${jacoco.haltOnFailure}</haltOnFailure>
 							<includes>
 								<include>**/shelter/web/ShelterApiController.class</include>
+								<include>**/warning/web/WarningApiController.class</include>
 							</includes>
 							<rules>
 								<rule>

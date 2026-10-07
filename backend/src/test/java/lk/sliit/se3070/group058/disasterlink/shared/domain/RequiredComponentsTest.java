@@ -42,7 +42,6 @@ class RequiredComponentsTest {
           Map.entry(
               WarningDetails.class,
               Set.of(
-                  "warningLevel",
                   "message",
                   "instructions",
                   "targetDistricts",

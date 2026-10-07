@@ -121,7 +121,9 @@ public class Hazard {
    * @param capturedAt when the report was captured
    * @param details the severity, districts, location name and description the officer entered; the
    *     hazard is created only after {@code verifyAsNewHazard} has checked them, so the components
-   *     that the record accepts as {@code null} are required here (P155 X1)
+   *     that the record accepts as {@code null} are required here (P155 X1); the description is
+   *     required here too: {@code verifyAsNewHazard} supplies the report's description when the
+   *     officer entered none (MD v0.13)
    * @throws NullPointerException if an argument, or a required component of {@code details}, is
    *     {@code null}
    */

@@ -437,6 +437,21 @@ class SeedDataRunnerTest {
   }
 
   @Test
+  @DisplayName("Kalutara Town Hall is registered during the event: no record before HZ-2026-0142")
+  void kalutaraTownHallHasNoRecordBeforeTheEvent() {
+    Hazard event = hazards.findById("HZ-2026-0142").orElseThrow();
+    Shelter hall = shelters.findById("SHL-KLT-0001").orElseThrow();
+
+    assertThat(hall.getOccupancyRecords())
+        .extracting(OccupancyRecord::getCapturedAt)
+        .allSatisfy(
+            captured -> {
+              assertThat(captured).isAfterOrEqualTo(event.getStartTime());
+              assertThat(captured).isBeforeOrEqualTo(event.getEndTime().orElseThrow());
+            });
+  }
+
+  @Test
   @DisplayName("The live storyline keeps its order: hazard, warning, then the reports (P155 G8)")
   void liveTimesFollowTheStoryline() {
     LocalDateTime hazardStart = hazards.findById("HZ-2026-0201").orElseThrow().getStartTime();

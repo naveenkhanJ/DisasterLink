@@ -86,7 +86,7 @@
 
 **Licence and attribution.**
 - **Fonts:** OFL 1.1, credited in the report's figure notes.
-- **District boundaries:** geoBoundaries, the "LKA ADM2" dataset. **The dataset's licence is not stated inside the GeoJSON file.** Afham records it from the download page, and the report credits "geoBoundaries (Runfola et al., 2020)".
+- **District boundaries:** geoBoundaries, the "LKA ADM2" dataset (gbOpen, boundary ID `LKA-ADM2-46371173`, build 12 Dec 2023). The licence is not stated inside the GeoJSON file; the release's metadata (recorded P160) names the source "OpenStreetMap, Wambacher" and the licence **ODbL 1.0**: credit "© OpenStreetMap contributors, via geoBoundaries (Runfola et al., 2020)" (implementation standards §1).
 
 ### 2.1 Canonical shell, grid and tokens (binding for every frame — P82 package review)
 
@@ -404,7 +404,7 @@ Every figure on a frame is taken from a scenario, never invented.
 ## 10. Release blockers and open items
 
 1. **Sinhala and Tamil text:** every Sinhala and Tamil text (WF1's three-language table, including the condensed Tamil, and WF2's N-1, N-2 and R-1) checked by a member who reads the language.
-2. **geoBoundaries licence:** recorded from the download page (Afham).
+2. **geoBoundaries licence:** recorded P160 — ODbL 1.0, source OpenStreetMap (from the release metadata; implementation standards §1).
 3. **Manrope in the wf theme:** an assumption (P82); Afham can switch the font in one line.
 4. **Assumptions — confirmed (P85-4):**
    - navigation items per role (§3) and no log-in screen;
@@ -424,4 +424,4 @@ Every figure on a frame is taken from a scenario, never invented.
    - the Piliyandala entry time is 14:20;
    - report RPT-2026-KLT-0852's unknown fields stay blank.
 
-**Still open (Afham, not blocking the drawing):** item 1 (the native check of the Sinhala and Tamil text) and item 2 (the geoBoundaries licence).
+**Still open (Afham, not blocking the drawing):** item 1 (the native check of the Sinhala and Tamil text); item 2 closed P160.
