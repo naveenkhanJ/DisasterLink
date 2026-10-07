@@ -3,6 +3,7 @@ package lk.sliit.se3070.group058.disasterlink.shelter.service;
 import java.util.List;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.District;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.OccupancyUpdate;
+import lk.sliit.se3070.group058.disasterlink.shared.domain.Organization;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.ShelterDetails;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.ShelterSubmission;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.ValidationResult;
@@ -31,6 +32,16 @@ public class ShelterController {
    * @return the shelters of the officer's district
    */
   public List<Shelter> getDistrictShelters(String officerId) {
+    throw new UnsupportedOperationException(OWNER_MESSAGE);
+  }
+
+  /**
+   * Lists the organisations for the operator pick-list of the registration and edit forms (a screen
+   * component, MD section 0.11 C2; not drawn; MD v0.14).
+   *
+   * @return the organisations that can operate a shelter
+   */
+  public List<Organization> getOrganizations() {
     throw new UnsupportedOperationException(OWNER_MESSAGE);
   }
 

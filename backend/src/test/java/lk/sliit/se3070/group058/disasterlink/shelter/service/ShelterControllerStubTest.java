@@ -32,6 +32,7 @@ class ShelterControllerStubTest {
   static Stream<Arguments> operations() {
     return Stream.of(
         op("getDistrictShelters", () -> CONTROLLER.getDistrictShelters("DO-COL-01")),
+        op("getOrganizations", CONTROLLER::getOrganizations),
         op("getShelterDetails", () -> CONTROLLER.getShelterDetails("SHL-1")),
         op(
             "findAlternativeShelters",
@@ -62,8 +63,8 @@ class ShelterControllerStubTest {
   }
 
   @Test
-  @DisplayName("The stub lists all seven operations of the dictionary row")
-  void sevenOperations() {
-    assertThat(operations().count()).isEqualTo(7);
+  @DisplayName("The stub lists all eight operations of the dictionary row")
+  void eightOperations() {
+    assertThat(operations().count()).isEqualTo(8);
   }
 }
