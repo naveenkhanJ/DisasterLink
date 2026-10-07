@@ -1,0 +1,20 @@
+# Line endings: LF in the repository for every text file (the team works on Windows);
+# Windows command scripts keep CRLF so that cmd.exe runs them.
+* text=auto eol=lf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Binary files: never converted or diffed as text.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+*.jar binary
+*.docx binary
+*.xlsx binary
