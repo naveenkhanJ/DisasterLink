@@ -6,15 +6,14 @@ import java.util.Set;
 /**
  * The principal river basins that warnings can name, each with the districts it lies in.
  *
- * <p>Implements CH-17. The basin-to-district table is a Group_058 assumption, compiled from the
- * sources named above each literal; a district is listed only where a source shows a substantial
- * part of the basin in it. The Irrigation Department issues flood warnings per river, which is why
- * a warning can target a basin.
+ * <p>Implements CH-17. The basin-to-district table is a Group_058 assumption. A basin's districts
+ * are the districts that contain the Divisional Secretariat divisions the Irrigation Department
+ * names in its flood warnings for that basin, not the whole catchment. The sources named above each
+ * literal are news reports that quote the Irrigation Department's warnings. The Irrigation
+ * Department issues flood warnings per river, which is why a warning can target a basin.
  */
 public enum RiverBasin {
-  // Natural Resource Profile of the Kelani River Basin, section 2.1 and Table 1 (UNICEF Sri Lanka):
-  // https://www.unicef.org/srilanka/media/301/file/Natural%20Resource%20Profile%20of%20the%20kelani%20river%20Basin.pdf
-  // Kandy and Kalutara (two divisional secretariats each) are left out as marginal.
+  // https://www.adaderana.lk/news.php?nid=115247
   KELANI(
       District.COLOMBO,
       District.GAMPAHA,
@@ -23,52 +22,42 @@ public enum RiverBasin {
       District.RATNAPURA),
 
   // Fixed by scenario SC1: "the Kalu river basin (covered districts Ratnapura and Kalutara)".
+  // https://english.newsfirst.lk/2026/05/23/kalu-ganga-reaches-minor-flood-level-flood-warning-extended-in-kalutara-district
+  // https://www.adaderana.lk/news/122819/minor-flood-warnings-issued-for-several-areas-of-kalu-ganga-basin
   KALU(District.RATNAPURA, District.KALUTARA),
 
-  // Catchment Protection of Gin Ganga (River) as part of the Water Safety Plan, University of
-  // Moratuwa repository: https://dl.lib.uom.lk/items/035ee3c9-6dc1-40e9-aa50-dafdcd45f6b0
-  // The source also names Ratnapura and Kalutara but gives no share; they are left out.
-  GIN(District.GALLE, District.MATARA),
+  // https://www.adaderana.lk/news/93720/amber-flood-warning-issued-to-low-lying-areas-of-3-rivers-extended
+  GIN(District.GALLE),
 
-  // Ratnayake, Sachindra and Nandalal, "Rainfall Forecasting for Flood Prediction in the Nilwala
-  // Basin", ICSBE 2010 ("nearly 90 per cent of the area ... belongs to the Matara District"):
-  // http://www.civil.mrt.ac.lk/web/conference/ICSBE_2010/vol_02/53.pdf
+  // https://www.adaderana.lk/news/93720/amber-flood-warning-issued-to-low-lying-areas-of-3-rivers-extended
   NILWALA(District.MATARA),
 
-  // Irrigation Department, "Delta Related Interventions in Sri Lanka", Mahaweli basin slide (nine
-  // administrative districts):
-  // https://gwpo-gwp.org/assets/legacy/globalassets/global/gwp-sas_images/gwp-sas-in-action/ldai/delta-related-interventions-in-sri-lanka-final.pdf
+  // https://www.adaderana.lk/news/115226/heavy-rains-trigger-major-flood-alert-in-mahaweli-river-basin
+  // https://hirunews.lk/english/481135/major-flood-risk-to-mahaweli-river-basin-emergency-red-notice-to-10-divisional-secretariat-divisions
   MAHAWELI(
-      District.BADULLA,
-      District.MONARAGALA,
+      District.KANDY,
+      District.NUWARA_ELIYA,
       District.MATALE,
+      District.BADULLA,
       District.AMPARA,
       District.POLONNARUWA,
-      District.TRINCOMALEE,
-      District.ANURADHAPURA,
-      District.NUWARA_ELIYA,
-      District.KANDY),
+      District.TRINCOMALEE),
 
-  // "Availability of water resources within the Attanagalla oya basin - a review", University of
-  // Peradeniya repository ("Main administrative district within the basin is Gampaha"):
-  // https://ir.lib.pdn.ac.lk/handle/20.500.14444/454
+  // https://www.adaderana.lk/news/122520/minor-flood-risk-issued-for-low-lying-areas-along-attanagalu-oya-and-uruwal-oya
   ATTANAGALU(District.GAMPAHA),
 
   // Molle, Jayakody and de Silva, "Anicut Systems in Sri Lanka: The Case of the Upper Walawe River
   // Basin", IWMI Working Paper 61 (the basin spreads over four districts):
   // https://horizon.documentation.ird.fr/exl-doc/pleins_textes/divers15-08/010048692.pdf
+  // Group_058 assumption: no warning listing the basin's divisions was found, so the catchment
+  // districts are kept.
   WALAWE(District.RATNAPURA, District.BADULLA, District.MONARAGALA, District.HAMBANTOTA),
 
-  // IWMI Research Group, "Water Resources Management in a River Basin: Institutional Gaps and
-  // Implications - Case Study of Deduru Oya River Basin", Economic Review 2001 (88 % Kurunegala,
-  // 9 % Puttalam): https://dl.nsf.gov.lk/bitstreams/98582bac-3a6c-4ab3-89eb-3e4db7d7d0ee/download
-  // Kandy and Matale (3 % together) are left out as marginal.
+  // https://www.adaderana.lk/news/115216/deduru-oya-basin-on-red-alert-flood-warning-issued-following-heavy-rainfall
   DEDURU(District.KURUNEGALA, District.PUTTALAM),
 
-  // Central Environmental Authority, Ma Oya water quality page (Kegalle, Kurunegala, Gampaha and a
-  // small portion of Puttalam): https://www.cea.lk/web/en/water?id=158
-  // Puttalam (2 % of the district) is left out as a small portion.
-  MAHA_OYA(District.KEGALLE, District.KURUNEGALA, District.GAMPAHA);
+  // https://www.defence.lk/Article/view_article/4124
+  MAHA_OYA(District.KURUNEGALA, District.GAMPAHA, District.PUTTALAM);
 
   private final Set<District> districts;
 
