@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<!-- WF4-S01 — Analyse disaster response. Prototype (P89): static sample data from the scenarios; no behaviour.
+     Bind the values with th:text / th:each when the controller is wired (implementation-standards §4). -->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Analyse disaster response')}">
+<meta charset="utf-8"><title>Analyse disaster response — DMC Sri Lanka</title>
+<link rel="stylesheet" href="../../static/css/app.css">
+</head>
+<body>
+<div class="app">
+<aside class="sidebar" th:replace="~{fragments/layout :: sidebar-dmc('Analytics')}"><div class="brand"><span class="brand__badge">DMC</span>DMC Sri Lanka</div><nav class="nav"><a class="nav__item" href="../warning/showHazards.html"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>Warnings</a><a class="nav__item is-active" href="../analytics/analyticsWorkspace.html"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><path d="M8 17V11"/><path d="M13 17V7"/><path d="M18 17v-4"/></svg>Analytics</a><button type="button" class="nav__item nav__item--soon" data-soon="Hazards"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16.3A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 .5 9"/><path d="m13 12-3 5h4l-3 5"/></svg><span><span class="nav__label">Hazards</span><span class="soon-tag">Not in this version</span></span></button><button type="button" class="nav__item nav__item--soon" data-soon="Operational picture"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg><span><span class="nav__label">Operational picture</span><span class="soon-tag">Not in this version</span></span></button></nav></aside>
+<div class="main">
+<header class="topbar" th:replace="~{fragments/layout :: topbar('Analyse disaster response')}"><div><h1 class="topbar__title">Analyse disaster response</h1><p class="topbar__subtitle">Choose a saved template or a closed hazard event, then set the report criteria.</p></div><div class="user"><span class="user__avatar">NJ</span><div><div class="user__name">N. Jayasinghe</div><div class="user__role">DMC Officer</div></div></div></header>
+<main class="page">
+<div class="grid grid--side-main"><section class="card card--tall"><div class="card__head"><div><h2 class="card__title">1. Start from</h2></div></div><p class="label">Saved criteria templates</p>
+<div class="list-item" style="margin-top:8px"><strong>Western and Sabaragamuwa monsoon flood review</strong>
+<p class="small muted">Colombo, Gampaha, Kalutara, Ratnapura, Kegalle · Flood · 15 May 2025 – 30 September 2025 · 4 metrics</p></div>
+<p class="label" style="margin-top:20px">Closed hazard events</p>
+<div class="list-item is-selected row" style="margin-top:8px;align-items:flex-start;flex-wrap:nowrap"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><div>
+<strong>HZ-2026-0136 · Flood — Kalu Ganga at Ratnapura</strong><p class="small">Ratnapura, Kalutara · 1–6 Oct 2026</p><p style="margin-top:6px"><span class="tag">Closed</span></p></div></div></section><section class="card card--tall"><div class="card__head"><div><h2 class="card__title">2. Report criteria</h2></div></div><p class="muted" style="margin-top:-8px">Pre-filled from event HZ-2026-0136</p>
+<div class="stack" style="gap:16px;margin-top:16px"><div class="field"><span class="label">Districts</span><div class="chips"><span class="chip is-selected"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Ratnapura<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></span><span class="chip is-selected"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Kalutara<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></span><span class="chip"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>Add district</span></div></div>
+<div style="max-width:300px"><div class="field"><label class="label">Hazard type</label><select class="select"><option>Flood</option></select></div></div>
+<div class="field"><span class="label">Period</span><div class="row"><input class="input" style="width:200px" value="1 Oct 2026"><span>to</span><input class="input" style="width:200px" value="6 Oct 2026"></div>
+<p class="help">A period of at most 24 months.</p></div>
+<div class="field"><span class="label">Metrics</span><div><label class="check"><input type="checkbox" checked>Alert timeline</label></div><div><label class="check"><input type="checkbox" checked>Citizens reached</label></div><div><label class="check"><input type="checkbox" checked>Shelter occupancy over time</label></div><div><label class="check"><input type="checkbox" checked>Resource distribution</label></div></div>
+<div class="row row--end"><a class="btn btn--primary" href="../analytics/showResults.html">Generate report</a></div></div></section></div>
+</main>
+</div>
+</div>
+<script src="../../static/js/nav-notice.js" th:src="@{/js/nav-notice.js}"></script>
+<script src="../../static/js/districts.js" th:src="@{/js/districts.js}"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "name": "disasterlink-web-tests",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Jest tests for the plain browser scripts of the officer screens (no application code lives here).",
+  "scripts": {
+    "test": "jest",
+    "test:coverage": "jest --coverage"
+  },
+  "devDependencies": {
+    "@babel/core": "8.0.7",
+    "@babel/preset-env": "8.0.7",
+    "babel-jest": "30.5.2",
+    "jest": "30.5.2",
+    "jest-environment-jsdom": "30.5.2"
+  }
+}

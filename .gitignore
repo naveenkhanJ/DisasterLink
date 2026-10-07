@@ -11,6 +11,8 @@ backend/data/
 
 # --- Node / Expo (mobile/ and the browser test project) ---
 node_modules/
+web/node_modules/
+web/coverage/
 .expo/
 .expo-shared/
 dist/
