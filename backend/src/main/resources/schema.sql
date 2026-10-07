@@ -3,8 +3,10 @@
 -- for that kind, so a new identifier never collides with a seeded one: the seed (stage S4) must
 -- stay below these start values. No Flyway; this script runs after Hibernate has created the tables
 -- (spring.jpa.defer-datasource-initialization=true).
+-- disaster_report_id_seq starts at 184 because no disaster report is seeded and the report that UC4 generates in
+-- the demo must be DR-2026-0184, the identifier the SC4 scenario and the wireframes show.
 CREATE SEQUENCE IF NOT EXISTS hazard_id_seq START WITH 300;
 CREATE SEQUENCE IF NOT EXISTS warning_id_seq START WITH 200;
 CREATE SEQUENCE IF NOT EXISTS hazard_report_id_seq START WITH 1000;
-CREATE SEQUENCE IF NOT EXISTS disaster_report_id_seq START WITH 200;
+CREATE SEQUENCE IF NOT EXISTS disaster_report_id_seq START WITH 184;
 CREATE SEQUENCE IF NOT EXISTS citizen_id_seq START WITH 1000;

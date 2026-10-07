@@ -131,6 +131,37 @@ public class Warning {
     this.notifications = new ArrayList<>();
   }
 
+  /**
+   * Creates a warning from its stored state. This is the seed's constructor: it restores a warning
+   * together with the notifications already sent for it, and changes no domain rule. Each
+   * notification is added to the warning and attached to it, as {@code addNotification} will do.
+   *
+   * @param warningId the identifier
+   * @param hazard the hazard the warning is for
+   * @param details the stored level, texts, targets, channels and expiry time
+   * @param officer the officer who issued the warning
+   * @param issuedTime when the warning was issued
+   * @param notifications the notifications already sent, in order
+   * @throws NullPointerException if an argument is {@code null}
+   */
+  // javac's this-escape lint: attachTo only stores this warning as the notification's read-only
+  // back-reference, and no class in the application extends Warning (Hibernate's proxies do not
+  // run this constructor).
+  @SuppressWarnings("this-escape")
+  public Warning(
+      String warningId,
+      Hazard hazard,
+      WarningDetails details,
+      DMCOfficer officer,
+      LocalDateTime issuedTime,
+      List<Notification> notifications) {
+    this(warningId, hazard, details, officer, issuedTime);
+    for (Notification notification : notifications) {
+      this.notifications.add(notification);
+      notification.attachTo(this);
+    }
+  }
+
   /** Constructor for JPA only. */
   protected Warning() {
     // Constructor for JPA only.

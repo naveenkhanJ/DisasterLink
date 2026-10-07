@@ -47,7 +47,7 @@ class IdGeneratorTest {
     jdbcTemplate.execute("ALTER SEQUENCE hazard_id_seq RESTART WITH 300");
     jdbcTemplate.execute("ALTER SEQUENCE warning_id_seq RESTART WITH 200");
     jdbcTemplate.execute("ALTER SEQUENCE hazard_report_id_seq RESTART WITH 1000");
-    jdbcTemplate.execute("ALTER SEQUENCE disaster_report_id_seq RESTART WITH 200");
+    jdbcTemplate.execute("ALTER SEQUENCE disaster_report_id_seq RESTART WITH 184");
     jdbcTemplate.execute("ALTER SEQUENCE citizen_id_seq RESTART WITH 1000");
   }
 
@@ -72,10 +72,10 @@ class IdGeneratorTest {
   }
 
   @Test
-  @DisplayName("Warning and disaster report identifiers start at 0200")
+  @DisplayName("Warning identifiers start at 0200 and disaster report identifiers at 0184")
   void warningAndDisasterReportIdentifiers() {
     assertThat(generator.next(IdKind.WARNING, null)).isEqualTo("WRN-2026-0200");
-    assertThat(generator.next(IdKind.DISASTER_REPORT, null)).isEqualTo("DR-2026-0200");
+    assertThat(generator.next(IdKind.DISASTER_REPORT, null)).isEqualTo("DR-2026-0184");
   }
 
   @Test

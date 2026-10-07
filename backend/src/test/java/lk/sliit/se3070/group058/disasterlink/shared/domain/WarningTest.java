@@ -136,4 +136,29 @@ class WarningTest {
     assertThatNullPointerException()
         .isThrownBy(() -> new Warning("W", HAZARD, details, OFFICER, null));
   }
+
+  @Test
+  @DisplayName(
+      "The seed constructor stores the given notifications and attaches them to the warning")
+  void seedConstructorAttachesNotifications() {
+    WarningDetails details = SampleEntities.details(List.of(District.GALLE), List.of(), NOW);
+    Notification first =
+        new Notification(SampleEntities.organization("ORG-1"), NotificationChannel.SMS, "t", 1);
+    Notification second =
+        new Notification(SampleEntities.organization("ORG-2"), NotificationChannel.SMS, "t", 2);
+
+    Warning warning =
+        new Warning("WRN-2026-0101", HAZARD, details, OFFICER, NOW, List.of(first, second));
+
+    assertThat(warning.getNotifications()).containsExactly(first, second);
+    assertThat(first.getWarning()).containsSame(warning);
+    assertThat(second.getWarning()).containsSame(warning);
+    assertThat(warning.getWarningId()).isEqualTo("WRN-2026-0101");
+  }
+
+  @Test
+  @DisplayName("A warning made without notifications has none")
+  void plainConstructorHasNoNotifications() {
+    assertThat(warning(List.of(District.GALLE), List.of()).getNotifications()).isEmpty();
+  }
 }
