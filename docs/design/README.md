@@ -1,12 +1,12 @@
 # Design documents (read-only copies)
 
-Snapshot taken on 12 October 2026 (standards v2.19, dictionary v0.14) from Group_058's design folder. **Do not
+Snapshot taken on 12 October 2026 (standards v2.20, dictionary v0.14) from Group_058's design folder. **Do not
 edit these files here.** The master copies live in the group's design project; a change is made there first and
 then copied in again on `shared/skeleton` only.
 
 | File or folder | What it is |
 |---|---|
-| `implementation-standards.md` (v2.19) | Binding rules for all code: stack, packages, naming, SOLID, smells, patterns, logging, exceptions, testing, coverage gates, seed data, per-member contracts (§12). |
+| `implementation-standards.md` (v2.20) | Binding rules for all code: stack, packages, naming, SOLID, smells, patterns, logging, exceptions, testing, coverage gates, seed data, per-member contracts (§12). |
 | `model-dictionary.md` (v0.14) | The single source of names: every class, attribute, operation and literal the code uses. |
 | `change-list.md` (v2.11) | The approved changes CH-01…CH-33; code that implements a change cites its ID in the Javadoc ("Implements CH-nn"). |
 | `traceability.md` | Critique finding → change → artefacts; the code and test columns are filled during implementation. |
