@@ -262,42 +262,53 @@ public class Hazard {
   }
 
   /**
-   * Applies an officer's update of the description, severity and districts.
+   * Applies an officer's update of the description, severity and districts (SC1 A1 5c, E4 12f).
    *
-   * <p>Placeholder owned by Lakmal: the body is written on his branch (implementation standards
-   * section 3, "Operations on shared entities").
+   * <p>Implements CH-22. Called only after {@code WarningController.updateHazard} has checked the
+   * update, so the components that {@link HazardUpdate} accepts as {@code null} are required here.
    *
    * @param update the new description, severity and districts
-   * @throws UnsupportedOperationException always, until the operation is implemented
+   * @throws NullPointerException if {@code update}, its description or its severity is {@code null}
    */
   public void updateHazard(HazardUpdate update) {
-    throw new UnsupportedOperationException("not implemented yet — Lakmal");
+    Objects.requireNonNull(update, "update");
+    this.description = Objects.requireNonNull(update.description(), "description");
+    this.severity = Objects.requireNonNull(update.severity(), "severity");
+    this.districts = new ArrayList<>(update.districts());
   }
 
   /**
-   * Lists the information a hazard update could still supply.
+   * Lists the information a hazard update could still supply: the description, the severity and the
+   * affected districts (MD section 3; SC1 A1 5a).
    *
-   * <p>Placeholder owned by Lakmal: the body is written on his branch (implementation standards
-   * section 3, "Operations on shared entities").
+   * <p>Implements CH-22.
    *
-   * @return the missing items
-   * @throws UnsupportedOperationException always, until the operation is implemented
+   * @return the missing items, in the words of the notice ("affected districts"); empty if the
+   *     hazard is complete
    */
   public List<String> missingInformation() {
-    throw new UnsupportedOperationException("not implemented yet — Lakmal");
+    List<String> missing = new ArrayList<>();
+    if (description == null || description.isBlank()) {
+      missing.add("description");
+    }
+    if (severity == null) {
+      missing.add("severity");
+    }
+    if (districts.isEmpty()) {
+      missing.add("affected districts");
+    }
+    return missing;
   }
 
   /**
    * Tells whether a warning can be issued for the hazard, which is the case while it is active.
    *
-   * <p>Placeholder owned by Lakmal: the body is written on his branch (implementation standards
-   * section 3, "Operations on shared entities").
+   * <p>Implements CH-22.
    *
-   * @return {@code true} if the hazard is assessable
-   * @throws UnsupportedOperationException always, until the operation is implemented
+   * @return {@code true} if the hazard's status is {@code ACTIVE}
    */
   public boolean isAssessable() {
-    throw new UnsupportedOperationException("not implemented yet — Lakmal");
+    return status == HazardStatus.ACTIVE;
   }
 
   @Override

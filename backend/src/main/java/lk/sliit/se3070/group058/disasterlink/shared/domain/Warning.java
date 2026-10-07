@@ -312,30 +312,38 @@ public class Warning {
   }
 
   /**
-   * Escalates the warning to a higher level with a new message, instructions and expiry time.
+   * Escalates the warning to a higher level with a new message, instructions and expiry time
+   * (Escalate step 10; sd Escalate Warning message 10.2.2). Its identifier, targets, channels,
+   * issue time and notifications are kept.
    *
-   * <p>Placeholder owned by Lakmal: the body is written on his branch (implementation standards
-   * section 3, "Operations on shared entities").
+   * <p>Implements CH-06. Called only after {@code EscalationController} has checked the details and
+   * that the new level is above the current one, so every component is required here.
    *
    * @param details the new level, message, instructions and expiry time
-   * @throws UnsupportedOperationException always, until the operation is implemented
+   * @throws NullPointerException if {@code details} or one of its components is {@code null}
    */
   public void escalate(EscalationDetails details) {
-    throw new UnsupportedOperationException("not implemented yet — Lakmal");
+    Objects.requireNonNull(details, "details");
+    this.warningLevel = Objects.requireNonNull(details.newLevel(), "newLevel");
+    this.message = Objects.requireNonNull(details.message(), "message");
+    this.instructions = Objects.requireNonNull(details.instructions(), "instructions");
+    this.expiryTime = Objects.requireNonNull(details.expiryTime(), "expiryTime");
   }
 
   /**
-   * Adds a notification to the warning.
+   * Adds a notification to the warning (A2, sd Broadcast Warning message 4) and sets the
+   * notification's read-only back-reference to this warning, which the push mock reads before the
+   * notification is stored (MD section 0.7, P148).
    *
-   * <p>Placeholder owned by Lakmal: the body is written on his branch (implementation standards
-   * section 3, "Operations on shared entities"). The implementation adds the notification and calls
-   * {@code notification.attachTo(this)}.
+   * <p>Implements CH-12 and CH-23.
    *
    * @param notification the notification to add
-   * @throws UnsupportedOperationException always, until the operation is implemented
+   * @throws NullPointerException if {@code notification} is {@code null}
    */
   public void addNotification(Notification notification) {
-    throw new UnsupportedOperationException("not implemented yet — Lakmal");
+    Objects.requireNonNull(notification, "notification");
+    notifications.add(notification);
+    notification.attachTo(this);
   }
 
   @Override
