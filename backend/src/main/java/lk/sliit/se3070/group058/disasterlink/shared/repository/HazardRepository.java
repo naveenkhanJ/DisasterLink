@@ -115,8 +115,12 @@ public interface HazardRepository extends JpaRepository<Hazard, String> {
    * the end of the period and has no end time or ended no earlier than the start of the period (MD
    * section 6, {@code findMatching}; criteria rule).
    *
+   * <p>Called after {@code AnalyticsController.validateCriteria}; a criteria without a period is a
+   * programming error.
+   *
    * @param criteria the report criteria
    * @return the matching hazards
+   * @throws NullPointerException if the criteria has no period (a call before validation)
    */
   @Transactional(readOnly = true)
   default List<Hazard> findMatching(ReportCriteria criteria) {
@@ -129,7 +133,8 @@ public interface HazardRepository extends JpaRepository<Hazard, String> {
   }
 
   /**
-   * Helper of {@code findMatching}; controls never call it.
+   * Helper of {@code findMatching}; controls never call it. Its period comes from criteria that
+   * passed {@code AnalyticsController.validateCriteria}.
    *
    * @param districts the districts, at least one of which the hazard lists
    * @param anyType {@code true} to ignore the type

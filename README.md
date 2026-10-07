@@ -42,6 +42,9 @@ The last command starts the seeded demo at <http://localhost:8080/>: the data of
 Ganga flood, the live flood with its warning and reports, the shelters) is created at start-up relative to the
 current time, so start it fresh for a demo. Seed photos are written to `backend/data/photos/` (git-ignored).
 
+**Demo note:** Restart the app within 5 hours before the UC2 / Escalate Warning demo — the live warning
+WRN-2026-0101 expires 24 h after it was issued (19 h before start-up); a restart reseeds the in-memory database.
+
 The demo has no login. Each role is a fixed demo user (set in `backend/src/main/resources/application.properties`):
 
 | Role | User |

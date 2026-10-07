@@ -25,8 +25,12 @@ public interface ResourceDistributionRepository
    * period, and, when the criteria set a hazard type, linked to a hazard of that type (a
    * distribution linked to no hazard is then excluded; MD section 6, criteria rule).
    *
+   * <p>Called after {@code AnalyticsController.validateCriteria}; a criteria without a period is a
+   * programming error.
+   *
    * @param criteria the report criteria
    * @return the matching distributions
+   * @throws NullPointerException if the criteria has no period (a call before validation)
    */
   @Transactional(readOnly = true)
   default List<ResourceDistribution> findMatching(ReportCriteria criteria) {
@@ -39,7 +43,8 @@ public interface ResourceDistributionRepository
   }
 
   /**
-   * Helper of {@code findMatching}; controls never call it.
+   * Helper of {@code findMatching}; controls never call it. Its period comes from criteria that
+   * passed {@code AnalyticsController.validateCriteria}.
    *
    * @param districts the destination districts
    * @param anyType {@code true} to ignore the hazard type

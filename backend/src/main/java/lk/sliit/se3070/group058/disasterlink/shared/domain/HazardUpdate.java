@@ -8,12 +8,14 @@ import java.util.List;
  * <p>Implements CH-22.
  *
  * <p>An input value record (MD section 0.13, P155 X1): a field the officer has not entered is
- * {@code null}, so that the update reaches the check of {@code Hazard.updateHazard} (SC1 A1, E4).
+ * {@code null}, so that the update reaches the check of {@code WarningController.updateHazard},
+ * which refuses an invalid update with {@code InvalidHazardUpdateException} (MD section 6,
+ * exceptions table; SC1 A1, E4).
  *
  * @param description the new description, or {@code null} if not entered — checked by {@code
- *     Hazard.updateHazard}
+ *     WarningController.updateHazard}, which refuses with {@code InvalidHazardUpdateException}
  * @param severity the new severity, or {@code null} if not entered — checked by {@code
- *     Hazard.updateHazard}
+ *     WarningController.updateHazard}, which refuses with {@code InvalidHazardUpdateException}
  * @param districts the new affected districts, empty if none entered
  */
 public record HazardUpdate(String description, HazardSeverity severity, List<District> districts) {

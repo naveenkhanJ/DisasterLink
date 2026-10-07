@@ -70,8 +70,12 @@ public interface ShelterRepository extends JpaRepository<Shelter, String> {
    * linked (A9) to a warning whose hazard has that type are kept, together with shelters linked to
    * no warning (MD section 6, {@code findMatching}; criteria rule; P62 FX-16).
    *
+   * <p>Called after {@code AnalyticsController.validateCriteria}; a criteria without a period is a
+   * programming error.
+   *
    * @param criteria the report criteria
    * @return the matching shelters
+   * @throws NullPointerException if the criteria has no period (a call before validation)
    */
   @Transactional(readOnly = true)
   default List<Shelter> findMatching(ReportCriteria criteria) {
@@ -84,7 +88,8 @@ public interface ShelterRepository extends JpaRepository<Shelter, String> {
   }
 
   /**
-   * Helper of {@code findMatching}; controls never call it.
+   * Helper of {@code findMatching}; controls never call it. Its period comes from criteria that
+   * passed {@code AnalyticsController.validateCriteria}.
    *
    * @param districts the districts of the shelters
    * @param start the start of the period, inclusive

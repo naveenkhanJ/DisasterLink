@@ -245,13 +245,8 @@
 						</goals>
 						<configuration>
 							<haltOnFailure>${jacoco.haltOnFailure}</haltOnFailure>
-							<!-- The member packages' gate leaves out the skeleton's class in shelter.web (a rule's own excludes match package names, so the exclusion is made for the whole execution); the next execution gates that class. -->
-							<excludes>
-								<exclude>**/disasterlink/DisasterLinkApplication.class</exclude>
-								<exclude>**/disasterlink/shared/config/**</exclude>
-								<exclude>**/disasterlink/shared/seed/**</exclude>
-								<exclude>**/web/dto/**</exclude>
-								<exclude>**/web/mapper/**</exclude>
+							<!-- The member packages' gate also leaves out the skeleton's class in shelter.web (a rule's own excludes match package names, so the exclusion is made for the whole execution); the plugin-level list above is kept once and this entry is appended to it. The next execution gates that class. -->
+							<excludes combine.children="append">
 								<exclude>**/shelter/web/ShelterApiController.class</exclude>
 							</excludes>
 							<rules>

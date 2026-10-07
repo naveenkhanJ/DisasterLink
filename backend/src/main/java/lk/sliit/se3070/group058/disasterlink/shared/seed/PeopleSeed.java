@@ -266,8 +266,7 @@ class PeopleSeed {
 
   private static Citizen citizen(District district, String code, int number, Organization group) {
     String userId = String.format("CIT-%s-%04d", code, number);
-    // SC2 and the seed plan: CIT-KLT-0001 is Asela Gunawardene, a Kalutara citizen with the app who
-    // prefers Sinhala (he receives his decision notice in Sinhala).
+    // SC2 and the seed plan: CIT-KLT-0001 is Asela Gunawardene, a Kalutara citizen with the app.
     String name =
         DEMO_CITIZEN.equals(userId)
             ? "Asela Gunawardene"

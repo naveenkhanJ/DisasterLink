@@ -91,9 +91,14 @@ check before a registration or detail edit (MD `ShelterManagementUI`, P59), neve
 
 * **A non-numeric occupancy** (for example `3S0`) cannot be read as a whole number: the page refuses it without calling
   the module and shows `showInvalidOccupancy(message)` (MD `ShelterManagementUI`, "also when the web layer cannot bind a
-  non-numeric entry"; SC3 E3 7d). A non-numeric capacity is blocked the same way (the request record requires a number
-  for `capacity`; a missing number would be a 400 problem, not a `show…` display). A negative occupancy is **not**
-  caught here: send it, and the server's `INVALID_VALUE` reply drives `showInvalidOccupancy`.
+  non-numeric entry"; SC3 E3 7d–7e). A negative occupancy is **not** caught here: send it, and the server's
+  `INVALID_VALUE` reply drives `showInvalidOccupancy`.
+* **An empty or non-numeric capacity** (registration or edit form) is also caught by the page before the module, but it
+  is **not** shown with `showInvalidOccupancy`: the page shows it as a field error beside the capacity field in the form,
+  as SC3 E2 2g shows each shelter-detail error beside its field (the form keeps the values entered). The server's
+  `@NotNull` on `capacity` (a 400 problem) stays as the safety net if such a request is ever sent; a capacity that is a
+  number but below 1 is sent and answered by `validateShelterDetails` as an error for `showShelterDetailsErrors` (SC3 E2
+  2g, "capacity a whole number above zero").
 * The details check of a registration or edit (`POST /api/shelters/validation`) runs online only; offline it is skipped
   and the server re-checks on replay (MD `ShelterManagementUI` P60 N16; SC3 A6 6c).
 

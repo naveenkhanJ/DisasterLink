@@ -69,8 +69,12 @@ public interface WarningRepository extends JpaRepository<Warning, String> {
    * query selects by period and type, and Java keeps the warnings whose {@code coveredDistricts()}
    * meet the districts (MD section 6, {@code findMatching}; PR6, R3G-04).
    *
+   * <p>Called after {@code AnalyticsController.validateCriteria}; a criteria without a period is a
+   * programming error.
+   *
    * @param criteria the report criteria
    * @return the matching warnings
+   * @throws NullPointerException if the criteria has no period (a call before validation)
    */
   @Transactional(readOnly = true)
   default List<Warning> findMatching(ReportCriteria criteria) {
@@ -85,7 +89,8 @@ public interface WarningRepository extends JpaRepository<Warning, String> {
   }
 
   /**
-   * Helper of {@code findMatching}; controls never call it.
+   * Helper of {@code findMatching}; controls never call it. Its period comes from criteria that
+   * passed {@code AnalyticsController.validateCriteria}.
    *
    * @param start the start of the period, inclusive
    * @param endExclusive the end of the period, exclusive

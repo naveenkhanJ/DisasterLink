@@ -9,14 +9,16 @@ import java.util.Objects;
  * <p>Implements CH-21.
  *
  * <p>An input value record (MD section 0.13, P155 X1): a language the officer has not written is
- * {@code null}, so that {@code WarningTextValidator} reports the missing text.
+ * {@code null}, so that {@code WarningController.validateWarning} and {@code
+ * EscalationController.validateEscalation} report the missing text (they delegate the text rules to
+ * {@code WarningTextValidator}).
  *
  * @param sinhala the text in Sinhala, or {@code null} if not entered — checked by {@code
- *     WarningTextValidator}
+ *     WarningController.validateWarning} and {@code EscalationController.validateEscalation}
  * @param tamil the text in Tamil, or {@code null} if not entered — checked by {@code
- *     WarningTextValidator}
+ *     WarningController.validateWarning} and {@code EscalationController.validateEscalation}
  * @param english the text in English, or {@code null} if not entered — checked by {@code
- *     WarningTextValidator}
+ *     WarningController.validateWarning} and {@code EscalationController.validateEscalation}
  */
 @Embeddable
 public record LocalisedText(String sinhala, String tamil, String english) {

@@ -1,6 +1,6 @@
 # Design documents (read-only copies)
 
-Snapshot taken on 11 October 2026 from Group_058's design folder. **Do not edit these files here.** The master
+Snapshot taken on 12 October 2026 (standards v2.17, dictionary v0.12) from Group_058's design folder. **Do not edit these files here.** The master
 copies live in the group's design project; a change is made there first and then copied in again on
 `shared/skeleton` only.
 

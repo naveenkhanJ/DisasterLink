@@ -29,13 +29,15 @@ These rules apply to every member's coding agent, whatever the tool. Read them b
 - One exception (standards §3, "Operations on shared entities"): on your own branch you may replace the body of a
   `shared.domain` operation that standards §3 assigns to you (its placeholder throws
   `UnsupportedOperationException("not implemented yet — <your name>")`). Change nothing else in that file.
-  You may also replace the tests in your own placeholder test file (`<YourName>SharedOperationsTest`) with the real tests of those operations.
+  You may also replace the tests in your own placeholder test file (`<YourName>SharedOperationsTest`) with the
+  real tests of those operations.
 - A method in another member's class whose body throws "not implemented yet" belongs to that member: do not fill it
   in; mock it in your tests.
 
 ## Quality (marked against docs/lectures/L03 and L04)
 - Javadoc on every class and every public method; SLF4J logging; constructor injection; no magic numbers; no
   `System.out`; no commented-out code; no unused members.
-- Tests: JUnit Jupiter (the version Spring Boot 4.1 manages) + Mockito + AssertJ (backend), Jest (JavaScript/TypeScript). Every scenario flow has a test named
-  after its behaviour, with the flow ID in `@DisplayName`. Coverage above 80 % line and branch for your packages.
+- Tests: JUnit Jupiter (the version Spring Boot 4.1 manages) + Mockito + AssertJ (backend), Jest
+  (JavaScript/TypeScript). Every scenario flow has a test named after its behaviour, with the flow ID in
+  `@DisplayName`. Coverage above 80 % line and branch for your packages.
 - Before reporting a task as done, run the build and the tests and show their output.
