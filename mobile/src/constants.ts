@@ -29,9 +29,3 @@ export const ACTIVE_WARNINGS_PATH = '/api/warnings/active';
 
 /** The path of a recipient's push outbox (§12.1); `{recipientId}` is replaced. */
 export const PUSH_OUTBOX_PATH = '/api/push/{recipientId}/outbox';
-
-/** The value of `EXPO_PUBLIC_FIRST_RUN_CHECK` that switches the first-run check on. */
-export const FIRST_RUN_CHECK_ON = '1';
-
-/** The title of the first-run check's local notification. */
-export const FIRST_RUN_TITLE = 'DisasterLink first-run check';

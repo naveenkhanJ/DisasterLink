@@ -16,12 +16,7 @@ import {
   FLOW, SHOT_NAMES, type ScreenId,
 } from './src/screens/screens';
 import { colors } from './src/theme';
-import { createHttpClient } from './src/api/httpClient';
-import { createSkeletonApi } from './src/api/skeletonApi';
-import { getEnv } from './src/config/env';
-import { FIRST_RUN_CHECK_ON } from './src/constants';
-import { runFirstRunCheck } from './src/dev/firstRunCheck';
-import { configureNotifications, presentLocalAlert } from './src/notifications/notifications';
+import { configureNotifications } from './src/notifications/notifications';
 
 /** Reads "#WF2P-S03" (web preview only); otherwise the app starts on the home screen. */
 function initialScreen(): ScreenId {
@@ -68,11 +63,6 @@ export default function App() {
   useEffect(() => {
     // Notification handler, Android channel and permission, once at start-up (standards §10).
     void configureNotifications();
-    // Dev only; remove after the first-run check (S6).
-    if (__DEV__ && process.env.EXPO_PUBLIC_FIRST_RUN_CHECK === FIRST_RUN_CHECK_ON) {
-      const env = getEnv();
-      void runFirstRunCheck(createSkeletonApi(createHttpClient(env.apiUrl)), env.citizenId, presentLocalAlert);
-    }
   }, []);
   const [fontsLoaded] = useFonts({
     Manrope: require('./assets/fonts/Manrope-VariableFont_wght.ttf'),

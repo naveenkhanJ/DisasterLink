@@ -13,6 +13,9 @@ import { WARNINGS_CHANNEL_ID, WARNINGS_CHANNEL_NAME } from '../constants';
  * with high importance (Android 13 and later need a channel before they ask for permission), and
  * the permission is requested if it was not granted yet.
  *
+ * Await it before presenting any alert: on the first launch an alert scheduled before the permission
+ * prompt is answered is filed silently in Notification Centre (verified P171).
+ *
  * @returns whether the app may show notifications
  */
 export async function configureNotifications(): Promise<boolean> {

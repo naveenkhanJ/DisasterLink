@@ -20,20 +20,11 @@ the skeleton's modules around it. **UC2's screens and behaviour are Afham's** an
 5. In this folder run `npx expo start`, scan the QR code with the iPhone camera and open it in **Expo Go (SDK 57)**. Each
    Expo Go build supports exactly one SDK; the one on the iPhone must be SDK 57.
 
-## The first-run check (development only, removable)
+## Verified on a phone
 
-Two points of the implementation standards (§10) are believed but not verified: a plain-HTTP `fetch` from Expo Go to the
-PC's LAN address, and a local notification in Expo Go on iOS. The check settles both.
-
-1. Add `EXPO_PUBLIC_FIRST_RUN_CHECK=1` to `.env` and restart Expo (`npx expo start --clear`).
-2. Open the app in Expo Go and accept the notification permission when asked.
-3. **Success:** a local notification "DisasterLink first-run check — Server reachable: *n* push entries" appears (*n* is the
-   number of undelivered push entries of the demo citizen, 0 on a fresh start). That proves both points.
-4. **Failure:** "Server NOT reachable: *error*" means the notification works but the server does not (check the address,
-   the Wi-Fi, the firewall rule and that the back end is running); no notification at all means the permission was refused or
-   notifications do not show in Expo Go on that phone.
-5. Report both outcomes (the server point and the notification point), then remove `src/dev/firstRunCheck.ts`, its call in
-   `App.tsx` and `EXPO_PUBLIC_FIRST_RUN_CHECK` from `.env`.
+Verified on 13 October 2026 (Afham's iPhone, Expo Go SDK 57): plain-HTTP calls from Expo Go to the PC's LAN address work;
+local notifications show as a banner with sound once permission is granted — await `configureNotifications()` before the
+first alert.
 
 ## Tests and tooling
 
@@ -52,8 +43,7 @@ re-formatted.
 
 **Skeleton (S6)** — `src/config/env.ts`, `src/api/types.ts`, `src/api/httpClient.ts`, `src/api/skeletonApi.ts` (active
 warnings and the push outbox), `src/notifications/notifications.ts` (handler, Android channel `warnings`, permission, local
-alert), `src/location/districtOutlines.ts` (the 25 outlines, data only), `src/constants.ts`, `src/dev/firstRunCheck.ts`,
-and the Jest, ESLint and TypeScript set-up.
+alert), `src/location/districtOutlines.ts` (the 25 outlines, data only), `src/constants.ts`, and the Jest, ESLint and TypeScript set-up.
 
 **UC2 (Afham)** — `ReportCaptureController`, `LocationService`, `OfflineReportStore`, `HomeCache`, `resolveDistrict`, the
 report API calls (`POST /api/reports`, …), the merge of polled push entries into one alert per warning (`showAlert`) and

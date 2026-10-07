@@ -5,7 +5,7 @@
  * full, so {@link getEnv} names each variable literally; {@link parseEnv} is the pure part that the
  * tests call.
  */
-import { DEFAULT_CITIZEN_ID, FIRST_RUN_CHECK_ON } from '../constants';
+import { DEFAULT_CITIZEN_ID } from '../constants';
 
 /** The settings of the app. */
 export interface AppEnv {
@@ -13,22 +13,18 @@ export interface AppEnv {
   apiUrl: string;
   /** The identifier of the demo citizen. */
   citizenId: string;
-  /** Whether the dev-only first-run check is switched on. */
-  firstRunCheck: boolean;
 }
 
 /** The raw values as the environment gives them. */
 export interface RawEnv {
   apiUrl: string | undefined;
   citizenId: string | undefined;
-  firstRunCheck: string | undefined;
 }
 
 /**
  * Builds the settings from raw values.
  *
- * @param raw the values of `EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_CITIZEN_ID` and
- *   `EXPO_PUBLIC_FIRST_RUN_CHECK`
+ * @param raw the values of `EXPO_PUBLIC_API_URL` and `EXPO_PUBLIC_CITIZEN_ID`
  * @returns the settings; the citizen defaults to `CIT-KLT-0001`
  * @throws Error with a message that names `EXPO_PUBLIC_API_URL` when it is missing or blank
  */
@@ -44,7 +40,6 @@ export function parseEnv(raw: RawEnv): AppEnv {
   return {
     apiUrl: apiUrl.replace(/\/+$/, ''),
     citizenId: citizenId ? citizenId : DEFAULT_CITIZEN_ID,
-    firstRunCheck: raw.firstRunCheck === FIRST_RUN_CHECK_ON,
   };
 }
 
@@ -58,6 +53,5 @@ export function getEnv(): AppEnv {
   return parseEnv({
     apiUrl: process.env.EXPO_PUBLIC_API_URL,
     citizenId: process.env.EXPO_PUBLIC_CITIZEN_ID,
-    firstRunCheck: process.env.EXPO_PUBLIC_FIRST_RUN_CHECK,
   });
 }
