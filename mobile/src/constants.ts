@@ -2,9 +2,22 @@
  * constants.ts — the named values of the skeleton modules (implementation standards §10: no magic
  * values in code).
  */
+import type { District, Language } from './api/types';
 
 /** The demo citizen of the app (standards §11): the Kalutara citizen with a device token. */
 export const DEFAULT_CITIZEN_ID = 'CIT-KLT-0001';
+
+/**
+ * The demo citizen's registered district (CIT-KLT-0001 in the seed, standards §11): the fallback
+ * district of a report and the district of the home screen's warnings.
+ */
+export const DEFAULT_CITIZEN_DISTRICT: District = 'KALUTARA';
+
+/**
+ * The demo citizen's preferred language in the seed: the app's starting language (standards §10,
+ * PR13).
+ */
+export const DEFAULT_CITIZEN_LANGUAGE: Language = 'ENGLISH';
 
 /** How long a request may take before it counts as a network failure, in milliseconds (§12.1). */
 export const REQUEST_TIMEOUT_MS = 15_000;

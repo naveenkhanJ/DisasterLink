@@ -8,10 +8,13 @@ the skeleton's modules around it. **UC2's screens and behaviour are Afham's** an
 
 1. Node 22 or later (checked with 24.13) and `npm ci` in this folder.
 2. Copy `.env.example` to `.env` and set the address of the PC that runs the server:
-   * `EXPO_PUBLIC_API_URL=http://<the PC's LAN IP>:8080` — find the address with `ipconfig` (the IPv4 address of the Wi-Fi
+   - `EXPO_PUBLIC_API_URL=http://<the PC's LAN IP>:8080` — find the address with `ipconfig` (the IPv4 address of the Wi-Fi
      adapter). `npx expo start --tunnel` tunnels only the Metro bundler, not the API, so it does not replace this.
-   * `EXPO_PUBLIC_CITIZEN_ID=CIT-KLT-0001` (the demo citizen; the default).
-   * `.env` is git-ignored; `.env.example` is committed.
+   - `EXPO_PUBLIC_CITIZEN_ID=CIT-KLT-0001` (the demo citizen; the default).
+   - `EXPO_PUBLIC_CITIZEN_DISTRICT=KALUTARA` and `EXPO_PUBLIC_CITIZEN_LANGUAGE=ENGLISH` — the demo citizen's registered
+     district and starting language; the defaults are the seeded CIT-KLT-0001's — the report's own district comes from
+     the live GPS.
+   - `.env` is git-ignored; `.env.example` is committed.
 3. Let the phone reach the server: the iPhone and the PC on the **same Wi-Fi**, and a **Windows Firewall inbound rule for
    TCP port 8080 on Private networks** (Windows Defender Firewall → Advanced settings → Inbound Rules → New Rule → Port →
    TCP 8080 → Allow → Private only).
@@ -28,12 +31,12 @@ first alert.
 
 ## Tests and tooling
 
-| Command | What it does |
-|---|---|
-| `npm test` | Jest (`jest-expo` preset, React Native Testing Library) |
-| `npm run test:coverage` | the same with coverage; global 80 % lines and branches |
-| `npm run lint` | ESLint (`eslint-config-expo`, `eslint-config-prettier`) |
-| `npm run typecheck` | `tsc --noEmit` (TypeScript `strict`) |
+| Command                                  | What it does                                                                      |
+| ---------------------------------------- | --------------------------------------------------------------------------------- |
+| `npm test`                               | Jest (`jest-expo` preset, React Native Testing Library)                           |
+| `npm run test:coverage`                  | the same with coverage; global 80 % lines and branches                            |
+| `npm run lint`                           | ESLint (`eslint-config-expo`, `eslint-config-prettier`)                           |
+| `npm run typecheck`                      | `tsc --noEmit` (TypeScript `strict`)                                              |
 | `node scripts/gen-district-outlines.mjs` | rewrites `src/location/districtOutlines.ts` from the officer map's `districts.js` |
 
 Prettier is configured in `.prettierrc` (2 spaces, single quotes, 100 columns); the prototype's screens are not
