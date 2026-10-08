@@ -63,6 +63,41 @@ export const LEVEL_LABELS: Record<WarningLevel, string> = {
 /** The error under the manual-entry fields when a coordinate is blank or not a number (SC2 E3 12e). */
 export const NUMBERS_REQUIRED_TEXT = 'Enter the latitude and longitude as numbers';
 
+/** The error under the coordinate fields when the point is outside Sri Lanka (SC2 E3 12f; WF2P-S03b). */
+export const LOCATION_OUTSIDE_FIELDS_TEXT =
+  'This location is outside Sri Lanka — check the latitude and longitude';
+
+/** The error under the map when the pin is outside Sri Lanka (SC2 E3 12f; WF2P-S03b, P206). */
+export const LOCATION_OUTSIDE_PIN_TEXT =
+  'This location is outside Sri Lanka — move the pin to the place you saw';
+
+/**
+ * Words the location error for the input that was used.
+ *
+ * @param error the worded error from `toFieldErrors`
+ * @param viaPin whether the point came from the map pin (or the place search)
+ * @returns the error, with the pin wording for the pin and the fields wording for the fields
+ */
+export function locationErrorText(error: string, viaPin: boolean): string {
+  return viaPin && error === LOCATION_OUTSIDE_FIELDS_TEXT ? LOCATION_OUTSIDE_PIN_TEXT : error;
+}
+
+/** The notice when the location permission is refused or can be asked again (WF2P-S03g, P206). */
+export const LOCATION_ALLOW_TEXT = 'Allow location access to use your current location';
+
+/** The notice when Location Services are off (WF2P-S03g, P206). */
+export const LOCATION_SERVICES_OFF_TEXT = 'Turn on Location Services to use your current location';
+
+/**
+ * Words the line that says more alerts exist than the shell draws (standards §10 item 7).
+ *
+ * @param hidden the number of alerts not drawn
+ * @returns for example "1 more — see Active warnings on Home"
+ */
+export function moreAlertsText(hidden: number): string {
+  return `${hidden} more — see Active warnings on Home`;
+}
+
 /**
  * Reads a typed coordinate.
  *
@@ -283,7 +318,7 @@ const FIELD_TEXTS: Record<string, Record<string, string>> = {
     'not a readable JPEG or PNG image': 'This image cannot be used — choose a JPEG or PNG photo',
   },
   location: {
-    default: 'This location is outside Sri Lanka — check the latitude and longitude',
+    default: LOCATION_OUTSIDE_FIELDS_TEXT,
     'a location is required': 'Enter the location of what you saw',
   },
 };

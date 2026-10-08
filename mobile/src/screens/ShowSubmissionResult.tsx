@@ -5,6 +5,9 @@
  * "Report not accepted" with the errors and a line saying the app returns to the review screen by
  * itself (E6 19a to 19c, WF2P-S05b).
  *
+ * A QUEUED result whose draft the synchronisation has since sent shows S05c: "Report sent" with
+ * the report ID, "Pending verification" and "Track report status" (A2 18d to 18f; WF2P-S05c, P206).
+ *
  * Implements CH-10, CH-27 (FD-12).
  */
 import React from 'react';
@@ -14,6 +17,9 @@ import { Button, Card, ErrorText, Icon, LabelValue, Tag, styles as ui } from '..
 import { colors, fonts, space } from '../theme';
 import { Screen } from './Screen';
 import { formatDateTime } from './texts';
+
+/** The words and icon of S05c: the queued draft was sent. */
+const SENT_STATE = { headline: 'Report sent', icon: 'check', tone: 'ok' } as const;
 
 /** The words and icon of each state. */
 const STATES = {
@@ -35,15 +41,19 @@ const STATES = {
 export function ShowSubmissionResult({
   result,
   draft,
+  sentReportId,
   onTrackStatus,
   onBackToHome,
 }: {
   result: SubmissionResult;
   draft: ReportDraft | undefined;
+  /** The report ID once the queued draft was sent (S05c); `undefined` while it still waits. */
+  sentReportId?: string;
   onTrackStatus: (reportId: string) => void;
   onBackToHome: () => void;
 }) {
-  const state = STATES[result.state];
+  const sent = result.state === 'QUEUED' && sentReportId !== undefined;
+  const state = sent ? SENT_STATE : STATES[result.state];
   const iconColor = state.tone === 'error' ? colors.errorText : colors[state.tone].text;
   return (
     <Screen>
@@ -75,7 +85,18 @@ export function ShowSubmissionResult({
           ) : null}
         </>
       ) : null}
-      {result.state === 'QUEUED' ? (
+      {sent ? (
+        <>
+          <Card style={{ paddingVertical: 4 }}>
+            <LabelValue label="Report ID">{sentReportId}</LabelValue>
+            <LabelValue label="Status" last>
+              <Tag label="Pending verification" tone="warn" />
+            </LabelValue>
+          </Card>
+          <Button label="Track report status" big onPress={() => onTrackStatus(sentReportId)} />
+        </>
+      ) : null}
+      {result.state === 'QUEUED' && !sent ? (
         <>
           <Card style={{ paddingVertical: 4 }}>
             {draft ? (

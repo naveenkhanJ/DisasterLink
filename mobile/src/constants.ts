@@ -96,3 +96,12 @@ export const HTTP_PAYLOAD_TOO_LARGE = 413;
 
 /** The separator of the errors in the message of a REJECTED receipt. */
 export const ERROR_SEPARATOR = '; ';
+
+/**
+ * How often the app tries to send a QUEUED draft while it is open and active, in milliseconds
+ * (standards section 10 "Foreground retry … and timed retry", P206; deviation D-UC2-1).
+ */
+export const QUEUED_RETRY_INTERVAL_MS = 30_000;
+
+/** The most in-app warning alerts the shell draws at once; the rest are counted (standards section 10, P206). */
+export const MAX_ALERTS_SHOWN = 2;

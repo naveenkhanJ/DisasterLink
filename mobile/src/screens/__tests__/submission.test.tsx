@@ -202,11 +202,14 @@ describe('review and submission', () => {
     expect(screen.getByText('Report submitted')).toBeTruthy();
   });
 
-  it('SC2 steps 16-17: the tab Report starts a new draft from any screen', async () => {
+  it('SC2 steps 16-17: the tab Report from a draft with content asks first, and Discard starts a new draft', async () => {
     const rig = makeRig();
     await reachReview(rig);
 
     await run(() => fireEvent.press(screen.getByRole('tab', { name: /Report/ })));
+    expect(screen.getByText('Discard this report?')).toBeTruthy();
+    expect(rig.controller.startReport).toHaveBeenCalledTimes(1);
+    await run(() => fireEvent.press(screen.getByRole('button', { name: 'Discard' })));
 
     expect(screen.getByText('What did you see?')).toBeTruthy();
     expect(rig.controller.startReport).toHaveBeenCalledTimes(2);

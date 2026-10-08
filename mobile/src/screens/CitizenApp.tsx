@@ -1,17 +1,30 @@
 /**
- * CitizenApp.tsx — the app shell of the citizen app (`CitizenAppUI`): the header, the common error
- * banner (C1, drawn once here for every screen), the in-app alerts, the screen of the current route,
- * the decision card and the tab bar. The in-memory navigator is the `route` of the hook; there is
- * no navigation library.
+ * CitizenApp.tsx — the app shell of the citizen app (`CitizenAppUI`): the header with its "‹ Back"
+ * link, the slim loading row, the common error banner (C1, drawn once here for every screen), the
+ * sync-result banner and the in-app alerts (both on every screen), the screen of the current route,
+ * the decision card, the discard question and the tab bar. The in-memory navigator is the `route`
+ * of the hook; there is no navigation library (standards §10 "Phone screens beyond the frames",
+ * P206).
  *
  * Implements CH-25, CH-26, CH-27 (WF2P-S01 to S06 and their states).
  */
 import React, { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { CitizenAppUI } from '../app/useCitizenAppUI';
-import { AppHeader, ServiceUnavailableBanner, SoonNotice, TabBar } from '../components/ui';
+import {
+  AppHeader,
+  LoadingRow,
+  ServiceUnavailableBanner,
+  SoonNotice,
+  TabBar,
+  styles as ui,
+} from '../components/ui';
+import { MAX_ALERTS_SHOWN } from '../constants';
+import { searchPlace } from '../location/placeSearch';
+import { isOnline } from '../sync/connectivityTriggers';
 import { colors, space } from '../theme';
 import { ChooseHazardType } from './ChooseHazardType';
+import { DiscardQuestion } from './DiscardQuestion';
 import { ReportForm } from './ReportForm';
 import { Screen } from './Screen';
 import { ShowAlert } from './ShowAlert';
@@ -20,39 +33,54 @@ import { ShowReportDecision } from './ShowReportDecision';
 import { ShowReportStatus } from './ShowReportStatus';
 import { ShowReview } from './ShowReview';
 import { ShowSubmissionResult } from './ShowSubmissionResult';
-import { SERVICE_UNAVAILABLE_TEXT } from './texts';
+import { ShowSyncResults } from './ShowSyncResults';
+import { moreAlertsText, SERVICE_UNAVAILABLE_TEXT } from './texts';
+
+/** The routes that have a "‹ Back" link in the header (standards §10 item 1). */
+const BACK_ROUTES: ReadonlySet<string> = new Set([
+  'chooseHazardType',
+  'reportForm',
+  'review',
+  'reportStatus',
+]);
 
 /** The screen of the current route. */
-function CurrentScreen({ ui }: { ui: CitizenAppUI }) {
-  const { route, draft } = ui;
+function CurrentScreen({ ui: app }: { ui: CitizenAppUI }) {
+  const { route, draft } = app;
   if (route.name === 'home') {
     return (
-      <Screen>
+      <Screen refreshing={app.refreshing} onRefresh={() => void app.refreshHomeScreen()}>
         <ShowHome
-          view={ui.home}
-          currentLocation={ui.currentLocation}
-          syncResults={ui.syncResults}
-          draftDiscarded={ui.draftDiscarded}
-          onSelectLanguage={(language) => void ui.selectLanguage(language)}
-          onReportHazard={ui.startReport}
-          onOpenReport={(reportId) => void ui.openReportStatus(reportId)}
-          onOpenDraft={(draftId) => void ui.openDraft(draftId)}
-          onDismissSyncResults={ui.dismissSyncResults}
-          onDismissDiscarded={ui.dismissDiscarded}
+          view={app.home}
+          currentLocation={app.currentLocation}
+          locationAccess={app.locationAccess}
+          draftDiscarded={app.draftDiscarded}
+          onSelectLanguage={(language) => void app.selectLanguage(language)}
+          onReportHazard={app.startReport}
+          onOpenReport={(reportId) => void app.openReportStatus(reportId)}
+          onOpenDraft={(draftId) => void app.openDraft(draftId)}
+          onDismissDiscarded={app.dismissDiscarded}
         />
       </Screen>
     );
   }
   if (route.name === 'reportStatus') {
-    return ui.report ? <ShowReportStatus report={ui.report} /> : null;
+    return app.report ? (
+      <ShowReportStatus
+        report={app.report}
+        refreshing={app.refreshing}
+        onRefresh={() => void app.refreshReportStatus()}
+      />
+    ) : null;
   }
   if (route.name === 'submissionResult') {
-    return ui.result ? (
+    return app.result ? (
       <ShowSubmissionResult
-        result={ui.result}
+        result={app.result}
         draft={draft}
-        onTrackStatus={(reportId) => void ui.openReportStatus(reportId)}
-        onBackToHome={() => void ui.openHome()}
+        sentReportId={app.sentReportId}
+        onTrackStatus={(reportId) => void app.openReportStatusFrom(reportId, 'submissionResult')}
+        onBackToHome={() => void app.openHome()}
       />
     ) : null;
   }
@@ -63,7 +91,7 @@ function CurrentScreen({ ui }: { ui: CitizenAppUI }) {
     return (
       <ChooseHazardType
         capturedAt={draft.capturedAt}
-        onSelect={(type) => void ui.selectHazardType(type)}
+        onSelect={(type) => void app.selectHazardType(type)}
       />
     );
   }
@@ -71,24 +99,30 @@ function CurrentScreen({ ui }: { ui: CitizenAppUI }) {
     return (
       <ShowReview
         draft={draft}
-        submitting={ui.submitting}
-        onEdit={ui.editReport}
-        onSubmit={() => void ui.submitReport()}
+        submitting={app.submitting}
+        onEdit={app.editReport}
+        onSubmit={() => void app.submitReport()}
       />
     );
   }
   return (
     <ReportForm
       draft={draft}
-      errors={ui.errors}
-      locationUnavailable={ui.locationUnavailable}
-      permissionDenied={ui.permissionDenied}
-      onChangeHazardType={ui.changeHazardType}
-      onEnterDescription={ui.enterDescription}
-      onPickPhoto={(source) => void ui.pickPhoto(source)}
-      onEnterLocation={ui.enterLocationManually}
-      onReview={ui.reviewReport}
-      onDiscardDraft={(draftId) => void ui.discardDraft(draftId)}
+      errors={app.errors}
+      locationUnavailable={app.locationUnavailable}
+      permissionDenied={app.permissionDenied}
+      onChangeHazardType={app.changeHazardType}
+      onEnterDescription={app.enterDescription}
+      onPickPhoto={(source) => void app.pickPhoto(source)}
+      onRemovePhoto={app.removePhoto}
+      onEnterLocation={app.enterLocationManually}
+      locationAccess={app.locationAccess}
+      onAllowLocationAccess={() => void app.allowLocationAccess()}
+      mapStart={app.mapStart}
+      searchPlace={searchPlace}
+      isOnline={isOnline}
+      onReview={app.reviewReport}
+      onDiscardDraft={(draftId) => void app.discardDraft(draftId)}
     />
   );
 }
@@ -99,43 +133,62 @@ function CurrentScreen({ ui }: { ui: CitizenAppUI }) {
  * @param props the state and inputs of the screen boundary
  * @returns the app
  */
-export function CitizenApp({ ui }: { ui: CitizenAppUI }) {
+export function CitizenApp({ ui: app }: { ui: CitizenAppUI }) {
   const [soon, setSoon] = useState<string | null>(null);
-  const homeTab = ui.route.name === 'home' || ui.route.name === 'reportStatus';
-  const bannerShown = ui.serviceUnavailable || (ui.route.name === 'home' && ui.home.error === true);
+  const homeTab = app.route.name === 'home' || app.route.name === 'reportStatus';
+  const bannerShown =
+    app.serviceUnavailable || (app.route.name === 'home' && app.home.error === true);
+  const shownAlerts = app.alerts.slice(-MAX_ALERTS_SHOWN);
+  const hiddenAlerts = app.alerts.length - shownAlerts.length;
+  const noticeShown = bannerShown || app.syncResults.length > 0 || app.alerts.length > 0;
   return (
     <View style={styles.app}>
-      <AppHeader />
+      <AppHeader onBack={BACK_ROUTES.has(app.route.name) ? () => void app.goBack() : undefined} />
+      {app.loading ? <LoadingRow /> : null}
       {soon ? <SoonNotice label={soon} onClose={() => setSoon(null)} /> : null}
-      {bannerShown ? (
+      {noticeShown ? (
         <View style={styles.notices}>
-          <ServiceUnavailableBanner
-            text={SERVICE_UNAVAILABLE_TEXT}
-            onRetry={() => void ui.retry()}
-          />
-        </View>
-      ) : null}
-      {ui.alerts.length > 0 ? (
-        <View style={styles.notices}>
-          {ui.alerts.map((alert) => (
-            <ShowAlert key={alert.id} alert={alert} onClose={() => ui.dismissAlert(alert.id)} />
+          {bannerShown ? (
+            <ServiceUnavailableBanner
+              text={SERVICE_UNAVAILABLE_TEXT}
+              onRetry={() => void app.retry()}
+            />
+          ) : null}
+          {app.syncResults.length > 0 ? (
+            <ShowSyncResults results={app.syncResults} onClose={app.dismissSyncResults} />
+          ) : null}
+          {shownAlerts.map((alert) => (
+            <ShowAlert key={alert.id} alert={alert} onClose={() => app.dismissAlert(alert.id)} />
           ))}
+          {hiddenAlerts > 0 ? (
+            <Pressable accessibilityRole="button" onPress={() => app.requestLeave(app.openHome)}>
+              <Text style={ui.muted}>{moreAlertsText(hiddenAlerts)}</Text>
+            </Pressable>
+          ) : null}
         </View>
       ) : null}
       <View style={styles.body}>
-        <CurrentScreen ui={ui} />
-        {ui.decision ? (
+        <CurrentScreen ui={app} />
+        {app.decision ? (
           <ShowReportDecision
-            decision={ui.decision}
-            onOpen={() => void ui.openReportStatus(ui.decision?.notice.reportId ?? '')}
-            onClose={ui.dismissDecision}
+            decision={app.decision}
+            onOpen={() => {
+              const reportId = app.decision?.notice.reportId ?? '';
+              app.requestLeave(() => app.openReportStatus(reportId));
+            }}
+            onClose={app.dismissDecision}
           />
         ) : null}
       </View>
+      <DiscardQuestion
+        visible={app.discardQuestion}
+        onDiscard={() => void app.confirmDiscard()}
+        onKeepEditing={app.keepEditing}
+      />
       <TabBar
         active={homeTab ? 'Home' : 'Report'}
-        onHome={() => void ui.openHome()}
-        onReport={ui.startReport}
+        onHome={() => app.requestLeave(app.openHome)}
+        onReport={() => app.requestLeave(app.startReport)}
         onSoon={setSoon}
       />
     </View>

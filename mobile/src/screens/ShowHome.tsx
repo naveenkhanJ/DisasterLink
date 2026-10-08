@@ -8,13 +8,13 @@
  */
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import type { GeoPoint, HazardReport, SyncResult } from '../api/reportApi';
+import type { GeoPoint, HazardReport } from '../api/reportApi';
 import type { ActiveWarning, Language } from '../api/types';
+import type { LocationAccessState } from '../location/locationAccess';
 import type { HomeView, ReportDraft } from '../report/ReportDraft';
 import { Banner, Button, Card, Icon, Tag, styles as ui } from '../components/ui';
 import { colors, fonts, radius, space } from '../theme';
 import { FONT_FOR, screenStyles as s } from './Screen';
-import { ShowSyncResults } from './ShowSyncResults';
 import {
   districtLabel,
   formatCoordinates,
@@ -22,6 +22,8 @@ import {
   hazardTypeLabel,
   LANGUAGE_OPTIONS,
   LEVEL_LABELS,
+  LOCATION_ALLOW_TEXT,
+  LOCATION_SERVICES_OFF_TEXT,
   LEVEL_TONES,
   localised,
   rejectionText,
@@ -32,13 +34,12 @@ import {
 export interface ShowHomeProps {
   view: HomeView;
   currentLocation: GeoPoint | undefined;
-  syncResults: SyncResult[];
+  locationAccess: LocationAccessState | undefined;
   draftDiscarded: boolean;
   onSelectLanguage: (language: Language) => void;
   onReportHazard: () => void;
   onOpenReport: (reportId: string) => void;
   onOpenDraft: (draftId: string) => void;
-  onDismissSyncResults: () => void;
   onDismissDiscarded: () => void;
 }
 
@@ -159,8 +160,22 @@ function PendingRow({ draft, onOpen }: { draft: ReportDraft; onOpen: (id: string
   );
 }
 
+/** Why the current location is not shown: the S03g sentence when the cause is known. */
+function unavailableText(access: LocationAccessState | undefined): string {
+  if (access === 'servicesOff') {
+    return LOCATION_SERVICES_OFF_TEXT;
+  }
+  return access === 'askable' || access === 'blocked' ? LOCATION_ALLOW_TEXT : 'not available';
+}
+
 /** The current-location card (`showLocation`): coordinates and accuracy as text, no map. */
-function CurrentLocation({ location }: { location: GeoPoint | undefined }) {
+function CurrentLocation({
+  location,
+  access,
+}: {
+  location: GeoPoint | undefined;
+  access: LocationAccessState | undefined;
+}) {
   return (
     <Card style={s.rowCenter}>
       <Icon name="pin" size={20} />
@@ -168,7 +183,7 @@ function CurrentLocation({ location }: { location: GeoPoint | undefined }) {
         <Text style={s.strong}>
           {location
             ? `Current location · ${formatCoordinates(location)}`
-            : 'Current location · not available'}
+            : `Current location · ${unavailableText(access)}`}
         </Text>
         {location ? (
           <Text style={ui.muted}>
@@ -192,9 +207,6 @@ export function ShowHome(props: ShowHomeProps) {
   const { view } = props;
   return (
     <>
-      {props.syncResults.length > 0 ? (
-        <ShowSyncResults results={props.syncResults} onClose={props.onDismissSyncResults} />
-      ) : null}
       {props.draftDiscarded ? (
         <Banner kind="ok" icon="check" onClose={props.onDismissDiscarded}>
           <Text style={styles.bannerText}>Draft discarded — nothing was sent</Text>
@@ -227,7 +239,7 @@ export function ShowHome(props: ShowHomeProps) {
         )}
       </Card>
       <Button label="Report Hazard" icon="plus" big onPress={props.onReportHazard} />
-      <CurrentLocation location={props.currentLocation} />
+      <CurrentLocation location={props.currentLocation} access={props.locationAccess} />
       <View style={{ gap: 6 }}>
         <Text style={s.section}>My reports</Text>
         {view.myReports.length === 0 ? (

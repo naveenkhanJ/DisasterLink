@@ -1,9 +1,19 @@
 /**
  * Screen.tsx — the shared scrolling wrapper of the app's screens and the language fonts. The common
- * error banner (C1) is drawn once by the app shell above the screens (CitizenApp.tsx).
+ * error banner (C1) is drawn once by the app shell above the screens (CitizenApp.tsx). The wrapper
+ * keeps the field being typed in above the keyboard (iOS `automaticallyAdjustKeyboardInsets`,
+ * Android `KeyboardAvoidingView`), dismisses the keyboard when the content is dragged, and draws
+ * pull-to-refresh when a screen gives `refreshing` and `onRefresh` (standards §10, "Phone screens
+ * beyond the frames" items 3 and 5; P206).
  */
 import React from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+} from 'react-native';
 import type { Language } from '../api/types';
 import { colors, fonts, space } from '../theme';
 
@@ -17,18 +27,41 @@ export const FONT_FOR: Record<Language, string> = {
 /**
  * A screen's scrolling content area.
  *
- * @param props the screen's content
+ * @param props the screen's content and, for pull-to-refresh, `refreshing` and `onRefresh`
  * @returns the scroll view
  */
-export function Screen({ children }: { children: React.ReactNode }) {
-  return (
+export function Screen({
+  children,
+  refreshing,
+  onRefresh,
+}: {
+  children: React.ReactNode;
+  refreshing?: boolean;
+  onRefresh?: () => void;
+}) {
+  const scroll = (
     <ScrollView
+      testID="screen-scroll"
       style={styles.scroll}
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+      automaticallyAdjustKeyboardInsets
+      refreshControl={
+        onRefresh ? (
+          <RefreshControl refreshing={refreshing ?? false} onRefresh={onRefresh} />
+        ) : undefined
+      }
     >
       {children}
     </ScrollView>
+  );
+  return Platform.OS === 'android' ? (
+    <KeyboardAvoidingView testID="keyboard-avoiding" style={styles.scroll} behavior="height">
+      {scroll}
+    </KeyboardAvoidingView>
+  ) : (
+    scroll
   );
 }
 

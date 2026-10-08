@@ -16,13 +16,21 @@ import { formatDateTime, hazardTypeIcon, hazardTypeLabel, STATUS_TAGS } from './
 /**
  * Draws the report-status screen.
  *
- * @param props the report
+ * @param props the report and the pull-to-refresh state and handler
  * @returns the screen
  */
-export function ShowReportStatus({ report }: { report: HazardReport }) {
+export function ShowReportStatus({
+  report,
+  refreshing,
+  onRefresh,
+}: {
+  report: HazardReport;
+  refreshing: boolean;
+  onRefresh: () => void;
+}) {
   const tag = STATUS_TAGS[report.status];
   return (
-    <Screen>
+    <Screen refreshing={refreshing} onRefresh={onRefresh}>
       <ScreenTitle title="Report status" />
       <Card style={{ paddingVertical: 4 }}>
         <LabelValue label="Report ID">{report.reportId}</LabelValue>

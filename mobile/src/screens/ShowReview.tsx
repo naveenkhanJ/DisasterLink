@@ -76,7 +76,7 @@ export function ShowReview({
       <View style={s.rowCenter}>
         <Button label="Edit" kind="secondary" big style={{ width: 110 }} onPress={onEdit} />
         <Button
-          label="Submit Report"
+          label={submitting ? 'Sending…' : 'Submit Report'}
           big
           disabled={submitting}
           style={{ flex: 1 }}

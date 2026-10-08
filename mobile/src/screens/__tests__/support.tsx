@@ -8,6 +8,7 @@ import React, { useEffect } from 'react';
 import type { GeoPoint, HazardReport } from '../../api/reportApi';
 import type { ActiveWarning } from '../../api/types';
 import { useCitizenAppUI, type CitizenAppUI, type UiServices } from '../../app/useCitizenAppUI';
+import type { LocationAccessState } from '../../location/locationAccess';
 import type { ReportCaptureController } from '../../report/ReportCaptureController';
 import type { HomeView, ReportDraft } from '../../report/ReportDraft';
 import { CitizenApp } from '../CitizenApp';
@@ -76,7 +77,8 @@ export const ONLINE_HOME: HomeView = {
 /** The fake controller and the call records of the tests. */
 export interface Rig {
   controller: jest.Mocked<ReportCaptureController>;
-  photos: { takePhoto: jest.Mock; choosePhoto: jest.Mock };
+  photos: { takePhoto: jest.Mock; choosePhoto: jest.Mock; deletePhoto: jest.Mock };
+  locationAccess: { check: jest.Mock; request: jest.Mock };
   services: UiServices;
 }
 
@@ -119,7 +121,12 @@ export function makeRig(): Rig {
     changeLanguage: jest.fn(async () => undefined),
     getReportStatus: jest.fn(async () => REPORT),
   } as unknown as jest.Mocked<ReportCaptureController>;
+  const locationAccess = {
+    check: jest.fn(async () => 'granted' as LocationAccessState),
+    request: jest.fn(async () => true),
+  };
   const photos = {
+    deletePhoto: jest.fn(),
     takePhoto: jest.fn(async () => ({
       kind: 'photo' as const,
       uri: 'file:///documents/draft-1.jpg',
@@ -132,7 +139,13 @@ export function makeRig(): Rig {
   return {
     controller,
     photos,
-    services: { controller, photos, env: { citizenLanguage: 'ENGLISH' } },
+    services: {
+      controller,
+      photos,
+      locationAccess,
+      env: { citizenLanguage: 'ENGLISH', citizenDistrict: 'KALUTARA' },
+    },
+    locationAccess,
   };
 }
 

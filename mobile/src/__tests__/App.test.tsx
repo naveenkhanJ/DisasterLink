@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react-native';
 import React from 'react';
+import { AppState, BackHandler } from 'react-native';
 import { createAppServices } from '../app/appServices';
 import { configureNotifications } from '../notifications/notifications';
 import { startPushPolling } from '../notifications/pushPoller';
@@ -18,7 +19,10 @@ jest.mock('../notifications/notifications', () => ({
   presentLocalAlert: jest.fn(async () => undefined),
 }));
 jest.mock('../notifications/pushPoller', () => ({ startPushPolling: jest.fn() }));
-jest.mock('../sync/connectivityTriggers', () => ({ startConnectivityTriggers: jest.fn() }));
+jest.mock('../sync/connectivityTriggers', () => ({
+  startConnectivityTriggers: jest.fn(),
+  isOnline: jest.fn(async () => true),
+}));
 
 const HOME = {
   warnings: [],
@@ -39,6 +43,8 @@ const controller = {
   captureLocation: jest.fn(async () => undefined),
   syncPending: jest.fn(async () => []),
 };
+const findPending = jest.fn(async () => [] as { status: string }[]);
+const locationAccess = { check: jest.fn(async () => 'granted'), request: jest.fn() };
 
 describe('App start-up', () => {
   beforeEach(() => {
@@ -46,9 +52,11 @@ describe('App start-up', () => {
     stopTriggers.mockClear();
     stopPolling.mockClear();
     jest.mocked(createAppServices).mockReturnValue({
-      env: { citizenId: 'CIT-KLT-0001', citizenLanguage: 'ENGLISH' },
+      env: { citizenId: 'CIT-KLT-0001', citizenLanguage: 'ENGLISH', citizenDistrict: 'KALUTARA' },
       skeletonApi,
       controller,
+      store: { findPending },
+      locationAccess,
       photos: {},
     } as unknown as ReturnType<typeof createAppServices>);
     jest.mocked(configureNotifications).mockImplementation(
@@ -147,5 +155,58 @@ describe('App start-up', () => {
 
     expect(warn).toHaveBeenCalled();
     expect(calls).toEqual(['startConnectivityTriggers', 'startPushPolling']);
+  });
+
+  it('SC2 E4 18i (P206): the triggers get a queue check that is true only when a draft is QUEUED', async () => {
+    await render(<App />);
+    notificationsReady();
+    await tick();
+    const hasQueuedDrafts = jest.mocked(startConnectivityTriggers).mock.calls[0][1];
+
+    findPending.mockResolvedValueOnce([{ status: 'REJECTED' }]);
+    expect(await hasQueuedDrafts()).toBe(false);
+    findPending.mockResolvedValueOnce([{ status: 'REJECTED' }, { status: 'QUEUED' }]);
+    expect(await hasQueuedDrafts()).toBe(true);
+    findPending.mockResolvedValueOnce([]);
+    expect(await hasQueuedDrafts()).toBe(false);
+  });
+
+  it('standards §10 item 1: Android Back is connected to the history, and removed on unmount', async () => {
+    const remove = jest.fn();
+    const add = jest.spyOn(BackHandler, 'addEventListener').mockReturnValue({ remove });
+
+    const view = await render(<App />);
+
+    expect(add).toHaveBeenCalledWith('hardwareBackPress', expect.any(Function));
+    const press = add.mock.calls[0][1] as () => boolean;
+    expect(press()).toBe(false); // the home does not handle Back: Android leaves the app
+    await view.unmount();
+    expect(remove).toHaveBeenCalledTimes(1);
+  });
+
+  it('standards §10 item 8 (G1): the app listens for AppState and reads the location again when it becomes active; removed on unmount', async () => {
+    const remove = jest.fn();
+    const listeners: ((state: string) => void)[] = [];
+    const add = jest.spyOn(AppState, 'addEventListener').mockImplementation(((
+      _type: string,
+      listener: (state: string) => void,
+    ) => {
+      listeners.push(listener);
+      return { remove };
+    }) as never);
+    const view = await render(<App />);
+    await tick();
+    const reads = controller.captureLocation.mock.calls.length;
+
+    expect(add).toHaveBeenCalledWith('change', expect.any(Function));
+    listeners.forEach((listener) => listener('background'));
+    await tick();
+    expect(controller.captureLocation.mock.calls.length).toBe(reads);
+    listeners.forEach((listener) => listener('active'));
+    await tick();
+
+    expect(controller.captureLocation.mock.calls.length).toBeGreaterThan(reads);
+    await view.unmount();
+    expect(remove).toHaveBeenCalled();
   });
 });

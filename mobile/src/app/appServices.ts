@@ -9,6 +9,7 @@ import { createReportApi, type ReportApi } from '../api/reportApi';
 import { createSkeletonApi, type SkeletonApi } from '../api/skeletonApi';
 import { getEnv, type AppEnv } from '../config/env';
 import { createLocationService, type LocationService } from '../location/LocationService';
+import { createLocationAccess, type LocationAccess } from '../location/locationAccess';
 import { createPhotoService, type PhotoService } from '../report/PhotoService';
 import {
   createReportCaptureController,
@@ -26,6 +27,7 @@ export interface AppServices {
   store: OfflineReportStore;
   homeCache: HomeCache;
   location: LocationService;
+  locationAccess: LocationAccess;
   photos: PhotoService;
   controller: ReportCaptureController;
 }
@@ -43,6 +45,7 @@ export function createAppServices(): AppServices {
   const store = createOfflineReportStore();
   const homeCache = createHomeCache(env.citizenLanguage);
   const location = createLocationService();
+  const locationAccess = createLocationAccess();
   const photos = createPhotoService();
   const controller = createReportCaptureController({
     reportApi,
@@ -57,5 +60,15 @@ export function createAppServices(): AppServices {
     newId: () => Crypto.randomUUID(),
     now: () => new Date(),
   });
-  return { env, skeletonApi, reportApi, store, homeCache, location, photos, controller };
+  return {
+    env,
+    skeletonApi,
+    reportApi,
+    store,
+    homeCache,
+    location,
+    locationAccess,
+    photos,
+    controller,
+  };
 }

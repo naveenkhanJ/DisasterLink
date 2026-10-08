@@ -14,6 +14,9 @@ let appStateListener: (state: string) => void;
 const removeNetwork = jest.fn();
 const removeAppState = jest.fn();
 
+/** A queue check that finds no QUEUED draft. */
+const noQueue = async () => false;
+
 /** Lets the promises of the start-up check settle. */
 const settle = () => new Promise<void>((resolve) => setImmediate(() => resolve()));
 
@@ -61,7 +64,7 @@ describe('startConnectivityTriggers', () => {
     network.getNetworkStateAsync.mockResolvedValue({ isConnected: true } as never);
     const raised = jest.fn();
 
-    startConnectivityTriggers(raised);
+    startConnectivityTriggers(raised, noQueue);
     await settle();
 
     expect(raised).toHaveBeenCalledTimes(1);
@@ -71,7 +74,7 @@ describe('startConnectivityTriggers', () => {
     network.getNetworkStateAsync.mockResolvedValue({ isConnected: false } as never);
     const raised = jest.fn();
 
-    startConnectivityTriggers(raised);
+    startConnectivityTriggers(raised, noQueue);
     await settle();
 
     expect(raised).not.toHaveBeenCalled();
@@ -80,7 +83,7 @@ describe('startConnectivityTriggers', () => {
   it('SC2 18d: raises when the network changes from offline to online, not for online to online', async () => {
     network.getNetworkStateAsync.mockResolvedValue({ isConnected: false } as never);
     const raised = jest.fn();
-    startConnectivityTriggers(raised);
+    startConnectivityTriggers(raised, noQueue);
     await settle();
 
     networkListener({ isConnected: true, isInternetReachable: true });
@@ -94,7 +97,7 @@ describe('startConnectivityTriggers', () => {
   it('FX-25: raises when the app returns to the foreground while online', async () => {
     network.getNetworkStateAsync.mockResolvedValue({ isConnected: true } as never);
     const raised = jest.fn();
-    startConnectivityTriggers(raised);
+    startConnectivityTriggers(raised, noQueue);
     await settle();
     raised.mockClear();
 
@@ -110,7 +113,7 @@ describe('startConnectivityTriggers', () => {
   it('FX-25: does not raise when the app returns to the foreground offline', async () => {
     network.getNetworkStateAsync.mockResolvedValue({ isConnected: false } as never);
     const raised = jest.fn();
-    startConnectivityTriggers(raised);
+    startConnectivityTriggers(raised, noQueue);
     await settle();
 
     appStateListener('active');
@@ -122,7 +125,7 @@ describe('startConnectivityTriggers', () => {
   it('stops: the subscriptions are removed and nothing is raised afterwards', async () => {
     network.getNetworkStateAsync.mockResolvedValue({ isConnected: false } as never);
     const raised = jest.fn();
-    const stop = startConnectivityTriggers(raised);
+    const stop = startConnectivityTriggers(raised, noQueue);
     await settle();
 
     stop();

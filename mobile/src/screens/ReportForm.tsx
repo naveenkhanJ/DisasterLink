@@ -5,18 +5,24 @@
  * rejected draft reopened from the home list, the reason and "Discard draft". The form keeps every
  * value it holds on every error (C2).
  *
- * Implements CH-25, CH-27 (SC2 steps 7 to 15, A1, A3, E1 to E3, E8; WF2P-S03, S03a to S03f).
+ * The photo tile is full width; a tap opens a full-size preview with "Remove photo" (standards §10
+ * "Phone screens beyond the frames" item 9, P206). The location block shows the S03g notice when
+ * the cause of a missing fix is known and the map-pin picker when the citizen enters the place.
+ *
+ * Implements CH-25, CH-27 (SC2 steps 7 to 15, A1, A3, E1 to E3, E8; WF2P-S03, S03a to S03g).
  */
-import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { GeoPoint } from '../api/reportApi';
 import type { PhotoSource } from '../app/useCitizenAppUI';
+import type { LocationAccessState } from '../location/locationAccess';
 import type { ReportDraft } from '../report/ReportDraft';
 import {
   Banner,
   Button,
   ErrorText,
   Icon,
+  ModalCard,
   PhotoTile,
   ScreenTitle,
   TextArea,
@@ -28,6 +34,7 @@ import { Screen, screenStyles as s } from './Screen';
 import { CameraPermissionNotice, ShowPhotoError } from './ShowPhotoError';
 import { ShowLocation } from './ShowLocation';
 import { ShowLocationUnavailable } from './ShowLocationUnavailable';
+import { hasLocationNotice, LocationAccessNotice } from './LocationAccessNotice';
 import { ShowValidationErrors } from './ShowValidationErrors';
 import {
   formatDateTime,
@@ -36,6 +43,12 @@ import {
   rejectionText,
   type FieldErrors,
 } from './texts';
+
+/** The height of the photo tile on the form, in pixels. */
+const PHOTO_HEIGHT = 180;
+
+/** The height of the photo in the full-size preview, in pixels. */
+const PREVIEW_HEIGHT = 420;
 
 /** What the report form needs. */
 export interface ReportFormProps {
@@ -47,6 +60,14 @@ export interface ReportFormProps {
   onEnterDescription: (text: string) => void;
   onPickPhoto: (source: PhotoSource) => void;
   onEnterLocation: (location: GeoPoint) => void;
+  onRemovePhoto: () => void;
+  /** Why there is no fix, when it is known (WF2P-S03g). */
+  locationAccess: LocationAccessState | undefined;
+  onAllowLocationAccess: () => void;
+  /** Where the map starts: the registered district's centre. */
+  mapStart: GeoPoint;
+  searchPlace: (query: string) => Promise<GeoPoint | undefined>;
+  isOnline: () => Promise<boolean>;
   onReview: () => void;
   onDiscardDraft: (draftId: string) => void;
 }
@@ -56,20 +77,46 @@ function PhotoBlock({
   error,
   permissionDenied,
   onPick,
+  onRemove,
 }: {
   draft: ReportDraft;
   error: string | undefined;
   permissionDenied: PhotoSource | undefined;
   onPick: (source: PhotoSource) => void;
+  onRemove: () => void;
 }) {
+  const [previewing, setPreviewing] = useState(false);
   const replacing = draft.status === 'REJECTED' && Boolean(draft.photoUri);
   return (
     <View>
       <Text style={ui.label}>Photo * (1 required)</Text>
-      <View style={[s.rowCenter, { alignItems: 'flex-end', marginTop: 4 }]}>
-        <PhotoTile uri={draft.photoUri} width={150} height={96} error={Boolean(error)} />
+      <View style={{ marginTop: 4, gap: 4 }}>
+        <PhotoTile
+          uri={draft.photoUri}
+          width="100%"
+          height={PHOTO_HEIGHT}
+          error={Boolean(error)}
+          onPress={() => setPreviewing(true)}
+        />
         <Text style={ui.muted}>{draft.photoUri ? '1 of 1' : '0 of 1'}</Text>
       </View>
+      <ModalCard visible={previewing} onRequestClose={() => setPreviewing(false)}>
+        <Image
+          accessibilityLabel="Photo preview"
+          source={{ uri: draft.photoUri }}
+          style={styles.preview}
+          resizeMode="contain"
+        />
+        <Button
+          label="Remove photo"
+          kind="danger"
+          onPress={() => {
+            setPreviewing(false);
+            onRemove();
+          }}
+        />
+        <Button label="Close" kind="secondary" onPress={() => setPreviewing(false)} />
+      </ModalCard>
       {error ? <ShowPhotoError message={error} /> : null}
       {permissionDenied ? (
         <CameraPermissionNotice
@@ -106,6 +153,15 @@ function PhotoBlock({
 export function ReportForm(props: ReportFormProps) {
   const { draft, errors } = props;
   const description = draft.description ?? '';
+  const pickerProps = {
+    error: errors.location,
+    onEnter: props.onEnterLocation,
+    start: props.mapStart,
+    searchPlace: props.searchPlace,
+    isOnline: props.isOnline,
+    searchAllowed:
+      Platform.OS !== 'android' || props.locationAccess === 'granted' || draft.locationFromGps,
+  };
   return (
     <Screen>
       <ScreenTitle title="Report a hazard" />
@@ -144,20 +200,25 @@ export function ReportForm(props: ReportFormProps) {
         error={errors.photo}
         permissionDenied={props.permissionDenied}
         onPick={props.onPickPhoto}
+        onRemove={props.onRemovePhoto}
       />
       {draft.location ? (
         <>
           <ShowLocation location={draft.location} fromGps={draft.locationFromGps} />
-          {errors.location ? (
-            <ShowLocationUnavailable
-              error={errors.location}
-              onEnter={props.onEnterLocation}
-              noFix={false}
-            />
-          ) : null}
+          {errors.location ? <ShowLocationUnavailable {...pickerProps} noFix={false} /> : null}
         </>
       ) : props.locationUnavailable ? (
-        <ShowLocationUnavailable error={errors.location} onEnter={props.onEnterLocation} />
+        <ShowLocationUnavailable
+          {...pickerProps}
+          accessNotice={
+            hasLocationNotice(props.locationAccess) ? (
+              <LocationAccessNotice
+                state={props.locationAccess}
+                onAllow={props.onAllowLocationAccess}
+              />
+            ) : undefined
+          }
+        />
       ) : (
         <Text style={ui.muted}>Finding your location…</Text>
       )}
@@ -179,6 +240,7 @@ export function ReportForm(props: ReportFormProps) {
 }
 
 const styles = StyleSheet.create({
+  preview: { width: '100%', height: PREVIEW_HEIGHT },
   typeRow: {
     height: 44,
     flexDirection: 'row',

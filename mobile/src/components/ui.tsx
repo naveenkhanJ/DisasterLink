@@ -4,13 +4,16 @@
  */
 import React from 'react';
 import {
+  ActivityIndicator,
   Image,
+  Modal,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
   type KeyboardTypeOptions,
+  type ReturnKeyTypeOptions,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
@@ -210,20 +213,34 @@ export function PhotoTile({
   width,
   height,
   error = false,
+  onPress,
 }: {
   uri?: string;
-  width: number;
+  width: number | '100%';
   height: number;
   error?: boolean;
+  onPress?: () => void;
 }) {
   if (uri) {
-    return (
+    const image = (
       <Image
         accessibilityLabel="Photo of the hazard"
         source={{ uri }}
         style={[styles.photo, { width, height }]}
         resizeMode="cover"
       />
+    );
+    return onPress ? (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Open photo"
+        onPress={onPress}
+        style={{ width }}
+      >
+        {image}
+      </Pressable>
+    ) : (
+      image
     );
   }
   return (
@@ -241,12 +258,16 @@ export function TextField({
   onChangeText,
   error = false,
   keyboardType,
+  returnKeyType,
+  onSubmitEditing,
 }: {
   label: string;
   value: string;
   onChangeText: (text: string) => void;
   error?: boolean;
   keyboardType?: KeyboardTypeOptions;
+  returnKeyType?: ReturnKeyTypeOptions;
+  onSubmitEditing?: () => void;
 }) {
   return (
     <View style={{ flex: 1 }}>
@@ -256,6 +277,8 @@ export function TextField({
         value={value}
         onChangeText={onChangeText}
         keyboardType={keyboardType}
+        returnKeyType={returnKeyType}
+        onSubmitEditing={onSubmitEditing}
         style={[styles.textField, error ? styles.inputError : null]}
       />
     </View>
@@ -373,10 +396,52 @@ export function SoonNotice({ label, onClose }: { label: string; onClose: () => v
   );
 }
 
-/** App header: the DMC badge and the app title. */
-export function AppHeader() {
+/**
+ * A modal: a centred white card with a 2 px border over a 40 % black scrim (the Modal token). It is
+ * drawn in the app, not with `Alert.alert`.
+ */
+export function ModalCard({
+  visible,
+  onRequestClose,
+  children,
+}: {
+  visible: boolean;
+  onRequestClose: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <Modal transparent visible={visible} animationType="fade" onRequestClose={onRequestClose}>
+      <View style={styles.scrim}>
+        <View style={styles.modalCard}>{children}</View>
+      </View>
+    </Modal>
+  );
+}
+
+/** The slim "Loading…" row the shell draws under the header while an online action runs. */
+export function LoadingRow() {
+  return (
+    <View style={styles.loadingRow} accessibilityRole="progressbar">
+      <ActivityIndicator size="small" color={colors.muted} />
+      <Text style={styles.muted}>Loading…</Text>
+    </View>
+  );
+}
+
+/** App header: the DMC badge and the app title; "‹ Back" at the left when `onBack` is given. */
+export function AppHeader({ onBack }: { onBack?: () => void }) {
   return (
     <View style={styles.appHeader}>
+      {onBack ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          hitSlop={8}
+          onPress={onBack}
+        >
+          <Text style={styles.backLink}>‹ Back</Text>
+        </Pressable>
+      ) : null}
       <View style={styles.badge}>
         <Text style={styles.badgeText}>DMC</Text>
       </View>
@@ -554,4 +619,29 @@ export const styles = StyleSheet.create({
   },
   badgeText: { fontFamily: fonts.ui, fontSize: 9, fontWeight: '800', color: colors.text },
   appTitle: { fontFamily: fonts.ui, fontSize: 17, fontWeight: '800', color: colors.text },
+  backLink: { fontFamily: fonts.ui, fontSize: 16, fontWeight: '700', color: colors.text },
+  scrim: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: space.lg,
+  },
+  modalCard: {
+    alignSelf: 'stretch',
+    gap: space.sm,
+    padding: space.lg,
+    borderRadius: radius.md,
+    borderWidth: 2,
+    borderColor: colors.text,
+    backgroundColor: colors.card,
+  },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.xs,
+    backgroundColor: colors.pageBg,
+  },
 });
