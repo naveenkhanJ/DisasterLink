@@ -13,7 +13,7 @@
 | Change list 8-3 | Storyboards are **not redrawn**. Their corrections are written beside each figure (`storyboard-corrections.md`, SB1–SB4). |
 | Change list 8-4 | Warning levels use NBRO's wording: **Level 1 – Yellow (Remain Vigilant)**, **Level 2 – Amber (Be Alert)**, **Level 3 – Red (Evacuate)**. |
 | CH-24, CH-27, CH-30, CH-33 | Content of WF1–WF4 (§6). Screens without a flow are removed. Sample data is consistent and real, and arrows run between screens. |
-| Standards §10 and others | Officer-screen constraints: the **UC1 map** uses Leaflet with a district-boundary GeoJSON layer and only displays the selected area (no drawing mode). **UC4 charts** use Chart.js. **On the phone, the map is shown as text plus typed coordinates** (no map tiles). A server or network failure shows the **common error banner** (C1), one component drawn once. |
+| Standards §10 and others | Officer-screen constraints: the **UC1 map** uses Leaflet with a district-boundary GeoJSON layer and only displays the selected area (no drawing mode). **UC4 charts** use Chart.js. **On the phone, the GPS fix is shown as text; the manual location (A1) is a map pin with a place search, typed coordinates only as the offline fallback** (P206; standards §10). A server or network failure shows the **common error banner** (C1), one component drawn once. |
 | MD §4 | Every screen element that shows data realises a named `show…` display of its boundary. Every control realises a named input operation (§4 lists them). Nothing appears that is not in the dictionary. |
 
 ## 2. Tool, themes, pipeline and assets (decided P81–P82)
