@@ -45,14 +45,17 @@ const VERIFIED_OPTIONS = {
   preferredAssetRepresentationMode: 'compatible',
 };
 
+const NOW = 1_760_000_000_000;
+
 beforeEach(() => {
   jest.clearAllMocks();
+  jest.spyOn(Date, 'now').mockReturnValue(NOW);
   mockFiles.length = 0;
   mockExists = true;
 });
 
 describe('takePhoto', () => {
-  it('SC2 step 10: takes a photo with the options verified on the iPhone and copies it as <draftId>.jpg', async () => {
+  it('SC2 step 10: takes a photo with the options verified on the iPhone and copies it as <draftId>-<time>.jpg', async () => {
     picker.requestCameraPermissionsAsync.mockResolvedValue({ granted: true } as never);
     picker.launchCameraAsync.mockResolvedValue({
       canceled: false,
@@ -61,7 +64,7 @@ describe('takePhoto', () => {
 
     const uri = await createPhotoService().takePhoto('draft-1');
 
-    expect(uri).toEqual({ kind: 'photo', uri: 'file:///documents/draft-1.jpg' });
+    expect(uri).toEqual({ kind: 'photo', uri: `file:///documents/draft-1-${NOW}.jpg` });
     expect(picker.launchCameraAsync).toHaveBeenCalledWith(VERIFIED_OPTIONS);
     const [destination, source] = mockFiles;
     expect(source.uri).toBe('file:///cache/picked.jpg');
@@ -101,7 +104,7 @@ describe('choosePhoto', () => {
 
     const uri = await createPhotoService().choosePhoto('draft-2');
 
-    expect(uri).toEqual({ kind: 'photo', uri: 'file:///documents/draft-2.png' });
+    expect(uri).toEqual({ kind: 'photo', uri: `file:///documents/draft-2-${NOW}.png` });
     expect(picker.launchImageLibraryAsync).toHaveBeenCalledWith(VERIFIED_OPTIONS);
   });
 
@@ -126,5 +129,23 @@ describe('deletePhoto', () => {
     createPhotoService().deletePhoto('file:///documents/gone.jpg');
 
     expect(mockFiles[0].delete).not.toHaveBeenCalled();
+  });
+});
+
+describe('a second pick for the same draft (standards §10 item 9, P213)', () => {
+  it('SC2 step 10: each pick gets its own file name, so the screen shows the new picture', async () => {
+    picker.requestCameraPermissionsAsync.mockResolvedValue({ granted: true } as never);
+    picker.launchCameraAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: 'file:///cache/picked.jpg', mimeType: 'image/jpeg' }],
+    } as never);
+    const service = createPhotoService();
+
+    const first = await service.takePhoto('draft-1');
+    jest.spyOn(Date, 'now').mockReturnValue(NOW + 1);
+    const second = await service.takePhoto('draft-1');
+
+    expect(first).toEqual({ kind: 'photo', uri: `file:///documents/draft-1-${NOW}.jpg` });
+    expect(second).toEqual({ kind: 'photo', uri: `file:///documents/draft-1-${NOW + 1}.jpg` });
   });
 });

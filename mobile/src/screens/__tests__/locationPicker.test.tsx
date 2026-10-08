@@ -1,20 +1,13 @@
 import { act, fireEvent, screen } from '@testing-library/react-native';
-import { Linking, Platform } from 'react-native';
-import { searchPlace } from '../../location/placeSearch';
-import { isOnline } from '../../sync/connectivityTriggers';
+import { Linking } from 'react-native';
+import { searchPlaces } from '../../location/placeIndex';
 import { KALUTARA_BRIDGE, makeRig, renderApp, run, ui, type Rig } from './support';
 
 jest.mock('../../notifications/notifications', () => ({
   presentLocalAlert: jest.fn(async () => undefined),
 }));
-jest.mock('../../location/placeSearch', () => ({ searchPlace: jest.fn() }));
-jest.mock('../../sync/connectivityTriggers', () => ({ isOnline: jest.fn() }));
 
-const search = searchPlace as jest.Mock;
-const online = isOnline as jest.Mock;
 const OUTSIDE_PIN = 'This location is outside Sri Lanka — move the pin to the place you saw';
-const OUTSIDE_FIELDS = 'This location is outside Sri Lanka — check the latitude and longitude';
-const NUMBERS = 'Enter the latitude and longitude as numbers';
 
 /** The map's region, as the mock exposes it. */
 const region = () => screen.getByTestId('map').props.region;
@@ -45,152 +38,87 @@ async function toPicker(rig: Rig): Promise<void> {
   await run(() => fireEvent.press(screen.getByRole('button', { name: 'Enter location manually' })));
 }
 
-const useMapPin = () => screen.getAllByRole('button', { name: 'Use this location' })[0];
-const useFields = () => screen.getAllByRole('button', { name: 'Use this location' })[1];
+const typeInPlaceField = (text: string) =>
+  run(() => fireEvent.changeText(screen.getByLabelText('Type a town or village'), text));
 
-describe('the manual location: map pin and place search (standards §10, P206)', () => {
-  beforeEach(() => {
-    search.mockReset();
-    online.mockReset();
-    online.mockResolvedValue(true);
-  });
-
+describe('the manual location: place list and map pin (standards §10, P213)', () => {
   afterEach(() => {
     jest.restoreAllMocks();
   });
 
   it('WF2P-S03a / SC2 A1 12b: no fix shows "GPS location is unavailable" and "Enter location manually"', async () => {
-    const rig = makeRig();
-
-    await toUnavailable(rig);
+    await toUnavailable(makeRig());
 
     expect(screen.getByText('GPS location is unavailable')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Enter location manually' })).toBeTruthy();
     expect(screen.queryByTestId('map')).toBeNull();
   });
 
-  it('WF2P-S03a / SC2 A1 12c: the picker opens with the search, the map on the registered district and the caption', async () => {
+  it('WF2P-S03a / SC2 A1 12c: the picker opens with the place field, the map on the registered district, the caption and the credit; no coordinate fields, no search button', async () => {
     const rig = makeRig();
 
     await toPicker(rig);
 
-    expect(screen.getByLabelText('Search for a place')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Search' })).toBeTruthy();
+    expect(screen.getByLabelText('Type a town or village').props.returnKeyType).toBe('search');
     expect(screen.getByText('Drag the map to put the pin on the spot you saw')).toBeTruthy();
+    expect(screen.getByText('Place names: GeoNames (CC BY 4.0)')).toBeTruthy();
     expect(region().latitudeDelta).toBe(0.3);
     expect(region().latitude).toBeCloseTo(ui().mapStart.latitude, 5);
-    expect(region().longitude).toBeCloseTo(ui().mapStart.longitude, 5);
-    expect(screen.queryByText('Enter coordinates')).toBeNull();
-  });
-
-  it('WF2P-S03a / SC2 A1 12c: a search result moves the map to the place', async () => {
-    search.mockResolvedValue(KALUTARA_BRIDGE);
-    const rig = makeRig();
-    await toPicker(rig);
-    await run(() =>
-      fireEvent.changeText(screen.getByLabelText('Search for a place'), 'Kalutara bridge'),
-    );
-
-    await run(() => fireEvent.press(screen.getByRole('button', { name: 'Search' })));
-
-    expect(search).toHaveBeenCalledWith('Kalutara bridge');
-    expect(region()).toEqual({
-      latitude: 6.5888,
-      longitude: 79.964,
-      latitudeDelta: 0.01,
-      longitudeDelta: 0.01,
-    });
-  });
-
-  it('WF2P-S03a: no result shows "No place found" and does not offer the coordinates', async () => {
-    search.mockResolvedValue(undefined);
-    const rig = makeRig();
-    await toPicker(rig);
-
-    await run(() => fireEvent.press(screen.getByRole('button', { name: 'Search' })));
-
-    expect(screen.getByText('No place found — try another name or move the pin')).toBeTruthy();
-    expect(screen.queryByText('Enter coordinates')).toBeNull();
-  });
-
-  it('WF2P-S03a (N5): the search field has a "search" return key, and submitting it searches like the button', async () => {
-    search.mockResolvedValue(KALUTARA_BRIDGE);
-    const rig = makeRig();
-    await toPicker(rig);
-    const field = screen.getByLabelText('Search for a place');
-    expect(field.props.returnKeyType).toBe('search');
-    await run(() => fireEvent.changeText(field, 'Kalutara bridge'));
-
-    await run(() => fireEvent(field, 'submitEditing'));
-
-    expect(search).toHaveBeenCalledTimes(1);
-    expect(search).toHaveBeenCalledWith('Kalutara bridge');
-    expect(region().latitude).toBe(6.5888);
-  });
-
-  it('WF2P-S03a: a search result clears the "No place found" message', async () => {
-    search.mockResolvedValueOnce(undefined).mockResolvedValueOnce(KALUTARA_BRIDGE);
-    const rig = makeRig();
-    await toPicker(rig);
-    await run(() => fireEvent.press(screen.getByRole('button', { name: 'Search' })));
-
-    await run(() => fireEvent.press(screen.getByRole('button', { name: 'Search' })));
-
-    expect(screen.queryByText('No place found — try another name or move the pin')).toBeNull();
-  });
-
-  it('WF2P-S03a: a search error shows its message and the "Enter coordinates" link', async () => {
-    search.mockRejectedValue(new Error('no network'));
-    jest.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const rig = makeRig();
-    await toPicker(rig);
-
-    await run(() => fireEvent.press(screen.getByRole('button', { name: 'Search' })));
-
-    expect(
-      screen.getByText('The place search is not available — move the pin, or enter coordinates'),
-    ).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Enter coordinates' })).toBeTruthy();
-  });
-
-  it('WF2P-S03a: offline, the "Enter coordinates" link is shown at once', async () => {
-    online.mockResolvedValue(false);
-    const rig = makeRig();
-
-    await toPicker(rig);
-
-    expect(screen.getByRole('button', { name: 'Enter coordinates' })).toBeTruthy();
-  });
-
-  it('WF2P-S03a: online with the search allowed, the link stays hidden', async () => {
-    const rig = makeRig();
-
-    await toPicker(rig);
-
+    expect(screen.queryByLabelText('Latitude (°N)')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Enter coordinates' })).toBeNull();
-  });
-
-  it('WF2P-S03a: on Android without the location permission the search is hidden and the link is shown', async () => {
-    jest.replaceProperty(Platform, 'OS', 'android');
-    const rig = makeRig();
-    rig.locationAccess.check.mockResolvedValue('blocked');
-
-    await toPicker(rig);
-
-    expect(screen.queryByLabelText('Search for a place')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Search' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Enter coordinates' })).toBeTruthy();
+    expect(screen.queryByLabelText('Search for a place')).toBeNull();
   });
 
-  it('WF2P-S03a: on Android with the permission the search is shown', async () => {
-    jest.replaceProperty(Platform, 'OS', 'android');
-    const rig = makeRig();
-    rig.locationAccess.check.mockResolvedValue('granted');
+  it('WF2P-S03a (P213): typing two letters or more lists up to eight places "<place> — <District>", each at least 44 points high', async () => {
+    await toPicker(makeRig());
 
-    await toPicker(rig);
+    await typeInPlaceField('ka');
 
-    expect(screen.getByLabelText('Search for a place')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Enter coordinates' })).toBeNull();
+    const rows = screen.getAllByRole('button', { name: /^.+ — .+$/ });
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.length).toBeLessThanOrEqual(8);
+    rows.forEach((row) => expect(row.props.style.minHeight).toBe(44));
+  });
+
+  it('WF2P-S03a (P213): "kalu" lists Kalutara; one letter, an empty field or nonsense list nothing', async () => {
+    await toPicker(makeRig());
+
+    await typeInPlaceField('kalu');
+    expect(screen.getByRole('button', { name: 'Kalutara — Kalutara' })).toBeTruthy();
+    await typeInPlaceField('k');
+    expect(screen.queryByRole('button', { name: /^.+ — .+$/ })).toBeNull();
+    await typeInPlaceField('');
+    expect(screen.queryByRole('button', { name: /^.+ — .+$/ })).toBeNull();
+    await typeInPlaceField('xqzqxq');
+    expect(screen.queryByRole('button', { name: /^.+ — .+$/ })).toBeNull();
+  });
+
+  it('WF2P-S03a (P213): choosing a place fills the field, moves the map there (0.02) and hides the list', async () => {
+    await toPicker(makeRig());
+    await typeInPlaceField('kalu');
+    const kalutara = searchPlaces('kalu').find((match) => match.name === 'Kalutara');
+
+    await run(() => fireEvent.press(screen.getByRole('button', { name: 'Kalutara — Kalutara' })));
+
+    expect(screen.getByLabelText('Type a town or village').props.value).toBe('Kalutara');
+    expect(region()).toEqual({
+      latitude: kalutara?.point.latitude,
+      longitude: kalutara?.point.longitude,
+      latitudeDelta: 0.02,
+      longitudeDelta: 0.02,
+    });
+    expect(screen.queryByRole('button', { name: /^.+ — .+$/ })).toBeNull();
+  });
+
+  it('WF2P-S03a (P213): typing again after a choice shows the list again', async () => {
+    await toPicker(makeRig());
+    await typeInPlaceField('kalu');
+    await run(() => fireEvent.press(screen.getByRole('button', { name: 'Kalutara — Kalutara' })));
+
+    await typeInPlaceField('Kalutar');
+
+    expect(screen.getByRole('button', { name: 'Kalutara — Kalutara' })).toBeTruthy();
   });
 
   it('WF2P-S03a / SC2 A1 12c-12d: "Use this location" sends the centre of the map; the block reads "Entered manually"', async () => {
@@ -198,15 +126,52 @@ describe('the manual location: map pin and place search (standards §10, P206)',
     await toPicker(rig);
     await moveMapTo(6.5888, 79.964);
 
-    await run(() => fireEvent.press(useMapPin()));
+    await run(() => fireEvent.press(screen.getByRole('button', { name: 'Use this location' })));
 
     expect(ui().draft?.location).toEqual({ latitude: 6.5888, longitude: 79.964 });
     expect(screen.getByText('6.5888 N, 79.9640 E')).toBeTruthy();
     expect(screen.getByText('Entered manually')).toBeTruthy();
     expect(screen.queryByTestId('map')).toBeNull();
+    expect(ui().draft?.locationFromGps).toBe(false);
   });
 
-  it('WF2P-S03b / SC2 E3 12e-12f: a pin outside Sri Lanka is refused with the pin wording under the map, and the map stays', async () => {
+  it('WF2P-S03a (P213): a pin within 5 km of the chosen place names the location after it', async () => {
+    await toPicker(makeRig());
+    await typeInPlaceField('kalu');
+    const kalutara = searchPlaces('kalu').find((match) => match.name === 'Kalutara');
+    await run(() => fireEvent.press(screen.getByRole('button', { name: 'Kalutara — Kalutara' })));
+    await moveMapTo((kalutara?.point.latitude ?? 0) + 0.01, kalutara?.point.longitude ?? 0);
+
+    await run(() => fireEvent.press(screen.getByRole('button', { name: 'Use this location' })));
+
+    expect(ui().manualPlaceName).toBe('Kalutara');
+    expect(screen.getByText(/^near Kalutara, .* N, .* E — Entered manually$/)).toBeTruthy();
+  });
+
+  it('WF2P-S03a (P213): a pin farther than 5 km from the chosen place gives a location with no place name', async () => {
+    await toPicker(makeRig());
+    await typeInPlaceField('kalu');
+    const kalutara = searchPlaces('kalu').find((match) => match.name === 'Kalutara');
+    await run(() => fireEvent.press(screen.getByRole('button', { name: 'Kalutara — Kalutara' })));
+    await moveMapTo((kalutara?.point.latitude ?? 0) + 0.2, kalutara?.point.longitude ?? 0);
+
+    await run(() => fireEvent.press(screen.getByRole('button', { name: 'Use this location' })));
+
+    expect(ui().manualPlaceName).toBeUndefined();
+    expect(screen.queryByText(/^near /)).toBeNull();
+    expect(screen.getByText('Entered manually')).toBeTruthy();
+  });
+
+  it('WF2P-S03a (P213): a location entered without choosing a place has no place name', async () => {
+    await toPicker(makeRig());
+    await moveMapTo(6.5888, 79.964);
+
+    await run(() => fireEvent.press(screen.getByRole('button', { name: 'Use this location' })));
+
+    expect(ui().manualPlaceName).toBeUndefined();
+  });
+
+  it('WF2P-S03b / SC2 E3 12e-12f: a pin outside Sri Lanka is refused under the map and the map stays', async () => {
     const rig = makeRig();
     rig.controller.validateDraft.mockReturnValue({
       valid: false,
@@ -215,79 +180,14 @@ describe('the manual location: map pin and place search (standards §10, P206)',
     await toPicker(rig);
     await moveMapTo(65.888, 79.964);
 
-    await run(() => fireEvent.press(useMapPin()));
+    await run(() => fireEvent.press(screen.getByRole('button', { name: 'Use this location' })));
 
     expect(screen.getByText(OUTSIDE_PIN)).toBeTruthy();
-    expect(screen.queryByText(OUTSIDE_FIELDS)).toBeNull();
     expect(ui().draft?.location).toBeUndefined();
     expect(region().latitude).toBe(65.888);
   });
 
-  it('WF2P-S03b / SC2 E3: coordinates outside Sri Lanka are refused with the fields wording and the typed values stay', async () => {
-    online.mockResolvedValue(false);
-    const rig = makeRig();
-    rig.controller.validateDraft.mockReturnValue({
-      valid: false,
-      errors: ['location: outside Sri Lanka'],
-    });
-    await toPicker(rig);
-    await run(() => fireEvent.press(screen.getByRole('button', { name: 'Enter coordinates' })));
-    await run(() => fireEvent.changeText(screen.getByLabelText('Latitude (°N)'), '65.888'));
-    await run(() => fireEvent.changeText(screen.getByLabelText('Longitude (°E)'), '79.9640'));
-
-    await run(() => fireEvent.press(useFields()));
-
-    expect(screen.getByText(OUTSIDE_FIELDS)).toBeTruthy();
-    expect(screen.queryByText(OUTSIDE_PIN)).toBeNull();
-    expect(screen.getByLabelText('Latitude (°N)').props.value).toBe('65.888');
-    expect(screen.getByLabelText('Longitude (°E)').props.value).toBe('79.9640');
-  });
-
-  it.each([
-    ['blank latitude', '', '79.9640'],
-    ['blank longitude', '6.5888', ''],
-    ['blank fields', '', ''],
-    ['non-numeric latitude', 'six', '79.9640'],
-    ['non-numeric longitude', '6.5888', '79.9640 E'],
-  ])(
-    'WF2P-S03b / SC2 E3 12e: %s asks for numbers, sends nothing and keeps the typed values',
-    async (_name, latitude, longitude) => {
-      online.mockResolvedValue(false);
-      const rig = makeRig();
-      await toPicker(rig);
-      await run(() => fireEvent.press(screen.getByRole('button', { name: 'Enter coordinates' })));
-      await run(() => fireEvent.changeText(screen.getByLabelText('Latitude (°N)'), latitude));
-      await run(() => fireEvent.changeText(screen.getByLabelText('Longitude (°E)'), longitude));
-      rig.controller.validateDraft.mockClear();
-
-      await run(() => fireEvent.press(useFields()));
-
-      expect(screen.getByText(NUMBERS)).toBeTruthy();
-      expect(rig.controller.validateDraft).not.toHaveBeenCalled();
-      expect(ui().draft?.location).toBeUndefined();
-      expect(screen.getByLabelText('Latitude (°N)').props.value).toBe(latitude);
-      expect(screen.getByLabelText('Longitude (°E)').props.value).toBe(longitude);
-    },
-  );
-
-  it('WF2P-S03a / SC2 A1 12c: valid typed coordinates are sent as a manual location, and the numbers error goes', async () => {
-    online.mockResolvedValue(false);
-    const rig = makeRig();
-    await toPicker(rig);
-    await run(() => fireEvent.press(screen.getByRole('button', { name: 'Enter coordinates' })));
-    await run(() => fireEvent.press(useFields()));
-    expect(screen.getByText(NUMBERS)).toBeTruthy();
-    await run(() => fireEvent.changeText(screen.getByLabelText('Latitude (°N)'), '6.5888'));
-    await run(() => fireEvent.changeText(screen.getByLabelText('Longitude (°E)'), '79.9640'));
-
-    await run(() => fireEvent.press(useFields()));
-
-    expect(screen.queryByText(NUMBERS)).toBeNull();
-    expect(screen.getByText('Entered manually')).toBeTruthy();
-    expect(ui().draft?.location).toEqual({ latitude: 6.5888, longitude: 79.964 });
-  });
-
-  it('WF2P-S03b / SC2 A1, E3: a GPS fix outside Sri Lanka offers the picker under the location, with the pin wording', async () => {
+  it('WF2P-S03b / SC2 A1, E3: a GPS fix outside Sri Lanka offers the picker under the location, and a valid place replaces it', async () => {
     const rig = makeRig();
     rig.controller.captureLocation.mockResolvedValue({ latitude: 51.5, longitude: -0.12 });
     rig.controller.validateDraft.mockImplementation((draft) =>
@@ -309,19 +209,74 @@ describe('the manual location: map pin and place search (standards §10, P206)',
       fireEvent.press(screen.getByRole('button', { name: 'Enter location manually' })),
     );
     await moveMapTo(6.5888, 79.964);
-    await run(() => fireEvent.press(useMapPin()));
+    await run(() => fireEvent.press(screen.getByRole('button', { name: 'Use this location' })));
 
     expect(screen.getByText('6.5888 N, 79.9640 E')).toBeTruthy();
-    expect(screen.getByText('Entered manually')).toBeTruthy();
     expect(ui().draft?.locationFromGps).toBe(false);
   });
 });
 
-describe('the location access notice (standards §10 item 8, WF2P-S03g)', () => {
-  beforeEach(() => {
-    online.mockResolvedValue(true);
+describe('"Change" on a manual location (standards §10 item 10, P213; UC2-7c R5)', () => {
+  /** A form whose location was entered by hand at the Kalutara bridge. */
+  async function toManual(rig: Rig): Promise<void> {
+    await toPicker(rig);
+    await moveMapTo(6.5888, 79.964);
+    await run(() => fireEvent.press(screen.getByRole('button', { name: 'Use this location' })));
+  }
+
+  it('WF2P-S03a: a GPS location has no "Change" link', async () => {
+    await renderApp(makeRig());
+    await run(() => fireEvent.press(screen.getByRole('button', { name: 'Report Hazard' })));
+    await run(() => fireEvent.press(screen.getByRole('button', { name: 'Flood' })));
+
+    expect(screen.queryByRole('button', { name: 'Change location' })).toBeNull();
   });
 
+  it('WF2P-S03a: "Change" opens the picker at once, at the current point, with "Keep this location"', async () => {
+    const rig = makeRig();
+    await toManual(rig);
+    expect(screen.queryByTestId('map')).toBeNull();
+
+    await run(() => fireEvent.press(screen.getByRole('button', { name: 'Change location' })));
+
+    expect(screen.getByTestId('map')).toBeTruthy();
+    expect(region().latitude).toBe(6.5888);
+    expect(region().longitude).toBe(79.964);
+    expect(screen.getByRole('button', { name: 'Keep this location' })).toBeTruthy();
+    expect(ui().draft?.location).toEqual({ latitude: 6.5888, longitude: 79.964 });
+    expect(ui().changingLocation).toBe(true);
+  });
+
+  it('WF2P-S03a: a new point replaces the old one and closes the picker', async () => {
+    const rig = makeRig();
+    await toManual(rig);
+    await run(() => fireEvent.press(screen.getByRole('button', { name: 'Change location' })));
+    await moveMapTo(6.9356, 79.9843);
+
+    await run(() => fireEvent.press(screen.getByRole('button', { name: 'Use this location' })));
+
+    expect(ui().draft?.location).toEqual({ latitude: 6.9356, longitude: 79.9843 });
+    expect(screen.getByText('6.9356 N, 79.9843 E')).toBeTruthy();
+    expect(screen.queryByTestId('map')).toBeNull();
+    expect(ui().changingLocation).toBe(false);
+  });
+
+  it('WF2P-S03a: "Keep this location" closes the picker with nothing changed', async () => {
+    const rig = makeRig();
+    await toManual(rig);
+    await run(() => fireEvent.press(screen.getByRole('button', { name: 'Change location' })));
+    await moveMapTo(6.9356, 79.9843);
+
+    await run(() => fireEvent.press(screen.getByRole('button', { name: 'Keep this location' })));
+
+    expect(screen.queryByTestId('map')).toBeNull();
+    expect(ui().draft?.location).toEqual({ latitude: 6.5888, longitude: 79.964 });
+    expect(screen.getByText('6.5888 N, 79.9640 E')).toBeTruthy();
+    expect(ui().changingLocation).toBe(false);
+  });
+});
+
+describe('the location access notice (standards §10 item 8, WF2P-S03g)', () => {
   afterEach(() => {
     jest.restoreAllMocks();
   });

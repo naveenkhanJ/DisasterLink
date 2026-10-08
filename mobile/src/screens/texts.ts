@@ -60,27 +60,12 @@ export const LEVEL_LABELS: Record<WarningLevel, string> = {
   LEVEL_3_RED: 'Level 3 – Red (Evacuate)',
 };
 
-/** The error under the manual-entry fields when a coordinate is blank or not a number (SC2 E3 12e). */
-export const NUMBERS_REQUIRED_TEXT = 'Enter the latitude and longitude as numbers';
-
-/** The error under the coordinate fields when the point is outside Sri Lanka (SC2 E3 12f; WF2P-S03b). */
-export const LOCATION_OUTSIDE_FIELDS_TEXT =
-  'This location is outside Sri Lanka — check the latitude and longitude';
-
-/** The error under the map when the pin is outside Sri Lanka (SC2 E3 12f; WF2P-S03b, P206). */
-export const LOCATION_OUTSIDE_PIN_TEXT =
-  'This location is outside Sri Lanka — move the pin to the place you saw';
-
 /**
- * Words the location error for the input that was used.
- *
- * @param error the worded error from `toFieldErrors`
- * @param viaPin whether the point came from the map pin (or the place search)
- * @returns the error, with the pin wording for the pin and the fields wording for the fields
+ * The error under the map when the pin is outside Sri Lanka (SC2 E3 12f; WF2P-S03b, P206). The
+ * coordinate fields were removed (P213), so this is the only wording.
  */
-export function locationErrorText(error: string, viaPin: boolean): string {
-  return viaPin && error === LOCATION_OUTSIDE_FIELDS_TEXT ? LOCATION_OUTSIDE_PIN_TEXT : error;
-}
+export const LOCATION_OUTSIDE_TEXT =
+  'This location is outside Sri Lanka — move the pin to the place you saw';
 
 /** The notice when the location permission is refused or can be asked again (WF2P-S03g, P206). */
 export const LOCATION_ALLOW_TEXT = 'Allow location access to use your current location';
@@ -98,17 +83,55 @@ export function moreAlertsText(hidden: number): string {
   return `${hidden} more — see Active warnings on Home`;
 }
 
+/** The label written before the address in the stored description (standards §10 "The address", P214). */
+export const ADDRESS_LABEL = 'Address: ';
+
+/** The label of the optional address field (WF2P-S03a, P214). */
+export const ADDRESS_FIELD_LABEL = 'Address or landmark';
+
+/** The label of the place field of the picker (WF2P-S03a, P213). */
+export const PLACE_FIELD_LABEL = 'Type a town or village';
+
+/** The credit for the bundled place names, shown under the picker (CC BY 4.0; THIRD-PARTY-NOTICES.md). */
+export const PLACE_CREDIT = 'Place names: GeoNames (CC BY 4.0)';
+
+/** The link that closes the picker opened by "Change" and keeps the location (WF2P-S03a, P213). */
+export const KEEP_LOCATION_LABEL = 'Keep this location';
+
+/** The link on a manually entered location that reopens the picker (WF2P-S03a, P213). */
+export const CHANGE_LOCATION_LABEL = 'Change';
+
 /**
- * Reads a typed coordinate.
+ * Words a suggestion of the place list.
  *
- * @param text what the citizen typed
- * @returns the number, or `undefined` if the text is blank or is not a number
+ * @param name the place's name
+ * @param district the district it lies in, if known
+ * @returns "<place> — <District>", or the name alone when the district is not known
  */
-export function parseCoordinate(text: string): number | undefined {
-  const trimmed = text.trim();
-  const value = Number(trimmed);
-  return trimmed === '' || !Number.isFinite(value) ? undefined : value;
+export function placeRowText(name: string, district: District | undefined): string {
+  return district ? `${name} — ${districtLabel(district)}` : name;
 }
+
+/**
+ * Words a manually entered location that is named after the place the citizen chose.
+ *
+ * @param place the chosen place's name
+ * @param location the point entered
+ * @returns "near <place>, <lat> N, <lon> E — Entered manually"
+ */
+export function namedLocationText(place: string, location: GeoPoint): string {
+  return `near ${place}, ${formatCoordinates(location)} — Entered manually`;
+}
+
+/** The connection strip's states: its icon, its words and its tone (standards §10 item 11, P213). */
+export const CONNECTION_TEXTS: Record<
+  'online' | 'noInternet' | 'serverDown',
+  { label: string; icon: IconName; tone: 'ok' | 'neutral' | 'warn' }
+> = {
+  online: { label: 'Online', icon: 'wifi', tone: 'ok' },
+  noInternet: { label: 'No internet connection', icon: 'offline', tone: 'neutral' },
+  serverDown: { label: 'Server not reachable', icon: 'error', tone: 'warn' },
+};
 
 /** The tone each warning level is drawn in: its colour, always together with its text (wireframe-spec 8 rule 1). */
 export const LEVEL_TONES: Record<WarningLevel, 'l1' | 'l2' | 'l3'> = {
@@ -318,7 +341,7 @@ const FIELD_TEXTS: Record<string, Record<string, string>> = {
     'not a readable JPEG or PNG image': 'This image cannot be used — choose a JPEG or PNG photo',
   },
   location: {
-    default: LOCATION_OUTSIDE_FIELDS_TEXT,
+    default: LOCATION_OUTSIDE_TEXT,
     'a location is required': 'Enter the location of what you saw',
   },
 };

@@ -1,28 +1,33 @@
 /**
  * ShowLocationUnavailable.tsx — `showLocationUnavailable()`: the notice that there is no GPS fix
  * ("GPS location is unavailable", or the S03g notice when the cause is known), "Enter location
- * manually", and then a map with a pin over its centre and a place search above it. "Use this
- * location" sends the map's centre. The coordinate fields are a fallback: "Enter coordinates"
- * appears only when the phone is offline, a search failed with an error, or the search cannot be
- * used (Android without the location permission). A point outside Sri Lanka is refused with its
- * error under the map (or under the fields) and the typed values stay (SC2 A1 12a to 12d, E3 12e to
- * 12f; WF2P-S03a and S03b; standards §10 "Manual location", P206).
+ * manually", and then a field "Type a town or village" whose type-ahead list (from the bundled
+ * GeoNames places, so it works offline) sits directly under it, above a map with a pin over its
+ * centre. Choosing a place moves the map there; the citizen drags the map to the exact spot and
+ * "Use this location" sends the map's centre. A point outside Sri Lanka is refused with its error
+ * under the map (SC2 A1 12a to 12d, E3 12e to 12f; WF2P-S03a and S03b; standards §10 "Manual
+ * location", P213). The same block, opened at once, is the "Change" of a manual location, with "Keep
+ * this location" to close it.
+ *
+ * There are no coordinate fields and no online geocoder (P213). Place names: GeoNames (CC BY 4.0).
  *
  * Implements CH-27 (FD-12).
  */
-import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import MapView from 'react-native-maps';
 import type { GeoPoint } from '../api/reportApi';
 import { Banner, Button, ErrorText, Icon, TextField, styles as ui } from '../components/ui';
+import { MANUAL_PLACE_RADIUS_KM } from '../constants';
+import { distanceKm, searchPlaces, type PlaceMatch } from '../location/placeIndex';
 import { colors, fonts, radius, space } from '../theme';
-import { locationErrorText, NUMBERS_REQUIRED_TEXT, parseCoordinate } from './texts';
+import { KEEP_LOCATION_LABEL, PLACE_CREDIT, PLACE_FIELD_LABEL, placeRowText } from './texts';
 
 /** How much of the map is visible when it opens on the district centre, in degrees. */
 const START_DELTA = 0.3;
 
-/** How much of the map is visible after a place search, in degrees. */
-const FOUND_DELTA = 0.01;
+/** How much of the map is visible after a place was chosen, in degrees. */
+const FOUND_DELTA = 0.02;
 
 /** The height of the map, in pixels (frame S03a: 358 × 260). */
 const MAP_HEIGHT = 260;
@@ -30,11 +35,8 @@ const MAP_HEIGHT = 260;
 /** The size of the pin drawn over the centre of the map. */
 const PIN_SIZE = 32;
 
-/** The message when a search finds nothing. */
-const NO_PLACE_TEXT = 'No place found — try another name or move the pin';
-
-/** The message when a search fails with an error. */
-const SEARCH_FAILED_TEXT = 'The place search is not available — move the pin, or enter coordinates';
+/** The least height of a row of the place list, in points (the touch-target rule). */
+const ROW_HEIGHT = 44;
 
 /** The part of the map that is visible. */
 interface Region {
@@ -46,22 +48,24 @@ interface Region {
 
 /** What the manual-entry block needs. */
 export interface ShowLocationUnavailableProps {
-  /** The error of the last entry or review, worded for the fields. */
+  /** The error of the last entry or review. */
   error: string | undefined;
   /** `enterLocationManually`: takes the chosen point. */
   onEnter: (location: GeoPoint) => void;
-  /** Whether the block replaces a missing fix (the notice is drawn) or is offered under a fix. */
+  /** Tells the screen which place the point is named after, or `undefined` when none (before `onEnter`). */
+  onPlaceNamed: (place: string | undefined) => void;
+  /** Whether the block replaces a missing fix (the notice is drawn) or is offered under a location. */
   noFix?: boolean;
   /** The notice that replaces "GPS location is unavailable" when the cause is known (S03g). */
   accessNotice?: React.ReactNode;
-  /** Where the map starts: the centre of the registered district. */
+  /** Where the map starts: the registered district's centre, or the point being changed. */
   start: GeoPoint;
-  /** Finds a place by name; throws on an error. */
-  searchPlace: (query: string) => Promise<GeoPoint | undefined>;
-  /** Whether the phone is online. */
-  isOnline: () => Promise<boolean>;
-  /** Whether the place search may be used (false on Android without the permission). */
-  searchAllowed: boolean;
+  /** Opens the picker at once (the "Change" of a manual location). */
+  initiallyOpen?: boolean;
+  /** Tells the form whether the picker is open (it shows the address field while it is). */
+  onOpenChange?: (open: boolean) => void;
+  /** Closes the picker and keeps the location (the "Keep this location" link; only for "Change"). */
+  onKeep?: () => void;
 }
 
 function regionAround(point: GeoPoint, delta: number): Region {
@@ -73,6 +77,34 @@ function regionAround(point: GeoPoint, delta: number): Region {
   };
 }
 
+/** The inline list of up to eight suggestions under the place field. */
+function Suggestions({
+  matches,
+  onChoose,
+}: {
+  matches: PlaceMatch[];
+  onChoose: (match: PlaceMatch) => void;
+}) {
+  if (matches.length === 0) {
+    return null;
+  }
+  return (
+    <View style={styles.list}>
+      {matches.map((match) => (
+        <Pressable
+          key={`${match.name}|${match.point.latitude}|${match.point.longitude}`}
+          accessibilityRole="button"
+          accessibilityLabel={placeRowText(match.name, match.district)}
+          onPress={() => onChoose(match)}
+          style={styles.row}
+        >
+          <Text style={styles.rowText}>{placeRowText(match.name, match.district)}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
 /**
  * Draws the manual-entry block.
  *
@@ -80,63 +112,37 @@ function regionAround(point: GeoPoint, delta: number): Region {
  * @returns the block
  */
 export function ShowLocationUnavailable(props: ShowLocationUnavailableProps) {
-  const { error, onEnter, noFix = true, start, searchAllowed, isOnline } = props;
-  const [open, setOpen] = useState(false);
-  const [region, setRegion] = useState<Region>(() => regionAround(start, START_DELTA));
+  const { error, onEnter, onPlaceNamed, noFix = true, start, onKeep } = props;
+  const [open, setOpen] = useState(props.initiallyOpen ?? false);
+  const [region, setRegion] = useState<Region>(() =>
+    regionAround(start, props.initiallyOpen ? FOUND_DELTA : START_DELTA),
+  );
   const [query, setQuery] = useState('');
-  const [searchMessage, setSearchMessage] = useState<string>();
-  const [searchFailed, setSearchFailed] = useState(false);
-  const [offline, setOffline] = useState(false);
-  const [fieldsShown, setFieldsShown] = useState(false);
-  const [latitude, setLatitude] = useState('');
-  const [longitude, setLongitude] = useState('');
-  const [notNumbers, setNotNumbers] = useState(false);
-  const [viaPin, setViaPin] = useState(true);
+  const [chosen, setChosen] = useState<PlaceMatch>();
+  const matches = useMemo(() => (chosen ? [] : searchPlaces(query)), [query, chosen]);
 
-  useEffect(() => {
-    if (open) {
-      void isOnline().then((online) => setOffline(!online));
-    }
-  }, [open, isOnline]);
-
-  async function search(): Promise<void> {
-    try {
-      const found = await props.searchPlace(query);
-      if (found) {
-        setSearchMessage(undefined);
-        setRegion(regionAround(found, FOUND_DELTA));
-      } else {
-        setSearchMessage(NO_PLACE_TEXT);
-      }
-    } catch (searchError) {
-      console.warn('[ShowLocationUnavailable] the place search failed:', searchError);
-      setSearchFailed(true);
-      setSearchMessage(SEARCH_FAILED_TEXT);
-    }
+  function openPicker(): void {
+    setOpen(true);
+    props.onOpenChange?.(true);
   }
 
-  function enterPin(): void {
-    setViaPin(true);
-    setNotNumbers(false);
-    onEnter({ latitude: region.latitude, longitude: region.longitude });
+  function choose(match: PlaceMatch): void {
+    setChosen(match);
+    setQuery(match.name);
+    setRegion(regionAround(match.point, FOUND_DELTA));
   }
 
-  function enterFields(): void {
-    setViaPin(false);
-    const typedLatitude = parseCoordinate(latitude);
-    const typedLongitude = parseCoordinate(longitude);
-    if (typedLatitude === undefined || typedLongitude === undefined) {
-      setNotNumbers(true);
-      return;
-    }
-    setNotNumbers(false);
-    onEnter({ latitude: typedLatitude, longitude: typedLongitude });
+  function change(text: string): void {
+    setQuery(text);
+    setChosen(undefined);
   }
 
-  const locationError = error ? locationErrorText(error, viaPin) : undefined;
-  const fieldsError = notNumbers ? NUMBERS_REQUIRED_TEXT : viaPin ? undefined : locationError;
-  const mapError = viaPin ? locationError : undefined;
-  const linkShown = (offline || searchFailed || !searchAllowed) && !fieldsShown;
+  function usePlace(): void {
+    const centre = { latitude: region.latitude, longitude: region.longitude };
+    const near = chosen !== undefined && distanceKm(chosen.point, centre) <= MANUAL_PLACE_RADIUS_KM;
+    onPlaceNamed(near ? chosen.name : undefined);
+    onEnter(centre);
+  }
 
   return (
     <View style={{ gap: space.sm }}>
@@ -152,25 +158,19 @@ export function ShowLocationUnavailable(props: ShowLocationUnavailableProps) {
         ) : null)}
       {open ? null : (
         <>
-          {locationError ? <ErrorText>{locationError}</ErrorText> : null}
-          <Button label="Enter location manually" kind="secondary" onPress={() => setOpen(true)} />
+          {error ? <ErrorText>{error}</ErrorText> : null}
+          <Button label="Enter location manually" kind="secondary" onPress={openPicker} />
         </>
       )}
       {open ? (
         <>
-          {searchAllowed ? (
-            <View style={{ flexDirection: 'row', gap: space.sm, alignItems: 'flex-end' }}>
-              <TextField
-                label="Search for a place"
-                value={query}
-                onChangeText={setQuery}
-                returnKeyType="search"
-                onSubmitEditing={() => void search()}
-              />
-              <Button label="Search" kind="secondary" onPress={() => void search()} />
-            </View>
-          ) : null}
-          {searchMessage ? <ErrorText>{searchMessage}</ErrorText> : null}
+          <TextField
+            label={PLACE_FIELD_LABEL}
+            value={query}
+            onChangeText={change}
+            returnKeyType="search"
+          />
+          <Suggestions matches={matches} onChoose={choose} />
           <View style={styles.mapBox}>
             <MapView
               style={styles.map}
@@ -184,37 +184,13 @@ export function ShowLocationUnavailable(props: ShowLocationUnavailableProps) {
             </View>
           </View>
           <Text style={ui.muted}>Drag the map to put the pin on the spot you saw</Text>
-          {mapError ? <ErrorText>{mapError}</ErrorText> : null}
-          <Button label="Use this location" onPress={enterPin} />
-          {linkShown ? (
-            <Button
-              label="Enter coordinates"
-              kind="secondary"
-              onPress={() => setFieldsShown(true)}
-            />
-          ) : null}
-          {fieldsShown ? (
-            <>
-              <View style={{ flexDirection: 'row', gap: space.sm }}>
-                <TextField
-                  label="Latitude (°N)"
-                  value={latitude}
-                  onChangeText={setLatitude}
-                  keyboardType="numbers-and-punctuation"
-                  error={Boolean(fieldsError)}
-                />
-                <TextField
-                  label="Longitude (°E)"
-                  value={longitude}
-                  onChangeText={setLongitude}
-                  keyboardType="numbers-and-punctuation"
-                  error={Boolean(fieldsError)}
-                />
-              </View>
-              <Text style={ui.muted}>Type the coordinates of the place you saw</Text>
-              {fieldsError ? <ErrorText>{fieldsError}</ErrorText> : null}
-              <Button label="Use this location" kind="secondary" onPress={enterFields} />
-            </>
+          {error ? <ErrorText>{error}</ErrorText> : null}
+          <Text style={styles.credit}>{PLACE_CREDIT}</Text>
+          <Button label="Use this location" onPress={usePlace} />
+          {onKeep ? (
+            <Pressable accessibilityRole="button" onPress={onKeep} style={styles.keep}>
+              <Text style={styles.keepText}>{KEEP_LOCATION_LABEL}</Text>
+            </Pressable>
           ) : null}
         </>
       ) : null}
@@ -223,6 +199,21 @@ export function ShowLocationUnavailable(props: ShowLocationUnavailableProps) {
 }
 
 const styles = StyleSheet.create({
+  list: {
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    borderRadius: radius.sm,
+    backgroundColor: colors.card,
+    overflow: 'hidden',
+  },
+  row: {
+    minHeight: ROW_HEIGHT,
+    justifyContent: 'center',
+    paddingHorizontal: space.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  rowText: { fontFamily: fonts.ui, fontSize: 15, color: colors.text },
   mapBox: {
     height: MAP_HEIGHT,
     borderWidth: 1,
@@ -237,5 +228,14 @@ const styles = StyleSheet.create({
     left: '50%',
     marginTop: -PIN_SIZE,
     marginLeft: -PIN_SIZE / 2,
+  },
+  credit: { fontFamily: fonts.ui, fontSize: 11, color: colors.muted },
+  keep: { minHeight: ROW_HEIGHT, justifyContent: 'center', alignItems: 'center' },
+  keepText: {
+    fontFamily: fonts.ui,
+    fontSize: 14,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+    color: colors.text,
   },
 });

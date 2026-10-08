@@ -57,7 +57,7 @@ async function copyIntoDocuments(
   draftId: string,
 ): Promise<string> {
   const extension = asset.mimeType === 'image/png' ? 'png' : 'jpg';
-  const copy = new File(Paths.document, `${draftId}.${extension}`);
+  const copy = new File(Paths.document, `${draftId}-${Date.now()}.${extension}`);
   await new File(asset.uri).copy(copy, { overwrite: true });
   return copy.uri;
 }

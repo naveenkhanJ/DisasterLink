@@ -2,7 +2,8 @@
  * Screen.tsx — the shared scrolling wrapper of the app's screens and the language fonts. The common
  * error banner (C1) is drawn once by the app shell above the screens (CitizenApp.tsx). The wrapper
  * keeps the field being typed in above the keyboard (iOS `automaticallyAdjustKeyboardInsets`,
- * Android `KeyboardAvoidingView`), dismisses the keyboard when the content is dragged, and draws
+ * Android `KeyboardAvoidingView`), keeps the page scrollable to its end while the keyboard is up
+ * (dragging does not close it; a tap outside a field does, `keyboardShouldPersistTaps="handled"`), and draws
  * pull-to-refresh when a screen gives `refreshing` and `onRefresh` (standards §10, "Phone screens
  * beyond the frames" items 3 and 5; P206).
  */
@@ -45,7 +46,7 @@ export function Screen({
       style={styles.scroll}
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="on-drag"
+      keyboardDismissMode="none"
       automaticallyAdjustKeyboardInsets
       refreshControl={
         onRefresh ? (

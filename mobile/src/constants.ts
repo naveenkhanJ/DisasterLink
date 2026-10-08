@@ -105,3 +105,21 @@ export const QUEUED_RETRY_INTERVAL_MS = 30_000;
 
 /** The most in-app warning alerts the shell draws at once; the rest are counted (standards section 10, P206). */
 export const MAX_ALERTS_SHOWN = 2;
+
+/** The fewest characters of a place query that start the type-ahead list (standards §10, P213). */
+export const MIN_PLACE_QUERY_LENGTH = 2;
+
+/** The most places the type-ahead list shows (standards §10, P213). */
+export const MAX_PLACE_SUGGESTIONS = 8;
+
+/** The mean radius of the earth, in kilometres, for the haversine distance. */
+export const EARTH_RADIUS_KM = 6371;
+
+/**
+ * How near the pin must be to the chosen place for the entered location to be named after it, in
+ * kilometres (standards §10 "Manual location", P213).
+ */
+export const MANUAL_PLACE_RADIUS_KM = 5;
+
+/** The longest "Address or landmark" text, in characters (standards §10 "The address", P214). */
+export const MAX_ADDRESS_LENGTH = 200;

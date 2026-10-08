@@ -20,10 +20,9 @@ import {
   styles as ui,
 } from '../components/ui';
 import { MAX_ALERTS_SHOWN } from '../constants';
-import { searchPlace } from '../location/placeSearch';
-import { isOnline } from '../sync/connectivityTriggers';
 import { colors, space } from '../theme';
 import { ChooseHazardType } from './ChooseHazardType';
+import { ConnectionStrip } from './ConnectionStrip';
 import { DiscardQuestion } from './DiscardQuestion';
 import { ReportForm } from './ReportForm';
 import { Screen } from './Screen';
@@ -36,13 +35,14 @@ import { ShowSubmissionResult } from './ShowSubmissionResult';
 import { ShowSyncResults } from './ShowSyncResults';
 import { moreAlertsText, SERVICE_UNAVAILABLE_TEXT } from './texts';
 
-/** The routes that have a "‹ Back" link in the header (standards §10 item 1). */
-const BACK_ROUTES: ReadonlySet<string> = new Set([
-  'chooseHazardType',
-  'reportForm',
-  'review',
-  'reportStatus',
-]);
+/**
+ * The routes that have the Back icon in the header (standards §10 item 1): only below a tab's first
+ * screen, so not the home or the hazard-type list (the first screen of the Report tab). The
+ * confirmations (S05, S05a, S05b, S05c) have none either, on purpose: a submitted report ends the flow,
+ * and going back to the review screen would offer a second submission; they keep "Track report status"
+ * and "Back to home". This is a stated exception to "Back below a tab's first screen" (P214).
+ */
+const BACK_ROUTES: ReadonlySet<string> = new Set(['reportForm', 'review', 'reportStatus']);
 
 /** The screen of the current route. */
 function CurrentScreen({ ui: app }: { ui: CitizenAppUI }) {
@@ -112,15 +112,21 @@ function CurrentScreen({ ui: app }: { ui: CitizenAppUI }) {
       locationUnavailable={app.locationUnavailable}
       permissionDenied={app.permissionDenied}
       onChangeHazardType={app.changeHazardType}
+      descriptionText={app.descriptionText}
+      addressText={app.addressText}
       onEnterDescription={app.enterDescription}
+      onEnterAddress={app.enterAddress}
       onPickPhoto={(source) => void app.pickPhoto(source)}
       onRemovePhoto={app.removePhoto}
       onEnterLocation={app.enterLocationManually}
       locationAccess={app.locationAccess}
       onAllowLocationAccess={() => void app.allowLocationAccess()}
       mapStart={app.mapStart}
-      searchPlace={searchPlace}
-      isOnline={isOnline}
+      manualPlaceName={app.manualPlaceName}
+      onNameManualPlace={app.nameManualPlace}
+      changingLocation={app.changingLocation}
+      onChangeManualLocation={app.changeManualLocation}
+      onKeepManualLocation={app.keepManualLocation}
       onReview={app.reviewReport}
       onDiscardDraft={(draftId) => void app.discardDraft(draftId)}
     />
@@ -144,6 +150,7 @@ export function CitizenApp({ ui: app }: { ui: CitizenAppUI }) {
   return (
     <View style={styles.app}>
       <AppHeader onBack={BACK_ROUTES.has(app.route.name) ? () => void app.goBack() : undefined} />
+      <ConnectionStrip state={app.connection} />
       {app.loading ? <LoadingRow /> : null}
       {soon ? <SoonNotice label={soon} onClose={() => setSoon(null)} /> : null}
       {noticeShown ? (

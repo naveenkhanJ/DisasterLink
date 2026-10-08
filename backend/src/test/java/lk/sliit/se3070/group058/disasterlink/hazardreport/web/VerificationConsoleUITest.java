@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
@@ -245,6 +246,30 @@ class VerificationConsoleUITest {
         .thenReturn(List.of(report(ReportStatus.PENDING_VERIFICATION)));
 
     assertContains(html(mockMvc.perform(get("/hazardreport"))), "1 report<");
+  }
+
+  @Test
+  @DisplayName(
+      "WF2C-S01 (P213, P217): the queue reloads itself every 15 seconds (header Refresh: 15)")
+  void queueReloadsItself() throws Exception {
+    when(control.getPendingReports()).thenReturn(List.of());
+
+    mockMvc.perform(get("/hazardreport")).andExpect(header().string("Refresh", "15"));
+  }
+
+  @Test
+  @DisplayName("WF2C-S02 (P213): the report page and the rejection form never reload by themselves")
+  void reportPageAndRejectionFormDoNotReload() throws Exception {
+    arrangePending();
+
+    mockMvc
+        .perform(get("/hazardreport/{id}", REPORT_ID))
+        .andExpect(status().isOk())
+        .andExpect(header().doesNotExist("Refresh"));
+    mockMvc
+        .perform(get("/hazardreport/{id}/reject", REPORT_ID))
+        .andExpect(status().isOk())
+        .andExpect(header().doesNotExist("Refresh"));
   }
 
   // ---- S02: the details -------------------------------------------------------------------------

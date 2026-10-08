@@ -8,7 +8,10 @@ import {
   hazardTypeLabel,
   LEVEL_TONES,
   locationSource,
-  parseCoordinate,
+  LOCATION_OUTSIDE_TEXT,
+  namedLocationText,
+  placeRowText,
+  CONNECTION_TEXTS,
   NO_ERRORS,
   rejectionText,
   syncResultText,
@@ -106,12 +109,36 @@ describe('formats and wording of the screens', () => {
     });
   });
 
-  it('SC2 A1 12c: a typed coordinate is a number, or nothing when blank or not a number', () => {
-    expect(parseCoordinate(' 6.5888 ')).toBe(6.5888);
-    expect(parseCoordinate('-1')).toBe(-1);
-    expect(parseCoordinate('')).toBeUndefined();
-    expect(parseCoordinate('   ')).toBeUndefined();
-    expect(parseCoordinate('abc')).toBeUndefined();
-    expect(parseCoordinate('Infinity')).toBeUndefined();
+  it('SC2 A1 12c (P213): a suggestion is "<place> — <District>", or the name alone without a district', () => {
+    expect(placeRowText('Kalutara', 'KALUTARA')).toBe('Kalutara — Kalutara');
+    expect(placeRowText('Polgahawela', 'KURUNEGALA')).toBe('Polgahawela — Kurunegala');
+    expect(placeRowText('Somewhere', undefined)).toBe('Somewhere');
+  });
+
+  it('SC2 A1 12d (P213): a manual location named after a place reads "near <place>, <lat> N, <lon> E — Entered manually"', () => {
+    expect(namedLocationText('Kalutara', { latitude: 6.5888, longitude: 79.964 })).toBe(
+      'near Kalutara, 6.5888 N, 79.9640 E — Entered manually',
+    );
+  });
+
+  it('SC2 E3 (P213): the outside-Sri-Lanka error has the pin wording only, and a location error is worded with it', () => {
+    expect(LOCATION_OUTSIDE_TEXT).toBe(
+      'This location is outside Sri Lanka — move the pin to the place you saw',
+    );
+    expect(toFieldErrors(['location: outside Sri Lanka']).location).toBe(LOCATION_OUTSIDE_TEXT);
+  });
+
+  it('standards §10 item 11: the strip has words, an icon and a tone for each connection state', () => {
+    expect(CONNECTION_TEXTS.online).toEqual({ label: 'Online', icon: 'wifi', tone: 'ok' });
+    expect(CONNECTION_TEXTS.noInternet).toEqual({
+      label: 'No internet connection',
+      icon: 'offline',
+      tone: 'neutral',
+    });
+    expect(CONNECTION_TEXTS.serverDown).toEqual({
+      label: 'Server not reachable',
+      icon: 'error',
+      tone: 'warn',
+    });
   });
 });

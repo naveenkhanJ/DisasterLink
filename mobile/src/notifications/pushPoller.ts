@@ -27,6 +27,11 @@ export interface PushPollingOptions {
    * Defaults to `configureNotifications`.
    */
   prepare?: () => Promise<unknown>;
+  /**
+   * Called after every poll: `true` when the server answered, `false` when the poll failed. It is the
+   * server signal of the app's connection strip (standards §10 item 11, P213); it adds no request.
+   */
+  onReachability?: (reachable: boolean) => void;
   /** The time between two polls, in milliseconds. Defaults to `PUSH_POLL_INTERVAL_MS`. */
   intervalMs?: number;
 }
@@ -89,11 +94,13 @@ export function startPushPolling(options: PushPollingOptions): () => void {
       if (ids.length > 0) {
         await options.api.acknowledge(options.recipientId, ids);
       }
+      options.onReachability?.(true);
     } catch (error) {
       if (!failing) {
         console.warn('[pushPoller] a poll failed, trying again at the next tick:', error);
       }
       failing = true;
+      options.onReachability?.(false);
     } finally {
       polling = false;
     }

@@ -1,4 +1,5 @@
 import { act, fireEvent, screen } from '@testing-library/react-native';
+import { StyleSheet } from 'react-native';
 import { withStatus } from '../../report/ReportDraft';
 import {
   FILLED_DRAFT,
@@ -40,7 +41,7 @@ async function pressBack(): Promise<boolean> {
 }
 
 describe('the Back link, the discard question and Android Back (standards §10 items 1 and 2)', () => {
-  it('standards §10 item 1: the home has no Back link and does not handle Back', async () => {
+  it('standards §10 item 1: the home has no Back icon and does not handle Back', async () => {
     const rig = makeRig();
     await renderApp(rig);
 
@@ -61,30 +62,73 @@ describe('the Back link, the discard question and Android Back (standards §10 i
     expect(await pressBack()).toBe(false);
   });
 
-  it('WF2P-S02: Back goes to the home, and an empty draft is dropped without a question', async () => {
+  it('WF2P-S02 (R2): the hazard-type list is the first screen of the Report tab and has no Back icon', async () => {
+    const rig = makeRig();
+    await renderApp(rig);
+
+    await run(() => fireEvent.press(screen.getByRole('button', { name: 'Report Hazard' })));
+
+    expect(screen.getByText('What did you see?')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Back' })).toBeNull();
+  });
+
+  it('WF2P-S02: Android Back goes to the home, and an empty draft is dropped without a question', async () => {
     const rig = makeRig();
     await renderApp(rig);
     await run(() => fireEvent.press(screen.getByRole('button', { name: 'Report Hazard' })));
 
-    await run(() => fireEvent.press(back()));
+    expect(await pressBack()).toBe(true);
 
     expect(screen.queryByText('Discard this report?')).toBeNull();
     expect(screen.getByText('My reports — waiting on this phone')).toBeTruthy();
     expect(ui().draft).toBeUndefined();
   });
 
-  it('WF2P-S02: Back asks first when the draft has content, and Discard goes home', async () => {
+  it('WF2P-S02: Android Back asks first when the draft has content, and Discard goes home', async () => {
     const rig = makeRig();
     await toFormWithContent(rig);
     await run(() => fireEvent.press(screen.getByRole('button', { name: 'Change' })));
 
-    await run(() => fireEvent.press(back()));
+    expect(await pressBack()).toBe(true);
 
     expect(screen.getByText('Discard this report?')).toBeTruthy();
     expect(screen.getByText('What you entered on this report will be lost.')).toBeTruthy();
     await run(() => fireEvent.press(screen.getByRole('button', { name: 'Discard' })));
     expect(screen.getByText('My reports — waiting on this phone')).toBeTruthy();
     expect(screen.queryByText('Discard this report?')).toBeNull();
+  });
+
+  it('WF2P-S03 (R2): the Back control is an icon with no word: a mirrored chevron of size 28 in a 44 × 44 touch area, labelled "Back"', async () => {
+    const rig = makeRig();
+    await toFormWithContent(rig);
+
+    const style = StyleSheet.flatten(back().props.style);
+
+    expect(style.minWidth).toBe(44);
+    expect(style.minHeight).toBe(44);
+    expect(screen.queryByText(/Back/)).toBeNull();
+    const tree = JSON.stringify(screen.toJSON());
+    expect(tree).toContain('"scaleX":-1');
+    expect(tree).toContain('"width":28');
+  });
+
+  it('WF2P-S05 / S05a / S05b / S05c (P214): no confirmation has a Back icon; each keeps its own button', async () => {
+    const rig = makeRig();
+    rig.controller.submit.mockResolvedValue({
+      draftId: 'draft-1',
+      state: 'SUBMITTED',
+      report: REPORT,
+      errors: [],
+    });
+    await toFormWithContent(rig);
+    await run(() => fireEvent.press(screen.getByRole('button', { name: 'Take photo' })));
+    await run(() => fireEvent.press(screen.getByRole('button', { name: 'Review Report' })));
+    await run(() => fireEvent.press(screen.getByRole('button', { name: 'Submit Report' })));
+
+    expect(screen.getByText('Report submitted')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Back' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Track report status' })).toBeTruthy();
+    expect(ui().route.name).toBe('submissionResult');
   });
 
   it('WF2P-S03: Back goes to the hazard-type list with the values kept, with no question', async () => {
@@ -161,7 +205,7 @@ describe('the Back link, the discard question and Android Back (standards §10 i
     await toForm(rig);
     await run(() => fireEvent.press(screen.getByRole('button', { name: 'Change' })));
 
-    await run(() => fireEvent.press(back()));
+    expect(await pressBack()).toBe(true);
 
     expect(screen.queryByText('Discard this report?')).toBeNull();
   });

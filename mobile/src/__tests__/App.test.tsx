@@ -1,10 +1,11 @@
-import { render, screen } from '@testing-library/react-native';
+import { act, render, screen } from '@testing-library/react-native';
+import * as Network from 'expo-network';
 import React from 'react';
 import { AppState, BackHandler } from 'react-native';
 import { createAppServices } from '../app/appServices';
 import { configureNotifications } from '../notifications/notifications';
 import { startPushPolling } from '../notifications/pushPoller';
-import { startConnectivityTriggers } from '../sync/connectivityTriggers';
+import { isOnline, startConnectivityTriggers } from '../sync/connectivityTriggers';
 import App from '../../App';
 
 jest.mock('expo-font', () => ({ useFonts: jest.fn(() => [true]) }));
@@ -19,9 +20,11 @@ jest.mock('../notifications/notifications', () => ({
   presentLocalAlert: jest.fn(async () => undefined),
 }));
 jest.mock('../notifications/pushPoller', () => ({ startPushPolling: jest.fn() }));
+jest.mock('expo-network', () => ({ addNetworkStateListener: jest.fn() }));
 jest.mock('../sync/connectivityTriggers', () => ({
   startConnectivityTriggers: jest.fn(),
   isOnline: jest.fn(async () => true),
+  isOnlineState: jest.fn((state: { isConnected?: boolean }) => state.isConnected !== false),
 }));
 
 const HOME = {
@@ -47,7 +50,12 @@ const findPending = jest.fn(async () => [] as { status: string }[]);
 const locationAccess = { check: jest.fn(async () => 'granted'), request: jest.fn() };
 
 describe('App start-up', () => {
+  const removeNetwork = jest.fn();
+
   beforeEach(() => {
+    jest.clearAllMocks();
+    removeNetwork.mockClear();
+    jest.mocked(Network.addNetworkStateListener).mockReturnValue({ remove: removeNetwork });
     calls.length = 0;
     stopTriggers.mockClear();
     stopPolling.mockClear();
@@ -208,5 +216,56 @@ describe('App start-up', () => {
     expect(controller.captureLocation.mock.calls.length).toBeGreaterThan(reads);
     await view.unmount();
     expect(remove).toHaveBeenCalled();
+  });
+
+  it('standards §10 item 11 (P213): the network listener feeds the connection strip, and is removed on unmount', async () => {
+    const view = await render(<App />);
+    await tick();
+    expect(await screen.findByText('Online')).toBeTruthy();
+    const listener = jest.mocked(Network.addNetworkStateListener).mock.calls[0][0];
+
+    await act(async () => listener({ isConnected: false } as Network.NetworkState));
+    expect(screen.getByText('No internet connection')).toBeTruthy();
+    await act(async () => listener({ isConnected: true } as Network.NetworkState));
+    expect(screen.getByText('Online')).toBeTruthy();
+    await view.unmount();
+
+    expect(removeNetwork).toHaveBeenCalledTimes(1);
+  });
+
+  it('standards §10 item 11 (P213): the first network state is read at start-up', async () => {
+    jest.mocked(isOnline).mockResolvedValueOnce(false);
+
+    await render(<App />);
+    await tick();
+
+    expect(await screen.findByText('No internet connection')).toBeTruthy();
+  });
+
+  it('standards §10 item 11 (P213): the push poll reports the server to the strip', async () => {
+    await render(<App />);
+    notificationsReady();
+    await tick();
+    const options = jest.mocked(startPushPolling).mock.calls[0][0];
+
+    await act(async () => options.onReachability?.(false));
+    expect(screen.getByText('Server not reachable')).toBeTruthy();
+    await act(async () => options.onReachability?.(true));
+
+    expect(screen.getByText('Online')).toBeTruthy();
+  });
+
+  it('standards §10 item 11 (P213): an app that unmounts before the first network state arrives ignores it', async () => {
+    let answer: (online: boolean) => void = () => undefined;
+    jest
+      .mocked(isOnline)
+      .mockImplementationOnce(() => new Promise((resolve) => (answer = resolve)));
+    const view = await render(<App />);
+
+    await view.unmount();
+    answer(false);
+    await tick();
+
+    expect(removeNetwork).toHaveBeenCalled();
   });
 });

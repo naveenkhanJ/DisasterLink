@@ -5,14 +5,17 @@
  * rejected draft reopened from the home list, the reason and "Discard draft". The form keeps every
  * value it holds on every error (C2).
  *
- * The photo tile is full width; a tap opens a full-size preview with "Remove photo" (standards §10
- * "Phone screens beyond the frames" item 9, P206). The location block shows the S03g notice when
- * the cause of a missing fix is known and the map-pin picker when the citizen enters the place.
+ * The photo tile is full width; a tap on it, or "View", opens a full-size preview with "Remove photo",
+ * and "Remove" clears it; with a photo the buttons read "Retake photo" and "Choose another" (standards
+ * §10 "Phone screens beyond the frames" item 9, P206, P213). The location block shows the S03g notice
+ * when the cause of a missing fix is known and the place-list and map-pin picker when the citizen
+ * enters the place, with "Change" on a manual location; under it the optional "Address or landmark"
+ * (standards §10 "The address", P214).
  *
  * Implements CH-25, CH-27 (SC2 steps 7 to 15, A1, A3, E1 to E3, E8; WF2P-S03, S03a to S03g).
  */
 import React, { useState } from 'react';
-import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { GeoPoint } from '../api/reportApi';
 import type { PhotoSource } from '../app/useCitizenAppUI';
 import type { LocationAccessState } from '../location/locationAccess';
@@ -26,9 +29,10 @@ import {
   PhotoTile,
   ScreenTitle,
   TextArea,
+  TextField,
   styles as ui,
 } from '../components/ui';
-import { MAX_DESCRIPTION_LENGTH } from '../constants';
+import { MAX_ADDRESS_LENGTH, MAX_DESCRIPTION_LENGTH } from '../constants';
 import { colors, space } from '../theme';
 import { Screen, screenStyles as s } from './Screen';
 import { CameraPermissionNotice, ShowPhotoError } from './ShowPhotoError';
@@ -37,6 +41,7 @@ import { ShowLocationUnavailable } from './ShowLocationUnavailable';
 import { hasLocationNotice, LocationAccessNotice } from './LocationAccessNotice';
 import { ShowValidationErrors } from './ShowValidationErrors';
 import {
+  ADDRESS_FIELD_LABEL,
   formatDateTime,
   hazardTypeIcon,
   hazardTypeLabel,
@@ -57,7 +62,11 @@ export interface ReportFormProps {
   locationUnavailable: boolean;
   permissionDenied: PhotoSource | undefined;
   onChangeHazardType: () => void;
+  /** What the Description field shows; the stored description also holds the address line. */
+  descriptionText: string;
+  addressText: string;
   onEnterDescription: (text: string) => void;
+  onEnterAddress: (text: string) => void;
   onPickPhoto: (source: PhotoSource) => void;
   onEnterLocation: (location: GeoPoint) => void;
   onRemovePhoto: () => void;
@@ -66,8 +75,13 @@ export interface ReportFormProps {
   onAllowLocationAccess: () => void;
   /** Where the map starts: the registered district's centre. */
   mapStart: GeoPoint;
-  searchPlace: (query: string) => Promise<GeoPoint | undefined>;
-  isOnline: () => Promise<boolean>;
+  /** The place the manual location is named after (P213). */
+  manualPlaceName: string | undefined;
+  onNameManualPlace: (place: string | undefined) => void;
+  /** The picker was reopened by "Change" on a manual location. */
+  changingLocation: boolean;
+  onChangeManualLocation: () => void;
+  onKeepManualLocation: () => void;
   onReview: () => void;
   onDiscardDraft: (draftId: string) => void;
 }
@@ -86,7 +100,7 @@ function PhotoBlock({
   onRemove: () => void;
 }) {
   const [previewing, setPreviewing] = useState(false);
-  const replacing = draft.status === 'REJECTED' && Boolean(draft.photoUri);
+  const attached = Boolean(draft.photoUri);
   return (
     <View>
       <Text style={ui.label}>Photo * (1 required)</Text>
@@ -98,8 +112,19 @@ function PhotoBlock({
           error={Boolean(error)}
           onPress={() => setPreviewing(true)}
         />
-        <Text style={ui.muted}>{draft.photoUri ? '1 of 1' : '0 of 1'}</Text>
+        <Text style={ui.muted}>{attached ? '1 of 1' : '0 of 1'}</Text>
       </View>
+      {attached ? (
+        <View style={[s.rowCenter, { marginTop: space.xs }]}>
+          <Button
+            label="View"
+            kind="secondary"
+            style={{ flex: 1 }}
+            onPress={() => setPreviewing(true)}
+          />
+          <Button label="Remove" kind="secondary" style={{ flex: 1 }} onPress={onRemove} />
+        </View>
+      ) : null}
       <ModalCard visible={previewing} onRequestClose={() => setPreviewing(false)}>
         <Image
           accessibilityLabel="Photo preview"
@@ -126,20 +151,22 @@ function PhotoBlock({
       ) : null}
       <View style={[s.rowCenter, { marginTop: space.sm }]}>
         <Button
-          label="Take photo"
+          label={attached ? 'Retake photo' : 'Take photo'}
           kind="secondary"
           icon="camera"
           style={{ flex: 1, paddingHorizontal: 8 }}
           onPress={() => onPick('camera')}
         />
         <Button
-          label={replacing ? 'Replace photo' : 'Choose from gallery'}
+          label={attached ? 'Choose another' : 'Choose from gallery'}
           kind="secondary"
           style={{ flex: 1.3, paddingHorizontal: 8 }}
           onPress={() => onPick('gallery')}
         />
       </View>
-      <Text style={[ui.muted, { marginTop: 4 }]}>A new photo replaces this one</Text>
+      {attached ? (
+        <Text style={[ui.muted, { marginTop: 4 }]}>A new photo replaces this one</Text>
+      ) : null}
     </View>
   );
 }
@@ -152,16 +179,25 @@ function PhotoBlock({
  */
 export function ReportForm(props: ReportFormProps) {
   const { draft, errors } = props;
-  const description = draft.description ?? '';
-  const pickerProps = {
-    error: errors.location,
-    onEnter: props.onEnterLocation,
-    start: props.mapStart,
-    searchPlace: props.searchPlace,
-    isOnline: props.isOnline,
-    searchAllowed:
-      Platform.OS !== 'android' || props.locationAccess === 'granted' || draft.locationFromGps,
-  };
+  const manual = draft.location !== undefined && !draft.locationFromGps;
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const picker = (extra: {
+    noFix?: boolean;
+    accessNotice?: React.ReactNode;
+    start?: GeoPoint;
+    initiallyOpen?: boolean;
+    onKeep?: () => void;
+  }) => (
+    <ShowLocationUnavailable
+      error={errors.location}
+      onEnter={props.onEnterLocation}
+      onPlaceNamed={props.onNameManualPlace}
+      onOpenChange={setPickerOpen}
+      start={props.mapStart}
+      {...extra}
+    />
+  );
+  const addressShown = manual || pickerOpen || props.changingLocation || props.addressText !== '';
   return (
     <Screen>
       <ScreenTitle title="Report a hazard" />
@@ -190,9 +226,9 @@ export function ReportForm(props: ReportFormProps) {
       </Text>
       <TextArea
         label="Description *"
-        value={description}
+        value={props.descriptionText}
         onChangeText={props.onEnterDescription}
-        counter={`${description.length} / ${MAX_DESCRIPTION_LENGTH}`}
+        counter={`${(draft.description ?? '').length} / ${MAX_DESCRIPTION_LENGTH}`}
         error={errors.description}
       />
       <PhotoBlock
@@ -204,24 +240,43 @@ export function ReportForm(props: ReportFormProps) {
       />
       {draft.location ? (
         <>
-          <ShowLocation location={draft.location} fromGps={draft.locationFromGps} />
-          {errors.location ? <ShowLocationUnavailable {...pickerProps} noFix={false} /> : null}
+          <ShowLocation
+            location={draft.location}
+            fromGps={draft.locationFromGps}
+            placeName={props.manualPlaceName}
+            onChange={props.changingLocation ? undefined : props.onChangeManualLocation}
+          />
+          {props.changingLocation && manual
+            ? picker({
+                noFix: false,
+                start: draft.location,
+                initiallyOpen: true,
+                onKeep: props.onKeepManualLocation,
+              })
+            : errors.location
+              ? picker({ noFix: false })
+              : null}
         </>
       ) : props.locationUnavailable ? (
-        <ShowLocationUnavailable
-          {...pickerProps}
-          accessNotice={
-            hasLocationNotice(props.locationAccess) ? (
-              <LocationAccessNotice
-                state={props.locationAccess}
-                onAllow={props.onAllowLocationAccess}
-              />
-            ) : undefined
-          }
-        />
+        picker({
+          accessNotice: hasLocationNotice(props.locationAccess) ? (
+            <LocationAccessNotice
+              state={props.locationAccess}
+              onAllow={props.onAllowLocationAccess}
+            />
+          ) : undefined,
+        })
       ) : (
         <Text style={ui.muted}>Finding your location…</Text>
       )}
+      {addressShown ? (
+        <TextField
+          label={ADDRESS_FIELD_LABEL}
+          value={props.addressText}
+          onChangeText={props.onEnterAddress}
+          maxLength={MAX_ADDRESS_LENGTH}
+        />
+      ) : null}
       {errors.location && !draft.location && !props.locationUnavailable ? (
         <ErrorText>{errors.location}</ErrorText>
       ) : null}

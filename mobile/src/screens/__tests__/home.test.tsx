@@ -86,7 +86,6 @@ describe('home screen', () => {
 
     await renderApp(rig);
 
-    expect(screen.getByText('Offline')).toBeTruthy();
     expect(screen.getByText('Showing the copy saved on this phone')).toBeTruthy();
     expect(screen.getByText('Language can be changed when you are online')).toBeTruthy();
     expect(screen.getByRole('radio', { name: 'Tamil' }).props.accessibilityState.disabled).toBe(
@@ -121,7 +120,6 @@ describe('home screen', () => {
 
     await renderApp(rig);
 
-    expect(screen.getByText('Offline')).toBeTruthy();
     expect(screen.getByText('No active warnings')).toBeTruthy();
     expect(screen.getByText('Current location · not available')).toBeTruthy();
   });

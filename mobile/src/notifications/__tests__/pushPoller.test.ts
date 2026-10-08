@@ -283,4 +283,50 @@ describe('startPushPolling', () => {
     await jest.advanceTimersByTimeAsync(3000);
     expect(second.api.pollOutbox).not.toHaveBeenCalled();
   });
+
+  it('standards §10 item 11 (P213): every poll reports whether the server answered, with no extra request', async () => {
+    const onReachability = jest.fn();
+    const { api, stop } = setup([[], new Error('down'), []], { onReachability });
+    jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    await jest.advanceTimersByTimeAsync(0);
+    expect(onReachability).toHaveBeenLastCalledWith(true);
+    await jest.advanceTimersByTimeAsync(1000);
+    expect(onReachability).toHaveBeenLastCalledWith(false);
+    await jest.advanceTimersByTimeAsync(1000);
+    expect(onReachability).toHaveBeenLastCalledWith(true);
+
+    expect(onReachability.mock.calls.map((call) => call[0])).toEqual([true, false, true]);
+    expect(api.pollOutbox).toHaveBeenCalledTimes(3);
+    stop();
+  });
+
+  it('standards §10 item 11 (P213): a failed acknowledgement counts as the server not answering', async () => {
+    jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const onReachability = jest.fn();
+    const { api, stop } = setup([[alert('1', 'WRN-1', 'LEVEL_2_AMBER')]], { onReachability });
+    api.acknowledge.mockRejectedValue(new Error('down'));
+
+    await jest.advanceTimersByTimeAsync(0);
+
+    expect(onReachability).toHaveBeenCalledTimes(1);
+    expect(onReachability).toHaveBeenCalledWith(false);
+    stop();
+  });
+
+  it('standards §10 item 11 (P213): no report is made while the app is not active, and the option is optional', async () => {
+    const onReachability = jest.fn();
+    setAppState('background');
+    const quiet = setup([[]], { onReachability });
+
+    await jest.advanceTimersByTimeAsync(2500);
+    quiet.stop();
+    expect(onReachability).not.toHaveBeenCalled();
+
+    setAppState('active');
+    const silent = setup([[]]);
+    await jest.advanceTimersByTimeAsync(0);
+    expect(silent.api.pollOutbox).toHaveBeenCalled();
+    silent.stop();
+  });
 });

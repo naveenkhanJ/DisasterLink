@@ -212,13 +212,6 @@ export function ShowHome(props: ShowHomeProps) {
           <Text style={styles.bannerText}>Draft discarded — nothing was sent</Text>
         </Banner>
       ) : null}
-      <View style={s.rowCenter}>
-        <Icon name={view.fromCache ? 'offline' : 'wifi'} size={20} />
-        <Tag
-          label={view.fromCache ? 'Offline' : 'Online'}
-          tone={view.fromCache ? 'neutral' : 'ok'}
-        />
-      </View>
       {view.fromCache ? <Text style={ui.muted}>Showing the copy saved on this phone</Text> : null}
       <LanguageSelector
         selected={view.language}

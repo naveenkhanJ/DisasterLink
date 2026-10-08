@@ -223,7 +223,7 @@ describe('hazard-type list and report form', () => {
     expect(screen.getByText('another reason')).toBeTruthy();
   });
 
-  it('WF2P-S03f / SC2 E8 18l-18n: a rejected draft opens with its reason, its values and Replace photo', async () => {
+  it('WF2P-S03f / SC2 E8 18l-18n: a rejected draft opens with its reason, its values and Choose another', async () => {
     const rig = makeRig();
     const rejected = {
       ...withStatus(FILLED_DRAFT, 'QUEUED'),
@@ -248,7 +248,7 @@ describe('hazard-type list and report form', () => {
     ).toBeTruthy();
     expect(screen.getByDisplayValue(FILLED_DRAFT.description as string)).toBeTruthy();
     expect(screen.getByText('6.5888 N, 79.9640 E')).toBeTruthy();
-    await run(() => fireEvent.press(screen.getByRole('button', { name: 'Replace photo' })));
+    await run(() => fireEvent.press(screen.getByRole('button', { name: 'Choose another' })));
     expect(rig.photos.choosePhoto).toHaveBeenCalledWith('draft-1');
     expect(ui().draft?.draftId).toBe('draft-1');
   });

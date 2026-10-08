@@ -23,10 +23,12 @@ import { Linking } from 'react-native';
 import type { GeoPoint, HazardReport, ReportDecisionNotice, SyncResult } from '../api/reportApi';
 import type { HazardType, Language, WarningLevel } from '../api/types';
 import type { AppEnv } from '../config/env';
+import { MAX_ADDRESS_LENGTH } from '../constants';
 import { districtCentre } from '../location/districtCentre';
 import type { LocationAccess, LocationAccessState } from '../location/locationAccess';
 import { presentLocalAlert } from '../notifications/notifications';
 import type { PhotoService } from '../report/PhotoService';
+import { composeDescription, splitDescription } from '../report/descriptionAddress';
 import type { ReportCaptureController } from '../report/ReportCaptureController';
 import type { HomeView, ReportDraft, SubmissionResult } from '../report/ReportDraft';
 import {
@@ -55,6 +57,9 @@ export type Route =
   | { name: 'review' }
   | { name: 'submissionResult' }
   | { name: 'reportStatus'; reportId: string; from: StatusOrigin };
+
+/** What the shell's connection strip says (standards §10 item 11, P213). */
+export type ConnectionState = 'online' | 'noInternet' | 'serverDown';
 
 /** Where a photo comes from. */
 export type PhotoSource = 'camera' | 'gallery';
@@ -97,6 +102,16 @@ export interface CitizenAppState {
   locationAccess: LocationAccessState | undefined;
   /** Where the manual-location map starts: the centre of the registered district. */
   mapStart: GeoPoint;
+  /** What the Description field shows; `draft.description` is its composition with the address. */
+  descriptionText: string;
+  /** What the "Address or landmark" field shows (standards §10 "The address", P214). */
+  addressText: string;
+  /** The place the manual location is named after, when the pin is near the place chosen (P213). */
+  manualPlaceName: string | undefined;
+  /** The picker was reopened by "Change" on a manual location (WF2P-S03a, P213). */
+  changingLocation: boolean;
+  /** The connection strip: no internet from the network listener, server down from the push poll (P213). */
+  connection: ConnectionState;
   /** The errors of the last review, under their fields (`showValidationErrors`, `showPhotoError`). */
   errors: FieldErrors;
   /** The source whose permission was refused (WF2P-S03d). */
@@ -163,6 +178,18 @@ export interface CitizenAppUI extends CitizenAppState {
   refreshReportStatus(): Promise<void>;
   /** Tries the failed online action again (the common error banner's Retry). */
   retry(): Promise<void>;
+  /** Writes the address part of the description (non-dictionary; the description part is `enterDescription`). */
+  enterAddress(text: string): void;
+  /** Tells the hook which place the next manual point is named after (`undefined`: none). */
+  nameManualPlace(place: string | undefined): void;
+  /** "Change" on a manual location: the form shows the picker at once, at that point. */
+  changeManualLocation(): void;
+  /** "Keep this location": closes the picker opened by "Change" and keeps the location. */
+  keepManualLocation(): void;
+  /** The phone's network listener: whether the phone is online (standards §10 item 11). */
+  onNetworkChange(online: boolean): void;
+  /** The push poll's result: whether the server answered (standards §10 item 11). */
+  onServerReachability(reachable: boolean): void;
   /**
    * The app returned to the foreground (for example from Settings): reads the location again on the home, and
    * for the draft on the report form while it has none; nothing on other screens (standards §10 item 8, P206).
@@ -235,6 +262,11 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
   const [draftDiscarded, setDraftDiscarded] = useState(false);
   const [alerts, setAlerts] = useState<AlertNotice[]>([]);
   const [decision, setDecision] = useState<DecisionCard>();
+  const [descriptionText, setDescriptionText] = useState('');
+  const [addressText, setAddressText] = useState('');
+  const [manualPlaceName, setManualPlaceName] = useState<string>();
+  const [changingLocation, setChangingLocation] = useState(false);
+  const [connection, setConnection] = useState<ConnectionState>('online');
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -246,6 +278,11 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
   const accessRef = useRef<LocationAccessState>(undefined);
   const discardQuestionRef = useRef(false);
   const unavailableRef = useRef(false);
+  const descriptionRef = useRef('');
+  const addressRef = useRef('');
+  const connectionRef = useRef<ConnectionState>('online');
+  const networkRef = useRef(true);
+  const reachableRef = useRef(true);
   const pendingLeave = useRef<() => void | Promise<void>>(undefined);
   const submittingRef = useRef(false);
   const loadingCount = useRef(0);
@@ -300,6 +337,12 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
     setErrors(NO_ERRORS);
     setPermissionDenied(undefined);
     setResult(undefined);
+    descriptionRef.current = '';
+    addressRef.current = '';
+    setDescriptionText('');
+    setAddressText('');
+    setManualPlaceName(undefined);
+    setChangingLocation(false);
   }, [setAccess, setResult, setLocationUnavailable]);
 
   /** Runs an online action; a failure shows the common error banner and changes nothing (C1). */
@@ -356,6 +399,12 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
     },
     [controller, access, updateDraft, setAccess, setLocationUnavailable],
   );
+
+  const nameManualPlace = useCallback((place: string | undefined) => setManualPlaceName(place), []);
+
+  const changeManualLocation = useCallback(() => setChangingLocation(true), []);
+
+  const keepManualLocation = useCallback(() => setChangingLocation(false), []);
 
   const onAppForeground = useCallback(async () => {
     const current = routeRef.current;
@@ -428,7 +477,21 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
   );
 
   const enterDescription = useCallback(
-    (text: string) => updateDraft({ description: text }),
+    (text: string) => {
+      descriptionRef.current = text;
+      setDescriptionText(text);
+      updateDraft({ description: composeDescription(text, addressRef.current) });
+    },
+    [updateDraft],
+  );
+
+  const enterAddress = useCallback(
+    (text: string) => {
+      const address = text.slice(0, MAX_ADDRESS_LENGTH);
+      addressRef.current = address;
+      setAddressText(address);
+      updateDraft({ description: composeDescription(descriptionRef.current, address) });
+    },
     [updateDraft],
   );
 
@@ -437,11 +500,17 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
       if (!draftRef.current) {
         return;
       }
+      const previous = draftRef.current.photoUri;
+      const unsaved = draftRef.current.status === undefined;
       updateDraft({ photoUri });
+      // The new copy has its own file; an unsaved draft's old copy is deleted, a stored one's stays.
+      if (previous && previous !== photoUri && unsaved) {
+        photos.deletePhoto(previous);
+      }
       setPermissionDenied(undefined);
       setErrors((previous) => ({ ...previous, photo: undefined }));
     },
-    [updateDraft],
+    [updateDraft, photos],
   );
 
   const pickPhoto = useCallback(
@@ -491,6 +560,7 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
       }
       updateDraft({ location, locationFromGps: false });
       setLocationUnavailable(false);
+      setChangingLocation(false);
       setErrors((previous) => ({ ...previous, location: undefined }));
     },
     [controller, updateDraft, setLocationUnavailable],
@@ -521,11 +591,19 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
       return;
     }
     const validation = controller.validateDraft(current);
-    if (validation.valid) {
+    const errors = [...validation.errors];
+    // The address alone must not stand in for the description (standards §10 "The address", P214).
+    if (
+      descriptionRef.current.trim() === '' &&
+      !errors.some((error) => error.startsWith('description:'))
+    ) {
+      errors.push('description: a description is required');
+    }
+    if (errors.length === 0) {
       setErrors(NO_ERRORS);
       navigate({ name: 'review' });
     } else {
-      setErrors(toFieldErrors(validation.errors));
+      setErrors(toFieldErrors(errors));
       navigate({ name: 'reportForm' });
     }
   }, [controller, navigate]);
@@ -604,6 +682,11 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
       }
       setDraft(stored);
       resetForm();
+      const parts = splitDescription(stored.description);
+      descriptionRef.current = parts.description;
+      addressRef.current = parts.address;
+      setDescriptionText(parts.description);
+      setAddressText(parts.address);
       navigate({ name: 'reportForm' });
     },
     [controller, openHome, setDraft, resetForm, navigate],
@@ -707,6 +790,43 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
     await guarded(refreshHome);
   }, [controller, guarded, refreshHome]);
 
+  /** Works out the strip's state from the two signals; a return from serverDown to online syncs. */
+  const updateConnection = useCallback(() => {
+    const next: ConnectionState = !networkRef.current
+      ? 'noInternet'
+      : !reachableRef.current
+        ? 'serverDown'
+        : 'online';
+    const previous = connectionRef.current;
+    connectionRef.current = next;
+    setConnection(next);
+    // noInternet to online is raised by the connectivity triggers; only the server's return is raised here.
+    if (previous === 'serverDown' && next === 'online') {
+      void onConnectivityRestored();
+    }
+  }, [onConnectivityRestored]);
+
+  const onNetworkChange = useCallback(
+    (online: boolean) => {
+      const wasOnline = networkRef.current;
+      networkRef.current = online;
+      if (online && !wasOnline) {
+        // The server counts as reachable again until the next poll, so the strip does not flash.
+        reachableRef.current = true;
+      }
+      updateConnection();
+    },
+    [updateConnection],
+  );
+
+  const onServerReachability = useCallback(
+    (reachable: boolean) => {
+      reachableRef.current = reachable;
+      updateConnection();
+    },
+    [updateConnection],
+  );
+
   const receiveAlert = useCallback(
     (warningId: string, warningLevel: WarningLevel, text: string) => {
       nextAlertId.current += 1;
@@ -772,6 +892,11 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
     locationUnavailable,
     locationAccess: locationAccessState,
     mapStart,
+    descriptionText,
+    addressText,
+    manualPlaceName,
+    changingLocation,
+    connection,
     errors,
     permissionDenied,
     result,
@@ -791,6 +916,7 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
     startReport,
     selectHazardType,
     enterDescription,
+    enterAddress,
     attachPhoto,
     enterLocationManually,
     reviewReport,
@@ -810,6 +936,11 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
     refreshReportStatus,
     retry,
     onAppForeground,
+    nameManualPlace,
+    changeManualLocation,
+    keepManualLocation,
+    onNetworkChange,
+    onServerReachability,
     goBack,
     requestLeave,
     confirmDiscard,

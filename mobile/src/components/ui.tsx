@@ -71,6 +71,10 @@ export function Card({
   return <View style={[styles.card, style]}>{children}</View>;
 }
 
+/** The size of the Back icon, and the least touch area around it, in points. */
+const BACK_ICON_SIZE = 28;
+const BACK_TARGET = 44;
+
 const ERROR_TONE = { bg: '#FEE2E2', text: colors.errorText, border: colors.errorBorder };
 
 const TONES: Record<Tone, { bg: string; text: string; border: string }> = {
@@ -258,8 +262,9 @@ export function TextField({
   onChangeText,
   error = false,
   keyboardType,
-  returnKeyType,
+  returnKeyType = 'done',
   onSubmitEditing,
+  maxLength,
 }: {
   label: string;
   value: string;
@@ -268,6 +273,7 @@ export function TextField({
   keyboardType?: KeyboardTypeOptions;
   returnKeyType?: ReturnKeyTypeOptions;
   onSubmitEditing?: () => void;
+  maxLength?: number;
 }) {
   return (
     <View style={{ flex: 1 }}>
@@ -278,7 +284,9 @@ export function TextField({
         onChangeText={onChangeText}
         keyboardType={keyboardType}
         returnKeyType={returnKeyType}
+        submitBehavior="blurAndSubmit"
         onSubmitEditing={onSubmitEditing}
+        maxLength={maxLength}
         style={[styles.textField, error ? styles.inputError : null]}
       />
     </View>
@@ -428,7 +436,10 @@ export function LoadingRow() {
   );
 }
 
-/** App header: the DMC badge and the app title; "‹ Back" at the left when `onBack` is given. */
+/**
+ * App header: the DMC badge and the app title; a Back icon (the right chevron of the icon set,
+ * mirrored, at least 44 × 44 points, no word) at the left when `onBack` is given (standards §10 item 1).
+ */
 export function AppHeader({ onBack }: { onBack?: () => void }) {
   return (
     <View style={styles.appHeader}>
@@ -436,10 +447,12 @@ export function AppHeader({ onBack }: { onBack?: () => void }) {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Back"
-          hitSlop={8}
           onPress={onBack}
+          style={styles.backButton}
         >
-          <Text style={styles.backLink}>‹ Back</Text>
+          <View style={{ transform: [{ scaleX: -1 }] }}>
+            <Icon name="chevron-right" size={BACK_ICON_SIZE} />
+          </View>
         </Pressable>
       ) : null}
       <View style={styles.badge}>
@@ -619,7 +632,13 @@ export const styles = StyleSheet.create({
   },
   badgeText: { fontFamily: fonts.ui, fontSize: 9, fontWeight: '800', color: colors.text },
   appTitle: { fontFamily: fonts.ui, fontSize: 17, fontWeight: '800', color: colors.text },
-  backLink: { fontFamily: fonts.ui, fontSize: 16, fontWeight: '700', color: colors.text },
+  backButton: {
+    minWidth: BACK_TARGET,
+    minHeight: BACK_TARGET,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: -space.sm,
+  },
   scrim: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',

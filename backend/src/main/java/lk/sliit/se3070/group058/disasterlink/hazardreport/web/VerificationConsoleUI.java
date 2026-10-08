@@ -90,6 +90,17 @@ public class VerificationConsoleUI {
   private static final String QUEUE_SUBTITLE =
       "Reports with the status Pending verification, oldest first";
 
+  /** The HTTP header that makes the browser load the page again after the given seconds. */
+  private static final String REFRESH_HEADER = "Refresh";
+
+  /**
+   * How often the queue page reloads itself, in seconds (standards section 12.3, P213 and P217;
+   * WF2C-S01 "Behaviour"): new reports appear without a manual reload. Only the queue sets it; the
+   * report page (WF2C-S02) and the rejection form never reload by themselves, so a report under
+   * review is not disturbed.
+   */
+  private static final String QUEUE_REFRESH_SECONDS = "15";
+
   private final ReportVerificationController control;
 
   private final CurrentUserService currentUserService;
@@ -122,10 +133,13 @@ public class VerificationConsoleUI {
    * Shows the queue of the reports that wait for a decision (SC2 steps 21 and 22; WF2C-S01).
    *
    * @param model the page model
+   * @param response the response, on which the page asks the browser to reload it every {@value
+   *     #QUEUE_REFRESH_SECONDS} seconds
    * @return the {@code showPendingReports} page
    */
   @GetMapping
-  public String openQueue(Model model) {
+  public String openQueue(Model model, HttpServletResponse response) {
+    response.setHeader(REFRESH_HEADER, QUEUE_REFRESH_SECONDS);
     List<PendingReportRow> rows = read(() -> mapper.toRows(control.getPendingReports()));
     model.addAttribute("rows", rows);
     model.addAttribute("count", mapper.countLabel(rows.size()));

@@ -169,13 +169,14 @@ describe('the keyboard (standards §10 item 3; iPhone only)', () => {
     jest.restoreAllMocks();
   });
 
-  it('standards §10 item 3: the scroll view moves the typed field above the keyboard and dismisses it on drag', async () => {
+  it('standards §10 item 3: the scroll view moves the typed field above the keyboard, stays scrollable and is not closed by a drag', async () => {
     await renderApp(makeRig());
 
     const scroll = screen.getByTestId('screen-scroll');
 
     expect(scroll.props.automaticallyAdjustKeyboardInsets).toBe(true);
-    expect(scroll.props.keyboardDismissMode).toBe('on-drag');
+    expect(scroll.props.keyboardDismissMode).toBe('none');
+    expect(scroll.props.keyboardShouldPersistTaps).toBe('handled');
     expect(screen.queryByTestId('keyboard-avoiding')).toBeNull();
   });
 

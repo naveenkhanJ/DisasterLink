@@ -3,7 +3,8 @@
  * notification set-up before anything can alert (standards section 10, "Permission order"), then
  * starts the connectivity triggers (start-up replay, offline to online, foreground retry and the
  * 30 s timed retry while a draft is QUEUED, P206) and the push polling; both are stopped when the
- * app unmounts. It also connects Android's hardware Back button to the hook's `goBack` (the history
+ * app unmounts; the push poll's result and the network listener feed the shell's connection strip
+ * (P213). It also connects Android's hardware Back button to the hook's `goBack` (the history
  * of the in-memory navigator). The composition root wires `hasQueuedDrafts` from the draft store;
  * that is wiring, not a boundary input. The screens are `CitizenApp`; the inputs of the screen
  * boundary are `useCitizenAppUI`.
@@ -12,6 +13,7 @@
  */
 import React, { useEffect, useState } from 'react';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import * as Network from 'expo-network';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import { AppState, BackHandler, StyleSheet } from 'react-native';
@@ -20,7 +22,11 @@ import { useCitizenAppUI } from './src/app/useCitizenAppUI';
 import { configureNotifications } from './src/notifications/notifications';
 import { startPushPolling } from './src/notifications/pushPoller';
 import { CitizenApp } from './src/screens/CitizenApp';
-import { startConnectivityTriggers } from './src/sync/connectivityTriggers';
+import {
+  isOnline,
+  isOnlineState,
+  startConnectivityTriggers,
+} from './src/sync/connectivityTriggers';
 import { colors } from './src/theme';
 
 /**
@@ -35,6 +41,8 @@ export default function App() {
     openHome,
     goBack,
     onAppForeground,
+    onNetworkChange,
+    onServerReachability,
     onConnectivityRestored,
     receiveAlert,
     receiveReportDecision,
@@ -66,6 +74,23 @@ export default function App() {
   }, [onAppForeground]);
 
   useEffect(() => {
+    // The shell's connection strip follows the phone's network at once (standards §10 item 11, P213).
+    let stopped = false;
+    void isOnline().then((online) => {
+      if (!stopped) {
+        onNetworkChange(online);
+      }
+    });
+    const subscription = Network.addNetworkStateListener((state) =>
+      onNetworkChange(isOnlineState(state)),
+    );
+    return () => {
+      stopped = true;
+      subscription.remove();
+    };
+  }, [onNetworkChange]);
+
+  useEffect(() => {
     let unmounted = false;
     let stopTriggers: (() => void) | undefined;
     let stopPolling: (() => void) | undefined;
@@ -86,6 +111,7 @@ export default function App() {
         api: services.skeletonApi,
         onAlert: receiveAlert,
         onDecision: receiveReportDecision,
+        onReachability: onServerReachability,
         prepare: () => notificationsReady,
       });
     });
@@ -94,7 +120,7 @@ export default function App() {
       stopTriggers?.();
       stopPolling?.();
     };
-  }, [services, onConnectivityRestored, receiveAlert, receiveReportDecision]);
+  }, [services, onConnectivityRestored, receiveAlert, receiveReportDecision, onServerReachability]);
 
   if (!fontsLoaded) {
     return null; // keep the splash screen until the three scripts' fonts are ready
