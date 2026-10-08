@@ -1,5 +1,5 @@
 # Frames WF2 — UC2 Submit and Verify Hazard Report (phone and verification console)
-Status: v2.2 — P206 (2026-10-15, after the iPhone run of SC2; frames not printed in the report, notes on the printed ones): map-pin manual location, back link, discard question, S03g, S05c; earlier: v2.1 + P87 content review (2026-10-09) — after independent review (2026-10-09) and aligned with wireframe-spec §2.1 (canonical shell, grid, tokens, icons, text formats); draft by Claude (frames writer, WF2), 2026-10-09; review fixes E-1…E-3, M-1…M-7 and the Gaps decisions applied. Sources: `wireframes/wireframe-spec.md` (all, §1–§10); `scenarios/SC2-submit-and-verify-hazard-report.md` (all: main flow, A1–A9, E1–E10, Appendix 1, Appendix 2, Dictionary gaps); `wireframes/frames-WF1.md` Part 0 "Texts in three languages (final drafts)" (IDs W-L2-MSG, W-L2-INS — copied verbatim); `scenarios/SC1-issue-hazard-warning.md` lines 1–70; `model-dictionary.md` v0.9 §0, §1, §2, §3, §4 (rows `CitizenAppUI`, `VerificationConsoleUI`, `EscalationUI`), §5 (UC2 controls); `change-list.md` v2.9 rows CH-21, CH-25, CH-27, 8-2, 8-3, N10, N11, N13; `storyboard-corrections.md` SB2-1…SB2-8; Received Design Record `uc2-submit-and-verify-hazard-report.md` §5 (high-fidelity pp. 31–35); `critique-findings.md` D3-10…D3-17; `implementation-standards.md` §1, §4 (C1 banner), §10 (phone map, language, emulator location), §11 (seed).
+Status: v2.3 — P213 (2026-10-16, after the second iPhone run): place list with type-ahead instead of coordinates, Back icon only below a tab's first screen, connection state, queue reload; earlier: v2.2 — P206 (2026-10-15, after the iPhone run of SC2; frames not printed in the report, notes on the printed ones): map-pin manual location, back link, discard question, S03g, S05c; earlier: v2.1 + P87 content review (2026-10-09) — after independent review (2026-10-09) and aligned with wireframe-spec §2.1 (canonical shell, grid, tokens, icons, text formats); draft by Claude (frames writer, WF2), 2026-10-09; review fixes E-1…E-3, M-1…M-7 and the Gaps decisions applied. Sources: `wireframes/wireframe-spec.md` (all, §1–§10); `scenarios/SC2-submit-and-verify-hazard-report.md` (all: main flow, A1–A9, E1–E10, Appendix 1, Appendix 2, Dictionary gaps); `wireframes/frames-WF1.md` Part 0 "Texts in three languages (final drafts)" (IDs W-L2-MSG, W-L2-INS — copied verbatim); `scenarios/SC1-issue-hazard-warning.md` lines 1–70; `model-dictionary.md` v0.9 §0, §1, §2, §3, §4 (rows `CitizenAppUI`, `VerificationConsoleUI`, `EscalationUI`), §5 (UC2 controls); `change-list.md` v2.9 rows CH-21, CH-25, CH-27, 8-2, 8-3, N10, N11, N13; `storyboard-corrections.md` SB2-1…SB2-8; Received Design Record `uc2-submit-and-verify-hazard-report.md` §5 (high-fidelity pp. 31–35); `critique-findings.md` D3-10…D3-17; `implementation-standards.md` §1, §4 (C1 banner), §10 (phone map, language, emulator location), §11 (seed).
 
 Frame counts (wireframe-spec §5, WF2): **phone 6 screens + 17 states; console 2 screens + 8 states = 8 screens + 25 states** (S03g and S05c added P206). The common error banner (C1) is owned by WF1 (`COMMON-B1`) and is not drawn here; SC2 E5 is realised by it.
 
@@ -13,7 +13,8 @@ Frame counts (wireframe-spec §5, WF2): **phone 6 screens + 17 states; console 2
 - Bottom tab bar, three tabs: **Home** (home icon) → `openHome()`; **Report** (plus (circled) icon) → `startReport()`; **Profile** (user icon; Register) signposted (muted, tag "Not in this version"; a click shows "<item> — not available in this version" — wireframe-spec §8 rule 12, P91). Active tab: bold label and 2 px underline (wording of the style ours).
 - App labels are English on every screen; only the warning text and the decision-notice text follow the chosen language (CH-25, CH-27, SC2 Conventions).
 - The GPS fix is shown as text plus coordinates; the only map is the manual-location picker (S03a) (standards §10, changed P206).
-- A "‹ Back" text link at the left of the app header on S02, S03, S04 and S06 (P206; targets in standards §10 "Phone screens beyond the frames").
+- A Back icon (left chevron, no word) at the left of the app header only below a tab's first screen: S03, S04 and S06; not on S01, S02 or Profile (P206, changed P213; targets in standards §10).
+- A connection strip on every screen: "Online", "No internet connection" or "Server not reachable" (P213; standards §10 item 11).
 - Tabs Home and Report ask "Discard this report?" when the draft has content (P206).
 - The sync-result banner is drawn by the shell above every screen (P206).
 
@@ -152,6 +153,7 @@ Frame counts (wireframe-spec §5, WF2): **phone 6 screens + 17 states; console 2
 
 ### WF2C-S01 Verification queue
 - Frame: desktop 1440×1024.
+- Behaviour (P213): the queue page reloads itself every 15 s (HTTP header `Refresh: 15` on the queue response; P217), so new reports appear without a manual reload; the report page (WF2C-S02) never reloads by itself.
 - Shows: scenario steps 21–22 (also A5 25j–25k, E10 26f) ; boundary VerificationConsoleUI ; displays `showPendingReports(reports : List<HazardReport>)` ; reached by `openQueue()` (sidebar "Verification").
 - Corrects received screen: p. 35 `p35_1.jpeg` "Incoming Hazard Verification Queue" (low-fi UC02-04); answers CH-27, CH-21, CH-04 (reporter type); findings D3-12, D3-14, D3-15.
 - Layout:
@@ -265,17 +267,16 @@ Frame counts (wireframe-spec §5, WF2): **phone 6 screens + 17 states; console 2
 - Base screen: WF2P-S03; flow: A1 12a–12c; display: `showLocationUnavailable()`.
 - Change from base:
   - The "Location *" block (grows to 150 px; the description field shrinks to 110 px and the photo block's note is dropped so the total stays ≤ 680 px) shows a bordered notice (Notice token, pin icon, bold): "GPS location is unavailable" (verbatim 12b), and a secondary button "Enter location manually" (verbatim).
-  - After the button is chosen (P206): a search field "Search for a place" (wording ours, search icon); under it a map box (Map token, 358 × 260) with a pin at the centre and the caption "Drag the map to put the pin on the spot you saw" (wording ours); a primary button "Use this location".
-  - "Enter coordinates" link (wording ours) — shown **only** when offline or after a search error; it reveals two numeric fields "Latitude (°N)" and "Longitude (°E)"; no accuracy line.
+  - After the button is chosen (P206, changed P213): a field "Type a town or village" (wording ours) with a dropdown of up to 8 places "<place> — <district>" from the bundled place list; under it a map box (Map token, 358 × 260) with a pin at the centre and the caption "Drag the map to put the pin on the spot you saw" (wording ours); a primary button "Use this location"; under the location block an optional field "Address or landmark" (wording ours; P214; stored as the labelled last line "Address: …" of the description); a small credit "Place names: GeoNames (CC BY 4.0)". No coordinate fields.
   - "Review Report" stays enabled (validation runs on review, step 16).
-- Controls added: "Enter location manually" reveals the search and the map; the search moves the map and the pin to the first result; "Use this location" (or the fallback fields) → `enterLocationManually(location : GeoPoint)` (12c). After a valid entry the block reads "<lat> N, <lon> E" and "Entered manually", no accuracy (12d, via `showLocation`).
+- Controls added: "Enter location manually" reveals the search and the map; choosing a place in the dropdown moves the map and the pin there; "Use this location" → `enterLocationManually(location : GeoPoint)` (12c). After a valid entry the block reads "<place>, <lat> N, <lon> E" and "Entered manually", no accuracy, with a "Change" link that reopens the picker (12d, via `showLocation`; P213).
 - Sample data: other fields as base (description, photo "1 of 1").
 
 ### WF2P-S03b Location error
 - Base screen: WF2P-S03 with S03a's manual fields (same heights as S03a); flow: E3 12e–12f; display: `showValidationErrors(errors : List<String>)`.
 - Change from base:
   - Latitude field shows the entered value "65.888" (sample value ours — Gaps 5), longitude "79.9640"; both fields with a 2 px border.
-  - Error line under the map (error icon, bold): "This location is outside Sri Lanka — move the pin to the place you saw" (wording ours; P206); with the fallback fields: "This location is outside Sri Lanka — check the latitude and longitude".
+  - Error line under the map (error icon, bold): "This location is outside Sri Lanka — move the pin to the place you saw" (wording ours; P206) (the coordinate fields were removed, P213).
   - Other values kept (C2).
 
 ### WF2P-S03c Photo error
@@ -439,10 +440,10 @@ Phone (CitizenAppUI):
 - S03 —`attachPhoto` (unreadable)→ S03c (`showPhotoError`) [E2] —`attachPhoto`→ S03
 - S03 —camera refused→ S03d [E2 11d] —"Choose from gallery" `attachPhoto`→ S03
 - S03 —no GPS fix→ S03a (`showLocationUnavailable`) [A1] —`enterLocationManually` (outside Sri Lanka)→ S03b (`showValidationErrors`) [E3] —`enterLocationManually`→ S03 ("Entered manually")
-- S03a —search, drag the pin, "Use this location" `enterLocationManually`→ S03 ("Entered manually") [A1 12c–12d; P206]
+- S03a —type, choose a place, drag the pin, "Use this location" `enterLocationManually`→ S03 ("Entered manually", "Change") [A1 12c–12d; P206, P213]
 - S03 —no GPS fix, permission refused or Location Services off→ S03g [A1 12a–12b; P206]
 - S05a —found `onConnectivityRestored()` → ACCEPTED→ S05c [A2 18d–18f; P206]
-- S02, S03, S04, S06 —"‹ Back"→ previous screen (standards §10; P206)
+- S03, S04, S06 —Back icon→ previous screen (standards §10; P206, P213)
 - S03 —`reviewReport()` (invalid)→ S03e (`showValidationErrors`) [E1] —`reviewReport()`→ S04
 - S03 —`reviewReport()` (valid)→ S04 (`showReview`) [15–16]
 - S04 —`editReport()`→ S03 (values kept) [A3]
