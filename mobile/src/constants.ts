@@ -22,6 +22,9 @@ export const DEFAULT_CITIZEN_LANGUAGE: Language = 'ENGLISH';
 /** How long a request may take before it counts as a network failure, in milliseconds (§12.1). */
 export const REQUEST_TIMEOUT_MS = 15_000;
 
+/** The back end's port; `EXPO_PUBLIC_API_URL=auto` builds the API address with it. */
+export const API_PORT = 8080;
+
 /** The id of the Android notification channel that carries warnings (§10, Expo Go). */
 export const WARNINGS_CHANNEL_ID = 'warnings';
 
