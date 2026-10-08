@@ -255,4 +255,119 @@ class ShelterTest {
     assertThatThrownBy(() -> records.add(early)).isInstanceOf(UnsupportedOperationException.class);
     assertThat(new Shelter("SHL-6", details(), OFFICER, null).getOccupancyRecords()).isEmpty();
   }
+
+  @Test
+  @DisplayName(
+      "canAccommodate accepts totals within capacity and rejects negative or excessive values")
+  void canAccommodateValidatesBoundaries() {
+    Shelter shelter = new Shelter("SHL-AC", details(), OFFICER, null); // capacity 120
+
+    assertThat(shelter.canAccommodate(0)).isTrue();
+    assertThat(shelter.canAccommodate(50)).isTrue();
+    assertThat(shelter.canAccommodate(120)).isTrue();
+    assertThat(shelter.canAccommodate(-1)).isFalse();
+    assertThat(shelter.canAccommodate(121)).isFalse();
+  }
+
+  @Test
+  @DisplayName("checkAvailability calculates remaining capacity accurately")
+  void checkAvailabilityCalculatesRemainingCapacity() {
+    Shelter shelter = new Shelter("SHL-AV", details(), OFFICER, null); // capacity 120, current 0
+    assertThat(shelter.checkAvailability()).isEqualTo(120);
+
+    OccupancyRecord record = new OccupancyRecord(70, NOW, NOW, OFFICER);
+    shelter.updateOccupancy(record);
+    assertThat(shelter.checkAvailability()).isEqualTo(50);
+
+    OccupancyRecord fullRecord =
+        new OccupancyRecord(120, NOW.plusMinutes(5), NOW.plusMinutes(5), OFFICER);
+    shelter.updateOccupancy(fullRecord);
+    assertThat(shelter.checkAvailability()).isZero();
+  }
+
+  @Test
+  @DisplayName(
+      "updateOccupancy updates history, occupancy, and transitions status between Open and Full")
+  void updateOccupancyUpdatesStatusAndHistory() {
+    Shelter shelter = new Shelter("SHL-UO", details(), OFFICER, null); // capacity 120, status OPEN
+    assertThat(shelter.getStatus()).isEqualTo(ShelterStatus.OPEN);
+
+    OccupancyRecord rec1 = new OccupancyRecord(120, NOW, NOW, OFFICER);
+    shelter.updateOccupancy(rec1);
+    assertThat(shelter.getCurrentOccupancy()).isEqualTo(120);
+    assertThat(shelter.getStatus()).isEqualTo(ShelterStatus.FULL);
+    assertThat(shelter.getOccupancyRecords()).containsExactly(rec1);
+
+    // Drops below capacity -> returns to OPEN
+    OccupancyRecord rec2 =
+        new OccupancyRecord(110, NOW.plusMinutes(10), NOW.plusMinutes(10), OFFICER);
+    shelter.updateOccupancy(rec2);
+    assertThat(shelter.getCurrentOccupancy()).isEqualTo(110);
+    assertThat(shelter.getStatus()).isEqualTo(ShelterStatus.OPEN);
+    assertThat(shelter.getOccupancyRecords()).containsExactly(rec1, rec2);
+  }
+
+  @Test
+  @DisplayName(
+      "PR8 stale-replay rule: older record is recorded in history but does not overwrite currentOccupancy")
+  void updateOccupancyAppliesStaleReplayRule() {
+    Shelter shelter = new Shelter("SHL-STALE", details(), OFFICER, null); // capacity 120
+    OccupancyRecord newer = new OccupancyRecord(90, NOW.plusHours(1), NOW.plusHours(1), OFFICER);
+    shelter.updateOccupancy(newer);
+    assertThat(shelter.getCurrentOccupancy()).isEqualTo(90);
+
+    // Replay of an older record (captured earlier at NOW)
+    OccupancyRecord older = new OccupancyRecord(40, NOW, NOW.plusHours(2), OFFICER);
+    shelter.updateOccupancy(older);
+
+    // Current occupancy stays 90, but history contains both records
+    assertThat(shelter.getCurrentOccupancy()).isEqualTo(90);
+    assertThat(shelter.getOccupancyRecords()).containsExactly(newer, older);
+  }
+
+  @Test
+  @DisplayName("updateOccupancy throws NullPointerException when record is null")
+  void updateOccupancyRejectsNull() {
+    Shelter shelter = new Shelter("SHL-N", details(), OFFICER, null);
+    assertThatNullPointerException().isThrownBy(() -> shelter.updateOccupancy(null));
+  }
+
+  @Test
+  @DisplayName("updateDetails updates mutable fields and recomputes status based on new capacity")
+  void updateDetailsModifiesFieldsAndRecomputesStatus() {
+    Shelter shelter = new Shelter("SHL-UD", details(), OFFICER, null);
+    OccupancyRecord rec = new OccupancyRecord(100, NOW, NOW, OFFICER);
+    shelter.updateOccupancy(rec);
+    assertThat(shelter.getStatus()).isEqualTo(ShelterStatus.OPEN); // 100 < 120
+
+    // Lower capacity to 100 -> status becomes FULL
+    ShelterDetails updated =
+        new ShelterDetails("New Name", "New Address", District.COLOMBO, 100, "0119999999", null);
+    shelter.updateDetails(updated);
+
+    assertThat(shelter.getName()).isEqualTo("New Name");
+    assertThat(shelter.getAddress()).isEqualTo("New Address");
+    assertThat(shelter.getContactNumber()).isEqualTo("0119999999");
+    assertThat(shelter.getCapacity()).isEqualTo(100);
+    assertThat(shelter.getStatus()).isEqualTo(ShelterStatus.FULL);
+
+    // Increase capacity to 150 -> status returns to OPEN
+    ShelterDetails expanded =
+        new ShelterDetails("New Name", "New Address", District.COLOMBO, 150, "0119999999", null);
+    shelter.updateDetails(expanded);
+    assertThat(shelter.getStatus()).isEqualTo(ShelterStatus.OPEN);
+
+    assertThatNullPointerException().isThrownBy(() -> shelter.updateDetails(null));
+  }
+
+  @Test
+  @DisplayName("setOperator assigns operator to shelter")
+  void setOperatorAssignsOperator() {
+    Shelter shelter = new Shelter("SHL-OP", details(), OFFICER, null);
+    assertThat(shelter.getOperator()).isEmpty();
+
+    Organization org = SampleEntities.organization("ORG-0002");
+    shelter.setOperator(org);
+    assertThat(shelter.getOperator()).containsSame(org);
+  }
 }

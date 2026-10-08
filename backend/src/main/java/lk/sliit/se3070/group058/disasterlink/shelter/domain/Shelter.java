@@ -12,6 +12,7 @@ import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderColumn;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -253,6 +254,92 @@ public class Shelter {
    */
   public Optional<Organization> getOperator() {
     return Optional.ofNullable(operator);
+  }
+
+  /**
+   * Checks whether the shelter can accommodate the specified occupancy total (CH-28).
+   *
+   * @param newTotal the candidate total occupancy
+   * @return {@code true} if newTotal is at least 0 and does not exceed capacity
+   */
+  public boolean canAccommodate(int newTotal) {
+    return newTotal >= 0 && newTotal <= capacity;
+  }
+
+  /**
+   * Checks remaining capacity for evacuees (CH-28, P85).
+   *
+   * @return the number of available places (capacity minus current occupancy, minimum 0)
+   */
+  public int checkAvailability() {
+    return Math.max(0, capacity - currentOccupancy);
+  }
+
+  /**
+   * Updates occupancy record history and recomputes current occupancy and status (CH-14, CH-28,
+   * PR8).
+   *
+   * <p>Keeps every record in history, but updates {@code currentOccupancy} and {@code status} only
+   * when the record's {@code capturedAt} timestamp is not earlier than the latest recorded capture
+   * time (PR8 stale-replay rule).
+   *
+   * @param record the occupancy record to add
+   * @throws NullPointerException if record is {@code null}
+   */
+  public void updateOccupancy(OccupancyRecord record) {
+    Objects.requireNonNull(record, "record");
+    LocalDateTime latestCapturedAt = null;
+    for (OccupancyRecord existing : occupancyRecords) {
+      if (latestCapturedAt == null || existing.getCapturedAt().isAfter(latestCapturedAt)) {
+        latestCapturedAt = existing.getCapturedAt();
+      }
+    }
+    occupancyRecords.add(record);
+    if (latestCapturedAt == null || !record.getCapturedAt().isBefore(latestCapturedAt)) {
+      this.currentOccupancy = record.getOccupantCount();
+      if (this.currentOccupancy >= this.capacity) {
+        this.status = ShelterStatus.FULL;
+      } else {
+        this.status = ShelterStatus.OPEN;
+      }
+    }
+  }
+
+  /**
+   * Updates the details of the shelter (CH-28).
+   *
+   * @param details the updated details
+   * @throws NullPointerException if details is {@code null}
+   */
+  public void updateDetails(ShelterDetails details) {
+    Objects.requireNonNull(details, "details");
+    if (details.name() != null) {
+      this.name = details.name();
+    }
+    if (details.address() != null) {
+      this.address = details.address();
+    }
+    if (details.district() != null) {
+      this.district = details.district();
+    }
+    if (details.contactNumber() != null) {
+      this.contactNumber = details.contactNumber();
+    }
+    this.capacity = details.capacity();
+    if (this.currentOccupancy >= this.capacity) {
+      this.status = ShelterStatus.FULL;
+    } else {
+      this.status = ShelterStatus.OPEN;
+    }
+  }
+
+  /**
+   * Package-private helper to attach an operating organisation.
+   *
+   * @param operator the operating organisation, or {@code null}
+   */
+  void setOperator(Organization operator) {
+    this.operator = operator;
   }
 
   @Override
