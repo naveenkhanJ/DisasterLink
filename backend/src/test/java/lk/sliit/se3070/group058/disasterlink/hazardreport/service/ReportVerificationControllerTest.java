@@ -400,7 +400,7 @@ class ReportVerificationControllerTest {
     arrangePending(report);
     when(hazards.findById(HAZARD_ID)).thenReturn(Optional.of(SampleEntities.hazard(HAZARD_ID)));
     when(warnings.getActiveWarningForHazard(HAZARD_ID))
-        .thenThrow(new UnsupportedOperationException("not implemented yet"));
+        .thenThrow(new UnsupportedOperationException("simulated fault in UC1's warning lookup"));
 
     assertThatThrownBy(() -> controller.verifyReport(REPORT_ID, HAZARD_ID, OFFICER_ID))
         .isInstanceOf(UnsupportedOperationException.class);

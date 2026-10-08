@@ -991,6 +991,12 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
     [updateConnection],
   );
 
+  /**
+   * A merged warning alert arrived: the banner and the local notification are queued, and while the home is shown
+   * it reloads at once so Active warnings shows the new level without a pull (standards section 10 item 5, P237).
+   * The reload goes through the C1 guard with no loading row, and other screens reload nothing, because opening the
+   * home reloads it.
+   */
   const receiveAlert = useCallback(
     (warningId: string, warningLevel: WarningLevel, text: string) => {
       nextAlertId.current += 1;
@@ -1001,10 +1007,18 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
         .catch((error: unknown) =>
           console.warn('[CitizenAppUI] the alert could not be shown:', error),
         );
+      if (routeRef.current.name === 'home') {
+        void guarded(refreshHome);
+      }
     },
-    [],
+    [guarded, refreshHome],
   );
 
+  /**
+   * A report decision arrived: the decision card and the local notification are queued, an open status of that
+   * report is read again, and while the home is shown it reloads at once so My reports shows the new status
+   * (standards section 10 item 5, P237; no loading row).
+   */
   const receiveReportDecision = useCallback(
     (notice: ReportDecisionNotice) => {
       const language = homeRef.current?.language ?? env.citizenLanguage;
@@ -1018,9 +1032,11 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
       const current = routeRef.current;
       if (current.name === 'reportStatus' && current.reportId === notice.reportId) {
         void readReport(notice.reportId);
+      } else if (current.name === 'home') {
+        void guarded(refreshHome);
       }
     },
-    [env.citizenLanguage, readReport],
+    [env.citizenLanguage, readReport, guarded, refreshHome],
   );
 
   /**

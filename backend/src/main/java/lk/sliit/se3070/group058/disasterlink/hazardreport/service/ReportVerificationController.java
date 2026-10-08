@@ -69,10 +69,9 @@ import org.springframework.transaction.support.TransactionTemplate;
  * <p>A decision on a report that is not pending is {@link ReportAlreadyDecidedException} for all
  * three decisions, checked before the reason of a rejection or the details of a new hazard.
  *
- * <p><b>Until the UC1 branch is merged</b>, {@code WarningController.getActiveWarningForHazard} is
- * the skeleton's stub that throws {@link UnsupportedOperationException}; {@code verifyReport} and
- * {@code verifyAsNewHazard} then fail with a 500 and roll back (SC2 E5: nothing changed). Verifying
- * is demonstrated after the merge; {@code rejectReport} does not call it.
+ * <p>{@code WarningController.getActiveWarningForHazard} is UC1's (merged into {@code develop} in
+ * {@code c8cdf16}); a failure there makes {@code verifyReport} and {@code verifyAsNewHazard} fail
+ * and roll back (SC2 E5: nothing changed); {@code rejectReport} does not call it.
  *
  * <p>The reads return entities whose associations are lazy (reporter, reviewer, hazard, a hazard's
  * districts); the caller maps them inside its own transaction. The one exception is the active
