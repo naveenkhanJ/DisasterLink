@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lk.sliit.se3070.group058.disasterlink.hazardreport.domain.HazardReport;
@@ -48,6 +49,9 @@ public class VerificationConsoleMapper {
 
   /** The state of a report that was decided (SC2 E10, WF2C-S02h). */
   public static final String STATE_DECIDED = "DECIDED";
+
+  /** What the confirmation of "Verify as New Hazard" shows for a value the officer left out. */
+  private static final String NOT_ENTERED = "—";
 
   /** The error the control gives for a missing severity. */
   public static final String SEVERITY_ERROR = "Severity is required";
@@ -220,6 +224,20 @@ public class VerificationConsoleMapper {
       String severity, Set<String> districts, String locationName, String description) {}
 
   /**
+   * What the confirmation of "Verify as New Hazard" repeats (D-UC2-7, P238): the question and the
+   * entered type, severity, districts and place name. Values the officer left out show as a dash;
+   * the control refuses them when he confirms.
+   *
+   * @param question "Verify RPT-2026-KLT-0847 as a new hazard?"
+   * @param hazardType the hazard type label, from the report
+   * @param severity the severity label, or a dash
+   * @param districts the district labels joined with ", ", or a dash
+   * @param placeName the place name as typed, or a dash
+   */
+  public record NewHazardSummary(
+      String question, String hazardType, String severity, String districts, String placeName) {}
+
+  /**
    * Maps the queue.
    *
    * @param reports the pending reports, oldest first
@@ -269,6 +287,73 @@ public class VerificationConsoleMapper {
         views,
         views.isEmpty() ? null : views.get(0).hazardId(),
         pending ? null : toDecision(report));
+  }
+
+  /**
+   * Keeps the hazard the officer chose selected on the page (the confirmation of "Verify and Link"
+   * and its Cancel, D-UC2-7, P238). A hazard that is not a candidate leaves the page as it is.
+   *
+   * @param page the page
+   * @param hazardId the identifier of the chosen hazard, or {@code null}
+   * @return the page with that candidate selected
+   */
+  public ReportPage select(ReportPage page, String hazardId) {
+    boolean candidate =
+        hazardId != null
+            && page.candidates().stream().anyMatch(view -> view.hazardId().equals(hazardId));
+    if (!candidate) {
+      return page;
+    }
+    return new ReportPage(
+        page.report(), page.nearby(), page.candidates(), hazardId, page.decision());
+  }
+
+  /**
+   * Builds the question of the confirmation of "Verify and Link" (D-UC2-7, P238).
+   *
+   * @param page the page of a pending report
+   * @param hazardId the identifier of the chosen hazard
+   * @return "Verify RPT-2026-KLT-0847 and link it to Flood — Kalu Ganga at Kalutara
+   *     (HZ-2026-0142)?"
+   * @throws NoSuchElementException if the hazard is not one of the page's candidates
+   */
+  public String linkQuestion(ReportPage page, String hazardId) {
+    CandidateHazardView chosen =
+        page.candidates().stream()
+            .filter(view -> view.hazardId().equals(hazardId))
+            .findFirst()
+            .orElseThrow(() -> new NoSuchElementException("No candidate hazard " + hazardId));
+    return "Verify "
+        + page.report().reportId()
+        + " and link it to "
+        + chosen.label()
+        + " ("
+        + chosen.hazardId()
+        + ")?";
+  }
+
+  /**
+   * Builds what the confirmation of "Verify as New Hazard" repeats (D-UC2-7, P238). No check of the
+   * details is made here: incomplete details are refused by the control on Confirm.
+   *
+   * @param page the page of a pending report
+   * @param form the entered form
+   * @return the question and the entered values
+   */
+  public NewHazardSummary summarise(ReportPage page, NewHazardForm form) {
+    String districts =
+        form.districts().stream()
+            .map(ConsoleTexts::districtLabel)
+            .sorted()
+            .collect(Collectors.joining(", "));
+    return new NewHazardSummary(
+        "Verify " + page.report().reportId() + " as a new hazard?",
+        page.report().hazardType(),
+        form.severity() == null ? NOT_ENTERED : ConsoleTexts.label(form.severity()),
+        districts.isEmpty() ? NOT_ENTERED : districts,
+        form.locationName() == null || form.locationName().isBlank()
+            ? NOT_ENTERED
+            : form.locationName().strip());
   }
 
   /**

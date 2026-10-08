@@ -179,11 +179,32 @@ class VerificationConsoleEndToEndTest {
   @DisplayName(
       "SC2 A6, E9: a new hazard with no districts is refused with the error, then verified")
   void verifyAsNewHazard() throws Exception {
-    String refused =
+    String asked =
         html(
             mockMvc
                 .perform(
                     post("/hazardreport/" + SECOND + "/new-hazard")
+                        .param("severity", "HIGH")
+                        .param("districts", "COLOMBO", "GAMPAHA")
+                        .param("locationName", "Kelani at Kaduwela"))
+                .andExpect(status().isOk()));
+    assertThat(asked)
+        .contains(
+            "Verify " + SECOND + " as a new hazard?",
+            "Colombo, Gampaha",
+            "Kelani at Kaduwela",
+            "Confirm verification")
+        .doesNotContain("Report verified");
+    assertThat(hazards.count()).isZero();
+    assertThat(reports.findById(SECOND).orElseThrow().getStatus())
+        .isEqualTo(ReportStatus.PENDING_VERIFICATION);
+    assertThat(outbox.findUndelivered(CITIZEN_ID)).isEmpty();
+
+    String refused =
+        html(
+            mockMvc
+                .perform(
+                    post("/hazardreport/" + SECOND + "/new-hazard/confirm")
                         .param("severity", "HIGH")
                         .param("locationName", "Kelani at Kaduwela"))
                 .andExpect(status().isOk()));
@@ -194,7 +215,7 @@ class VerificationConsoleEndToEndTest {
         html(
             mockMvc
                 .perform(
-                    post("/hazardreport/" + SECOND + "/new-hazard")
+                    post("/hazardreport/" + SECOND + "/new-hazard/confirm")
                         .param("severity", "HIGH")
                         .param("districts", "COLOMBO", "GAMPAHA")
                         .param("locationName", "Kelani at Kaduwela"))
@@ -228,11 +249,34 @@ class VerificationConsoleEndToEndTest {
     assertThat(details)
         .contains("Flood — Kalu Ganga at Ratnapura", "HZ-2026-0142", "Verify and Link");
 
-    String prompt =
+    String asked =
         html(
             mockMvc
                 .perform(
                     post("/hazardreport/" + SECOND + "/verify").param("hazardId", "HZ-2026-0142"))
+                .andExpect(status().isOk()));
+    assertThat(asked)
+        .contains(
+            "Verify " + SECOND + " and link it to Flood — Kalu Ganga at Ratnapura (HZ-2026-0142)?",
+            "Confirm verification")
+        .doesNotContain("Report verified", "has an active warning");
+    assertThat(reports.findById(SECOND).orElseThrow().getStatus())
+        .isEqualTo(ReportStatus.PENDING_VERIFICATION);
+    assertThat(outbox.findUndelivered(CITIZEN_ID)).isEmpty();
+
+    String cancelled =
+        html(
+            mockMvc
+                .perform(get("/hazardreport/" + SECOND).param("hazardId", "HZ-2026-0142"))
+                .andExpect(status().isOk()));
+    assertThat(cancelled).contains("Verify and Link").doesNotContain("Confirm verification");
+
+    String prompt =
+        html(
+            mockMvc
+                .perform(
+                    post("/hazardreport/" + SECOND + "/verify/confirm")
+                        .param("hazardId", "HZ-2026-0142"))
                 .andExpect(status().isOk()));
     assertThat(prompt)
         .contains(
@@ -255,13 +299,14 @@ class VerificationConsoleEndToEndTest {
   void failingWarningLookupChangesNothing() throws Exception {
     hazards.save(SampleEntities.hazard("HZ-2026-0142"));
     when(warningController.getActiveWarningForHazard(anyString()))
-        .thenThrow(new UnsupportedOperationException("not implemented yet"));
+        .thenThrow(new UnsupportedOperationException("simulated fault in UC1's warning lookup"));
 
     String banner =
         html(
             mockMvc
                 .perform(
-                    post("/hazardreport/" + SECOND + "/verify").param("hazardId", "HZ-2026-0142"))
+                    post("/hazardreport/" + SECOND + "/verify/confirm")
+                        .param("hazardId", "HZ-2026-0142"))
                 .andExpect(status().isInternalServerError()));
 
     assertThat(banner)

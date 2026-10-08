@@ -2,7 +2,9 @@
 <!--/* WF2C-S02 — Report details (also S02c new hazard, S02d validation errors, S02h already decided).
      Server-rendered by hazardreport.web.VerificationConsoleUI (UC2-4): every value comes from the view records
      of VerificationConsoleMapper; no JavaScript of our own. The fragments evidence, candidates and statusTag are
-     reused by the other four pages of this folder. */-->
+     reused by the other four pages of this folder. The two confirmation dialogs at the end ("Verify and Link" and
+     "Verify as New Hazard") are page states like the rejection dialog (D-UC2-7, P238): nothing is recorded
+     before "Confirm verification". */-->
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{fragments/layout :: head('Report ' + ${page.report.reportId})}">
 <meta charset="utf-8"><title>Report — DMC Sri Lanka</title>
@@ -28,6 +30,9 @@
 <div><h2 class="card__title">Location</h2><p class="muted" style="margin-top:6px" th:text="${page.report.locationNote}">Kalutara District — report location 6.5888 N, 79.9640 E</p></div></div></section><section class="card "><div class="card__head"><div><h2 class="card__title">Nearby reports (same type, within 5 km, last 24 hours)</h2></div></div>
 <p class="muted" th:if="${#lists.isEmpty(page.nearby)}">No nearby reports</p>
 <table class="table table--compact" th:unless="${#lists.isEmpty(page.nearby)}"><thead><tr><th>Report ID</th><th>Hazard type</th><th>District</th><th>Capture time</th><th>Distance</th><th>Status</th></tr></thead><tbody><tr th:each="near : ${page.nearby}"><td th:text="${near.reportId}">RPT-2026-KLT-0843</td><td th:text="${near.hazardType}">Flood</td><td th:text="${near.district}">Kalutara</td><td th:text="${near.captureTime}">19:55</td><td th:text="${near.distance}">1.2 km</td><td><span class="tag tag--warn" th:text="${near.status}">Pending verification</span></td></tr></tbody></table></section></div>
+
+<!--/* The values of the new-hazard form as hidden fields, for the Cancel and Confirm forms of its dialog (P238). */-->
+<th:block th:fragment="newHazardValues(form)"><input type="hidden" name="severity" th:value="${form.severity}"><input type="hidden" name="districts" th:each="code : ${form.districts}" th:value="${code}"><input type="hidden" name="locationName" th:value="${form.locationName}"><input type="hidden" name="description" th:value="${form.description}"></th:block>
 
 <!--/* Candidate hazards; with selectable the first one is preselected for "Verify and Link" (form verify-form). */-->
 <section class="card " th:fragment="candidates(page, selectable)"><div class="card__head"><div><h2 class="card__title">Candidate hazards</h2></div></div>
@@ -83,6 +88,19 @@
 </main>
 </div>
 </div>
+<!--/* D-UC2-7, P238: the confirmation of "Verify and Link", the same dialog as the rejection (scrim, 520 px). Only while the report is pending (state DECIDE). */-->
+<div class="scrim" role="dialog" aria-modal="true" th:if="${state == 'DECIDE' and verifyQuestion != null}"><div class="modal" style="width:520px">
+<p style="font-weight:700" th:text="${verifyQuestion}">Verify RPT-2026-KLT-0847 and link it to Flood — Kalu Ganga at Kalutara (HZ-2026-0142)?</p>
+<form method="post" th:action="@{/hazardreport/{id}/verify/confirm(id=${page.report.reportId})}"><input type="hidden" name="hazardId" th:value="${page.selectedHazardId}">
+<div class="row row--end"><a class="btn btn--secondary" th:href="@{/hazardreport/{id}(id=${page.report.reportId}, hazardId=${page.selectedHazardId})}">Cancel</a><button type="submit" class="btn btn--primary">Confirm verification</button></div></form></div></div>
+
+<!--/* D-UC2-7, P238: the confirmation of "Verify as New Hazard" repeats the entered type, severity, districts and place name. Cancel returns to the form with every value kept (GET with the values); Confirm posts them again. */-->
+<div class="scrim" role="dialog" aria-modal="true" th:if="${state == 'NEW_HAZARD' and newHazardSummary != null}"><div class="modal" style="width:520px">
+<p style="font-weight:700" th:text="${newHazardSummary.question}">Verify RPT-2026-KLT-0847 as a new hazard?</p>
+<dl class="details"><dt>Hazard type</dt><dd th:text="${newHazardSummary.hazardType}">Flood</dd><dt>Severity</dt><dd th:text="${newHazardSummary.severity}">Medium</dd><dt>Districts</dt><dd th:text="${newHazardSummary.districts}">Kalutara</dd><dt>Place name</dt><dd th:text="${newHazardSummary.placeName}">Kalu Ganga at Kalutara</dd></dl>
+<div class="row row--end">
+<form method="get" th:action="@{/hazardreport/{id}/new-hazard(id=${page.report.reportId})}"><th:block th:replace="~{hazardreport/showReportDetails :: newHazardValues(${form})}"></th:block><button type="submit" class="btn btn--secondary">Cancel</button></form>
+<form method="post" th:action="@{/hazardreport/{id}/new-hazard/confirm(id=${page.report.reportId})}"><th:block th:replace="~{hazardreport/showReportDetails :: newHazardValues(${form})}"></th:block><button type="submit" class="btn btn--primary">Confirm verification</button></form></div></div></div>
 <script src="../../static/js/nav-notice.js" th:src="@{/js/nav-notice.js}"></script>
 <script src="../../static/js/districts.js" th:src="@{/js/districts.js}"></script><link rel="stylesheet" th:href="@{/vendor/leaflet-1.9.4/leaflet.css}"><script th:src="@{/vendor/leaflet-1.9.4/leaflet.js}"></script><script src="../../static/js/district-map.js" th:src="@{/js/district-map.js}"></script>
 </body>

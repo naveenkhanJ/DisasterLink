@@ -45,12 +45,19 @@ import org.springframework.web.servlet.HandlerMapping;
  * JavaScript of our own; every state is a page). Its handlers are named after the model
  * dictionary's inputs ({@code openQueue}, {@code selectReport}, {@code verifyReport}, {@code
  * verifyAsNewHazard}, {@code rejectReport}, {@code dismissEscalation}); the extra form states (the
- * new-hazard form, the rejection form and its confirmation) are implementation-only screen
- * components (C2). The {@code show…} displays are the templates in {@code templates/hazardreport}
- * (standards section 2, FE-28): {@code showPendingReports}, {@code showReportDetails} (which also
- * shows the new-hazard state, {@code showValidationErrors} and {@code showAlreadyDecided}), {@code
- * rejectionReason} (with {@code showReasonRequired}), {@code showDecisionRecorded} and {@code
- * showEscalationPrompt}.
+ * new-hazard form, the rejection form and the confirmations of the three decisions) are
+ * implementation-only screen components (C2). The {@code show…} displays are the templates in
+ * {@code templates/hazardreport} (standards section 2, FE-28): {@code showPendingReports}, {@code
+ * showReportDetails} (which also shows the new-hazard state, {@code showValidationErrors} and
+ * {@code showAlreadyDecided}), {@code rejectionReason} (with {@code showReasonRequired}), {@code
+ * showDecisionRecorded} and {@code showEscalationPrompt}.
+ *
+ * <p><b>Confirmations.</b> Like Reject (SC2 A4, 25d), "Verify and Link" and "Verify as New Hazard"
+ * ask first, in the same server-rendered dialog (deviation D-UC2-7, P238; SC2 step 25 and A6 25n go
+ * straight to recording): the first POST, {@link #confirmVerification} or {@link
+ * #confirmNewHazard}, only renders the page with the dialog and records nothing; the POST of
+ * "Confirm verification" alone calls {@code verifyReport} or {@code verifyAsNewHazard}. The checks
+ * of the new-hazard details stay in the control: incomplete details are refused on Confirm.
  *
  * <p><b>Transactions.</b> The three decision calls are made without any surrounding transaction (no
  * {@code @Transactional} here), so the control's own transaction is the outermost one: only then is
@@ -151,25 +158,66 @@ public class VerificationConsoleUI {
    * A report that is no longer pending is shown in its already-decided state.
    *
    * @param reportId the identifier of the report
+   * @param hazardId the candidate to keep selected (Cancel of the confirmation of "Verify and Link"
+   *     returns here with it), or {@code null} for the first candidate
    * @param model the page model
    * @return the {@code showReportDetails} page
    */
   @GetMapping("/{reportId}")
-  public String selectReport(@PathVariable String reportId, Model model) {
-    return render(model, reportId, DETAILS_VIEW);
+  public String selectReport(
+      @PathVariable String reportId, @RequestParam(required = false) String hazardId, Model model) {
+    return render(
+        model,
+        reportId,
+        DETAILS_VIEW,
+        VerificationConsoleMapper.STATE_DECIDE,
+        null,
+        true,
+        hazardId);
   }
 
   /**
-   * Verifies the report against the chosen candidate hazard (SC2 steps 25 to 28; WF2C-S02e). When
-   * the hazard has an active warning the escalation prompt is shown (A7, WF2C-S02g). Not
-   * transactional: the control's transaction is the outermost one.
+   * Asks the officer to confirm "Verify and Link" (SC2 step 25 with the confirmation of D-UC2-7,
+   * P238): the details page with the chosen candidate still selected and the dialog "Verify
+   * &lt;report ID&gt; and link it to &lt;hazard label&gt; (&lt;hazard ID&gt;)?". Nothing is decided
+   * here; a report that is no longer pending gives the already-decided page (E10).
+   *
+   * @param reportId the identifier of the report
+   * @param hazardId the identifier of the chosen hazard
+   * @param model the page model
+   * @return the {@code showReportDetails} page with the confirmation
+   */
+  @PostMapping("/{reportId}/verify")
+  public String confirmVerification(
+      @PathVariable String reportId, @RequestParam String hazardId, Model model) {
+    String view =
+        render(
+            model,
+            reportId,
+            DETAILS_VIEW,
+            VerificationConsoleMapper.STATE_DECIDE,
+            null,
+            true,
+            hazardId);
+    ReportPage page = shownPage(model);
+    if (page.report().pending()) {
+      model.addAttribute("verifyQuestion", mapper.linkQuestion(page, hazardId));
+    }
+    return view;
+  }
+
+  /**
+   * Verifies the report against the chosen candidate hazard once the officer confirmed (SC2 steps
+   * 25 to 28; WF2C-S02e; D-UC2-7, P238). When the hazard has an active warning the escalation
+   * prompt is shown (A7, WF2C-S02g). Not transactional: the control's transaction is the outermost
+   * one.
    *
    * @param reportId the identifier of the report
    * @param hazardId the identifier of the chosen hazard
    * @param model the page model
    * @return the {@code showDecisionRecorded} or {@code showEscalationPrompt} page
    */
-  @PostMapping("/{reportId}/verify")
+  @PostMapping("/{reportId}/verify/confirm")
   public String verifyReport(
       @PathVariable String reportId, @RequestParam String hazardId, Model model) {
     VerificationOutcome outcome =
@@ -180,27 +228,85 @@ public class VerificationConsoleUI {
 
   /**
    * Shows the new-hazard form (SC2 A6, step 25m; WF2C-S02c): the details page with the form instead
-   * of the decision buttons.
+   * of the decision buttons. Cancel of the confirmation returns here with the entered values in the
+   * query, which are put back in the form (C2, D-UC2-7, P238).
    *
    * @param reportId the identifier of the report
+   * @param severity the severity entered, or {@code null}
+   * @param districts the districts entered, or {@code null}
+   * @param locationName the place name entered, or {@code null}
+   * @param description the description entered, or {@code null}
    * @param model the page model
    * @return the {@code showReportDetails} page in its new-hazard state
    */
   @GetMapping("/{reportId}/new-hazard")
-  public String newHazardForm(@PathVariable String reportId, Model model) {
-    return render(model, reportId, DETAILS_VIEW, VerificationConsoleMapper.STATE_NEW_HAZARD, null);
+  public String newHazardForm(
+      @PathVariable String reportId,
+      @RequestParam(required = false) HazardSeverity severity,
+      @RequestParam(required = false) List<District> districts,
+      @RequestParam(required = false) String locationName,
+      @RequestParam(required = false) String description,
+      Model model) {
+    boolean kept =
+        severity != null || districts != null || locationName != null || description != null;
+    if (kept) {
+      model.addAttribute(
+          "form",
+          mapper.toFormView(new NewHazardForm(severity, districts, locationName, description)));
+    }
+    return render(
+        model,
+        reportId,
+        DETAILS_VIEW,
+        VerificationConsoleMapper.STATE_NEW_HAZARD,
+        null,
+        !kept,
+        null);
   }
 
   /**
-   * Verifies the report as a new hazard with the details the officer entered (SC2 A6, steps 25n to
-   * 25s; WF2C-S02e). Not transactional.
+   * Asks the officer to confirm "Verify as New Hazard" (SC2 A6, step 25n with the confirmation of
+   * D-UC2-7, P238): the new-hazard form with every value kept and the dialog "Verify &lt;report
+   * ID&gt; as a new hazard?" that repeats the hazard type, severity, districts and place name.
+   * Nothing is decided and the details are not checked here; a report that is no longer pending
+   * gives the already-decided page (E10).
+   *
+   * @param reportId the identifier of the report
+   * @param form the posted new-hazard form
+   * @param model the page model
+   * @return the {@code showReportDetails} page in its new-hazard state with the confirmation
+   */
+  @PostMapping("/{reportId}/new-hazard")
+  public String confirmNewHazard(
+      @PathVariable String reportId, @ModelAttribute NewHazardForm form, Model model) {
+    model.addAttribute("form", mapper.toFormView(form));
+    String view =
+        render(
+            model,
+            reportId,
+            DETAILS_VIEW,
+            VerificationConsoleMapper.STATE_NEW_HAZARD,
+            null,
+            false,
+            null);
+    ReportPage page = shownPage(model);
+    if (page.report().pending()) {
+      model.addAttribute("newHazardSummary", mapper.summarise(page, form));
+    }
+    return view;
+  }
+
+  /**
+   * Verifies the report as a new hazard with the details the officer entered, once he confirmed
+   * (SC2 A6, steps 25n to 25s; WF2C-S02e; D-UC2-7, P238). The details are checked by the control,
+   * not here. Not transactional.
    *
    * @param reportId the identifier of the report
    * @param form the posted new-hazard form
    * @param model the page model
    * @return the {@code showDecisionRecorded} or {@code showEscalationPrompt} page
    */
-  @PostMapping("/{reportId}/new-hazard")
+  @PostMapping("/{reportId}/new-hazard/confirm")
   public String verifyAsNewHazard(
       @PathVariable String reportId, @ModelAttribute NewHazardForm form, Model model) {
     VerificationOutcome outcome =
@@ -311,7 +417,8 @@ public class VerificationConsoleUI {
         DETAILS_VIEW,
         VerificationConsoleMapper.STATE_NEW_HAZARD,
         null,
-        false);
+        false,
+        null);
   }
 
   /**
@@ -368,7 +475,7 @@ public class VerificationConsoleUI {
   }
 
   private String render(Model model, String reportId, String view, String state, String reason) {
-    return render(model, reportId, view, state, reason, true);
+    return render(model, reportId, view, state, reason, true, null);
   }
 
   /**
@@ -377,14 +484,22 @@ public class VerificationConsoleUI {
    * decision pages, which are made for it.
    */
   private String render(
-      Model model, String reportId, String view, String state, String reason, boolean freshForm) {
+      Model model,
+      String reportId,
+      String view,
+      String state,
+      String reason,
+      boolean freshForm,
+      String selectedHazardId) {
     ReportPage page =
-        read(
-            () ->
-                mapper.toPage(
-                    control.getReportDetails(reportId),
-                    control.findNearbyReports(reportId),
-                    control.findCandidateHazards(reportId)));
+        mapper.select(
+            read(
+                () ->
+                    mapper.toPage(
+                        control.getReportDetails(reportId),
+                        control.findNearbyReports(reportId),
+                        control.findCandidateHazards(reportId))),
+            selectedHazardId);
     model.addAttribute("page", page);
     boolean decisionPage = DECISION_VIEW.equals(view) || ESCALATION_VIEW.equals(view);
     String shown = state;
@@ -404,6 +519,11 @@ public class VerificationConsoleUI {
       model.addAttribute("severityOptions", mapper.severityOptions());
     }
     return page(model, template, mapper.subtitle(page.report()));
+  }
+
+  /** The page the last {@code render} put in the model. */
+  private static ReportPage shownPage(Model model) {
+    return (ReportPage) Objects.requireNonNull(model.getAttribute("page"), "page");
   }
 
   private String decisionPage(Model model, String reportId, VerificationOutcome outcome) {

@@ -576,7 +576,7 @@ class VerificationConsoleUITest {
     ResultActions result =
         mockMvc
             .perform(
-                post("/hazardreport/{id}/new-hazard", REPORT_ID)
+                post("/hazardreport/{id}/new-hazard/confirm", REPORT_ID)
                     .param("severity", "HIGH")
                     .param("districts", "KALUTARA", "RATNAPURA")
                     .param("locationName", "Horana–Ratnapura road at Ingiriya")
@@ -604,7 +604,7 @@ class VerificationConsoleUITest {
     ResultActions result =
         mockMvc
             .perform(
-                post("/hazardreport/{id}/new-hazard", REPORT_ID)
+                post("/hazardreport/{id}/new-hazard/confirm", REPORT_ID)
                     .param("severity", "HIGH")
                     .param("locationName", "Horana–Ratnapura road at Ingiriya")
                     .param("description", "Road is cut"))
@@ -641,7 +641,7 @@ class VerificationConsoleUITest {
     String html =
         html(
             mockMvc.perform(
-                post("/hazardreport/{id}/new-hazard", REPORT_ID)
+                post("/hazardreport/{id}/new-hazard/confirm", REPORT_ID)
                     .param("severity", "")
                     .param("districts", "KALUTARA")
                     .param("locationName", " ")));
@@ -678,13 +678,312 @@ class VerificationConsoleUITest {
         html(
             mockMvc
                 .perform(
-                    post("/hazardreport/{id}/new-hazard", REPORT_ID)
+                    post("/hazardreport/{id}/new-hazard/confirm", REPORT_ID)
                         .param("districts", "KALUTARA")
                         .param("locationName", "Kelani"))
                 .andExpect(status().isOk()));
 
     assertContains(html, "Severity is required", "field--error");
     assertThat(html).doesNotContainPattern("value=\"MEDIUM\"\\s+selected");
+  }
+
+  // ---- D-UC2-7 (P238): both verify actions ask first, like Reject
+  // ---------------------------------------------
+
+  @Test
+  @DisplayName("SC2 25 / D-UC2-7: Verify and Link asks first, records nothing and keeps the choice")
+  void verifyAndLinkAsksBeforeDeciding() throws Exception {
+    Hazard other = SampleEntities.hazard("HZ-2026-0150");
+    arrangeReads(report(ReportStatus.PENDING_VERIFICATION), List.of(), List.of(hazard, other));
+
+    ResultActions result =
+        mockMvc
+            .perform(post("/hazardreport/{id}/verify", REPORT_ID).param("hazardId", "HZ-2026-0150"))
+            .andExpect(status().isOk())
+            .andExpect(view().name("hazardreport/showReportDetails"));
+
+    String html = html(result);
+    assertContains(
+        html,
+        "scrim",
+        "Verify RPT-2026-KLT-0847 and link it to ",
+        "(HZ-2026-0150)?",
+        "Cancel",
+        "Confirm verification",
+        "action=\"/hazardreport/RPT-2026-KLT-0847/verify/confirm\"",
+        "name=\"hazardId\" value=\"HZ-2026-0150\"",
+        "Pending verification");
+    assertThat(html).containsPattern("value=\"HZ-2026-0150\"\\s+checked=\"checked\"");
+    assertThat(html).doesNotContainPattern("value=\"HZ-2026-0142\"\\s+checked");
+    assertThat(html).contains("href=\"/hazardreport/RPT-2026-KLT-0847?hazardId=HZ-2026-0150\"");
+    assertLacks(html, "Report verified");
+    verify(control, never()).verifyReport(anyString(), anyString(), anyString());
+  }
+
+  @Test
+  @DisplayName("SC2 25 / D-UC2-7: the dialog names the hazard as the page does")
+  void verifyAndLinkDialogUsesTheHazardLabel() throws Exception {
+    arrangePending();
+
+    String html =
+        html(
+            mockMvc.perform(
+                post("/hazardreport/{id}/verify", REPORT_ID).param("hazardId", HAZARD_ID)));
+
+    assertContains(
+        html,
+        "Verify RPT-2026-KLT-0847 and link it to Flood — Kalu Ganga at Ratnapura (HZ-2026-0142)?");
+  }
+
+  @Test
+  @DisplayName("SC2 25 / D-UC2-7: Cancel returns to the report with the same hazard selected")
+  void cancelOfVerifyKeepsTheSelection() throws Exception {
+    Hazard other = SampleEntities.hazard("HZ-2026-0150");
+    arrangeReads(report(ReportStatus.PENDING_VERIFICATION), List.of(), List.of(hazard, other));
+
+    String html =
+        html(
+            mockMvc
+                .perform(get("/hazardreport/{id}", REPORT_ID).param("hazardId", "HZ-2026-0150"))
+                .andExpect(status().isOk()));
+
+    assertThat(html).containsPattern("value=\"HZ-2026-0150\"\\s+checked=\"checked\"");
+    assertThat(html).doesNotContainPattern("value=\"HZ-2026-0142\"\\s+checked");
+    assertLacks(html, "scrim", "Confirm verification");
+    verify(control, never()).verifyReport(anyString(), anyString(), anyString());
+  }
+
+  @Test
+  @DisplayName("SC2 25 / D-UC2-7: a hazard that is not a candidate is a 404 and records nothing")
+  void verifyAndLinkOfAnUnknownCandidateIsNotFound() throws Exception {
+    arrangePending();
+
+    mockMvc
+        .perform(post("/hazardreport/{id}/verify", REPORT_ID).param("hazardId", "HZ-9999-0000"))
+        .andExpect(status().isNotFound());
+
+    verify(control, never()).verifyReport(anyString(), anyString(), anyString());
+  }
+
+  @Test
+  @DisplayName("SC2 25 / D-UC2-7: Confirm verification records the decision once")
+  void confirmVerificationRecordsOnce() throws Exception {
+    HazardReport verified = report(ReportStatus.VERIFIED);
+    arrangeReads(verified, List.of(), List.of());
+    when(control.verifyReport(REPORT_ID, HAZARD_ID, OFFICER_ID))
+        .thenReturn(new VerificationOutcome(verified, null));
+
+    String html =
+        html(
+            mockMvc
+                .perform(
+                    post("/hazardreport/{id}/verify/confirm", REPORT_ID)
+                        .param("hazardId", HAZARD_ID))
+                .andExpect(view().name("hazardreport/showDecisionRecorded")));
+
+    assertContains(html, "Report verified");
+    verify(control, org.mockito.Mockito.times(1)).verifyReport(REPORT_ID, HAZARD_ID, OFFICER_ID);
+  }
+
+  @Test
+  @DisplayName(
+      "SC2 E10 / D-UC2-7: a report decided meanwhile gives the already-decided page at the dialog")
+  void verifyDialogOnADecidedReportIsAlreadyDecided() throws Exception {
+    arrangeReads(report(ReportStatus.REJECTED), List.of(), List.of());
+
+    String html =
+        html(
+            mockMvc
+                .perform(post("/hazardreport/{id}/verify", REPORT_ID).param("hazardId", HAZARD_ID))
+                .andExpect(status().isOk())
+                .andExpect(view().name("hazardreport/showReportDetails")));
+
+    assertContains(html, "This report has already been decided", "Rejected");
+    assertLacks(html, "scrim", "Confirm verification");
+    verify(control, never()).verifyReport(anyString(), anyString(), anyString());
+  }
+
+  @Test
+  @DisplayName(
+      "SC2 A6 25n / D-UC2-7: Verify as New Hazard asks first, repeats the details, records nothing")
+  void newHazardAsksBeforeDeciding() throws Exception {
+    arrangePending();
+
+    ResultActions result =
+        mockMvc
+            .perform(
+                post("/hazardreport/{id}/new-hazard", REPORT_ID)
+                    .param("severity", "HIGH")
+                    .param("districts", "RATNAPURA", "KALUTARA")
+                    .param("locationName", "Kalu Ganga at Kalutara")
+                    .param("description", "Road is cut"))
+            .andExpect(status().isOk())
+            .andExpect(view().name("hazardreport/showReportDetails"));
+
+    String html = html(result);
+    assertContains(
+        html,
+        "scrim",
+        "Verify RPT-2026-KLT-0847 as a new hazard?",
+        "Flood",
+        "High",
+        "Kalutara, Ratnapura",
+        "Kalu Ganga at Kalutara",
+        "Cancel",
+        "Confirm verification",
+        "action=\"/hazardreport/RPT-2026-KLT-0847/new-hazard/confirm\"",
+        "Pending verification");
+    assertThat(html).containsPattern("value=\"HIGH\"\\s+selected=\"selected\"");
+    assertThat(html).containsPattern("value=\"KALUTARA\"\\s+checked=\"checked\"");
+    assertLacks(html, "Report verified");
+    verify(control, never()).verifyAsNewHazard(anyString(), any(), anyString());
+  }
+
+  @Test
+  @DisplayName(
+      "SC2 A6 / D-UC2-7: the dialog does not check the details; left-out values show as a dash")
+  void newHazardDialogDoesNotCheckTheDetails() throws Exception {
+    arrangePending();
+
+    String html =
+        html(
+            mockMvc
+                .perform(
+                    post("/hazardreport/{id}/new-hazard", REPORT_ID).param("locationName", " "))
+                .andExpect(status().isOk()));
+
+    assertContains(html, "scrim", "Verify RPT-2026-KLT-0847 as a new hazard?", "—");
+    assertLacks(html, "Severity is required", "Districts are required", "Place name is required");
+    verify(control, never()).verifyAsNewHazard(anyString(), any(), anyString());
+  }
+
+  @Test
+  @DisplayName("SC2 A6 / D-UC2-7 (C2): Cancel returns to the form with every value kept")
+  void cancelOfNewHazardKeepsEveryValue() throws Exception {
+    arrangePending();
+
+    String html =
+        html(
+            mockMvc
+                .perform(
+                    get("/hazardreport/{id}/new-hazard", REPORT_ID)
+                        .param("severity", "HIGH")
+                        .param("districts", "RATNAPURA", "KALUTARA")
+                        .param("locationName", "Kalu Ganga at Kalutara")
+                        .param("description", "Road is cut"))
+                .andExpect(status().isOk()));
+
+    assertContains(
+        html,
+        "Verify as new hazard",
+        "value=\"Kalu Ganga at Kalutara\"",
+        ">Road is cut</textarea>");
+    assertThat(html).containsPattern("value=\"HIGH\"\\s+selected=\"selected\"");
+    assertThat(html).containsPattern("value=\"RATNAPURA\"\\s+checked=\"checked\"");
+    assertThat(html).containsPattern("value=\"KALUTARA\"\\s+checked=\"checked\"");
+    assertLacks(html, "scrim");
+  }
+
+  @Test
+  @DisplayName(
+      "SC2 A6 / D-UC2-7: the dialog's Cancel and Confirm forms both carry the entered values")
+  void newHazardDialogForwardsTheValues() throws Exception {
+    arrangePending();
+
+    String html =
+        html(
+            mockMvc.perform(
+                post("/hazardreport/{id}/new-hazard", REPORT_ID)
+                    .param("severity", "LOW")
+                    .param("districts", "KALUTARA")
+                    .param("locationName", "Kelani \"bridge\"")
+                    .param("description", "Water")));
+
+    assertThat(
+            html.split("name=\"locationName\" value=\"Kelani &quot;bridge&quot;\"", -1).length - 1)
+        .isEqualTo(2);
+    assertContains(html, "method=\"get\"", "action=\"/hazardreport/RPT-2026-KLT-0847/new-hazard\"");
+  }
+
+  @Test
+  @DisplayName("SC2 A6 25n / D-UC2-7: Confirm verification records the new hazard once")
+  void confirmNewHazardRecordsOnce() throws Exception {
+    HazardReport verified = report(ReportStatus.VERIFIED);
+    arrangeReads(verified, List.of(), List.of());
+    when(control.verifyAsNewHazard(eq(REPORT_ID), any(NewHazardDetails.class), eq(OFFICER_ID)))
+        .thenReturn(new VerificationOutcome(verified, null));
+
+    String html =
+        html(
+            mockMvc
+                .perform(
+                    post("/hazardreport/{id}/new-hazard/confirm", REPORT_ID)
+                        .param("severity", "LOW")
+                        .param("districts", "KALUTARA")
+                        .param("locationName", "Kelani"))
+                .andExpect(view().name("hazardreport/showDecisionRecorded")));
+
+    assertContains(html, "Report verified");
+    verify(control, org.mockito.Mockito.times(1))
+        .verifyAsNewHazard(eq(REPORT_ID), any(NewHazardDetails.class), eq(OFFICER_ID));
+  }
+
+  @Test
+  @DisplayName(
+      "SC2 E9 25u / D-UC2-7: incomplete details are refused on Confirm and the values are kept")
+  void incompleteDetailsAreRefusedOnConfirm() throws Exception {
+    arrangePending();
+    when(control.verifyAsNewHazard(eq(REPORT_ID), any(), eq(OFFICER_ID)))
+        .thenThrow(new InvalidHazardDetailsException(List.of("Place name is required")));
+
+    String html =
+        html(
+            mockMvc
+                .perform(
+                    post("/hazardreport/{id}/new-hazard/confirm", REPORT_ID)
+                        .param("severity", "HIGH")
+                        .param("districts", "KALUTARA")
+                        .param("locationName", " "))
+                .andExpect(status().isOk())
+                .andExpect(view().name("hazardreport/showReportDetails")));
+
+    assertContains(html, "Place name is required", "field--error", "Verify as new hazard");
+    assertThat(html).containsPattern("value=\"HIGH\"\\s+selected=\"selected\"");
+    assertThat(html).containsPattern("value=\"KALUTARA\"\\s+checked=\"checked\"");
+    assertLacks(html, "scrim");
+  }
+
+  @Test
+  @DisplayName("SC2 E10 / D-UC2-7: a report decided meanwhile shows the decided page at the dialog")
+  void newHazardDialogOnADecidedReportIsAlreadyDecided() throws Exception {
+    arrangeReads(report(ReportStatus.VERIFIED), List.of(), List.of());
+
+    String html =
+        html(
+            mockMvc
+                .perform(post("/hazardreport/{id}/new-hazard", REPORT_ID).param("severity", "LOW"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("hazardreport/showReportDetails")));
+
+    assertContains(html, "This report has already been decided");
+    assertLacks(html, "scrim", "Confirm verification");
+    verify(control, never()).verifyAsNewHazard(anyString(), any(), anyString());
+  }
+
+  @Test
+  @DisplayName("WF2C-S02a: Reject is unchanged: the first POST asks, the confirmation records")
+  void rejectIsUnchanged() throws Exception {
+    arrangePending();
+    when(control.rejectReport(REPORT_ID, "Duplicate", OFFICER_ID))
+        .thenReturn(report(ReportStatus.REJECTED));
+
+    String asked =
+        html(
+            mockMvc.perform(
+                post("/hazardreport/{id}/reject", REPORT_ID).param("reason", "Duplicate")));
+    verify(control, never()).rejectReport(anyString(), any(), anyString());
+    assertContains(
+        asked, "scrim", "Reject RPT-2026-KLT-0847 with this reason?", "Confirm rejection");
   }
 
   // ---- S02e and S02g: verified, with and without a warning
@@ -701,7 +1000,8 @@ class VerificationConsoleUITest {
 
     ResultActions result =
         mockMvc
-            .perform(post("/hazardreport/{id}/verify", REPORT_ID).param("hazardId", HAZARD_ID))
+            .perform(
+                post("/hazardreport/{id}/verify/confirm", REPORT_ID).param("hazardId", HAZARD_ID))
             .andExpect(status().isOk())
             .andExpect(view().name("hazardreport/showDecisionRecorded"));
 
@@ -739,7 +1039,8 @@ class VerificationConsoleUITest {
 
     ResultActions result =
         mockMvc
-            .perform(post("/hazardreport/{id}/verify", REPORT_ID).param("hazardId", HAZARD_ID))
+            .perform(
+                post("/hazardreport/{id}/verify/confirm", REPORT_ID).param("hazardId", HAZARD_ID))
             .andExpect(status().isOk())
             .andExpect(view().name("hazardreport/showEscalationPrompt"));
 
@@ -795,9 +1096,9 @@ class VerificationConsoleUITest {
     List<ResultActions> attempts =
         List.of(
             mockMvc.perform(
-                post("/hazardreport/{id}/verify", REPORT_ID).param("hazardId", HAZARD_ID)),
+                post("/hazardreport/{id}/verify/confirm", REPORT_ID).param("hazardId", HAZARD_ID)),
             mockMvc.perform(
-                post("/hazardreport/{id}/new-hazard", REPORT_ID).param("severity", "LOW")),
+                post("/hazardreport/{id}/new-hazard/confirm", REPORT_ID).param("severity", "LOW")),
             mockMvc.perform(
                 post("/hazardreport/{id}/reject/confirm", REPORT_ID).param("reason", "late")));
 
@@ -859,11 +1160,12 @@ class VerificationConsoleUITest {
   void failedDecisionShowsTheBanner() throws Exception {
     arrangePending();
     when(control.verifyReport(REPORT_ID, HAZARD_ID, OFFICER_ID))
-        .thenThrow(new UnsupportedOperationException("not implemented yet"));
+        .thenThrow(new UnsupportedOperationException("simulated fault in UC1's warning lookup"));
 
     ResultActions result =
         mockMvc
-            .perform(post("/hazardreport/{id}/verify", REPORT_ID).param("hazardId", HAZARD_ID))
+            .perform(
+                post("/hazardreport/{id}/verify/confirm", REPORT_ID).param("hazardId", HAZARD_ID))
             .andExpect(status().isInternalServerError())
             .andExpect(view().name("hazardreport/showReportDetails"));
 
@@ -889,7 +1191,7 @@ class VerificationConsoleUITest {
         .perform(post("/hazardreport/{id}/reject/confirm", REPORT_ID).param("reason", "x"))
         .andExpect(status().isInternalServerError());
     mockMvc
-        .perform(post("/hazardreport/{id}/new-hazard", REPORT_ID).param("severity", "LOW"))
+        .perform(post("/hazardreport/{id}/new-hazard/confirm", REPORT_ID).param("severity", "LOW"))
         .andExpect(status().isInternalServerError());
   }
 
@@ -908,7 +1210,7 @@ class VerificationConsoleUITest {
   @DisplayName("WF2C-S02: verifying without a hazard is a malformed request, a 400")
   void verifyWithoutAHazardIsABadRequest() throws Exception {
     mockMvc
-        .perform(post("/hazardreport/{id}/verify", REPORT_ID))
+        .perform(post("/hazardreport/{id}/verify/confirm", REPORT_ID))
         .andExpect(status().isBadRequest());
   }
 
@@ -954,8 +1256,10 @@ class VerificationConsoleUITest {
               return verified;
             });
 
-    mockMvc.perform(post("/hazardreport/{id}/verify", REPORT_ID).param("hazardId", HAZARD_ID));
-    mockMvc.perform(post("/hazardreport/{id}/new-hazard", REPORT_ID).param("severity", "LOW"));
+    mockMvc.perform(
+        post("/hazardreport/{id}/verify/confirm", REPORT_ID).param("hazardId", HAZARD_ID));
+    mockMvc.perform(
+        post("/hazardreport/{id}/new-hazard/confirm", REPORT_ID).param("severity", "LOW"));
     mockMvc.perform(post("/hazardreport/{id}/reject/confirm", REPORT_ID).param("reason", "x"));
 
     verify(control).verifyReport(REPORT_ID, HAZARD_ID, OFFICER_ID);
@@ -972,7 +1276,13 @@ class VerificationConsoleUITest {
             AnnotatedElementUtils.hasAnnotation(VerificationConsoleUI.class, Transactional.class))
         .isFalse();
     for (String name :
-        List.of("verifyReport", "verifyAsNewHazard", "rejectReport", "confirmRejection")) {
+        List.of(
+            "verifyReport",
+            "verifyAsNewHazard",
+            "rejectReport",
+            "confirmRejection",
+            "confirmVerification",
+            "confirmNewHazard")) {
       Method handler =
           java.util.Arrays.stream(VerificationConsoleUI.class.getDeclaredMethods())
               .filter(method -> method.getName().equals(name))
