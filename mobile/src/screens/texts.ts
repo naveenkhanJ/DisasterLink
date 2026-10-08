@@ -46,11 +46,14 @@ const SINHALA_MONTHS = [
   'දෙසැම්බර්',
 ];
 
-/** The three languages of the selector, in the order the frames draw them. */
-export const LANGUAGE_OPTIONS: readonly { value: Language; label: string }[] = [
-  { value: 'SINHALA', label: 'Sinhala' },
-  { value: 'TAMIL', label: 'Tamil' },
-  { value: 'ENGLISH', label: 'English' },
+/**
+ * The three languages of the selector, in the order the frames draw them. Each is written in its own
+ * script and read out by its English name (standards section 10 item 18, deviation D-UC2-8, P240).
+ */
+export const LANGUAGE_OPTIONS: readonly { value: Language; label: string; name: string }[] = [
+  { value: 'SINHALA', label: 'සිංහල', name: 'Sinhala' },
+  { value: 'TAMIL', label: 'தமிழ்', name: 'Tamil' },
+  { value: 'ENGLISH', label: 'English', name: 'English' },
 ];
 
 /** The warning levels as the screens write them in full (model dictionary section 1). */

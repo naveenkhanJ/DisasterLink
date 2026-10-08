@@ -59,6 +59,19 @@ export interface ShowHomeProps {
   onDismissDiscarded: () => void;
 }
 
+/**
+ * The weight of a segment's text. Only the Regular faces of Noto Sans Sinhala and Noto Sans Tamil
+ * are loaded, so those two segments set no bold weight at all, selected or not; the check icon and
+ * the colours show the selection. English keeps its semi-bold, and bold when selected (standards
+ * section 10 item 18, D-UC2-8, P240).
+ */
+function segmentWeight(language: Language, on: boolean) {
+  if (language !== 'ENGLISH') {
+    return { fontWeight: 'normal' as const };
+  }
+  return { fontWeight: on ? ('800' as const) : ('600' as const) };
+}
+
 /** The three-way selector; disabled while the home is the saved copy (language changes online only). */
 function LanguageSelector({
   selected,
@@ -79,6 +92,7 @@ function LanguageSelector({
             <Pressable
               key={option.value}
               accessibilityRole="radio"
+              accessibilityLabel={option.name}
               accessibilityState={{ selected: on, disabled }}
               disabled={disabled}
               onPress={() => onSelect(option.value)}
@@ -92,7 +106,9 @@ function LanguageSelector({
               <Text
                 style={[
                   styles.segmentText,
-                  on && { color: colors.selectedText, fontWeight: '800' },
+                  { fontFamily: FONT_FOR[option.value] },
+                  segmentWeight(option.value, on),
+                  on && { color: colors.selectedText },
                 ]}
               >
                 {option.label}

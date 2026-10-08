@@ -573,6 +573,39 @@ class ReportVerificationControllerTest {
     verifyNoInteractions(warnings);
   }
 
+  @ParameterizedTest(name = "[{index}] {0}")
+  @MethodSource("incompleteDetails")
+  @DisplayName("SC2 E9 25t-25u (P240): validateNewHazardDetails lists the errors in order")
+  void validationListsTheErrorsInOrder(
+      String ignoredCase, NewHazardDetails details, List<String> expectedErrors) {
+    assertThat(controller.validateNewHazardDetails(details)).isEqualTo(expectedErrors);
+  }
+
+  @Test
+  @DisplayName("SC2 E9 (P240): complete details give an empty list, with or without a description")
+  void completeDetailsHaveNoErrors() {
+    assertThat(controller.validateNewHazardDetails(details("Kelani is over its banks"))).isEmpty();
+    assertThat(controller.validateNewHazardDetails(details(null))).isEmpty();
+  }
+
+  @Test
+  @DisplayName("SC2 E9 (P240): validateNewHazardDetails reads and writes nothing")
+  void validationTouchesNothing() {
+    controller.validateNewHazardDetails(new NewHazardDetails(null, null, null, null));
+    controller.validateNewHazardDetails(details("d"));
+
+    verifyNoInteractions(hazards, reports, ids, warnings, transactionManager);
+    assertNoNoticeSent();
+  }
+
+  @Test
+  @DisplayName("SC2 E9 (P240): validateNewHazardDetails needs details")
+  void validationNeedsDetails() {
+    assertThatThrownBy(() -> controller.validateNewHazardDetails(null))
+        .isInstanceOf(NullPointerException.class)
+        .hasMessageContaining("details");
+  }
+
   @Test
   @DisplayName("SC2 A6: verifyAsNewHazard needs details")
   void newHazardNeedsDetails() {

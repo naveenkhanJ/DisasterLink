@@ -142,7 +142,7 @@ describe('found messages: synchronisation, alerts and decisions', () => {
     await renderApp(rig);
 
     await run(() =>
-      ui().receiveAlert('WRN-2026-0087', 'LEVEL_3_RED', 'Evacuate low-lying areas now'),
+      ui().receiveAlert('WRN-2026-0199', 'LEVEL_3_RED', 'Evacuate low-lying areas now'),
     );
 
     expect(screen.getByText('Warning alert')).toBeTruthy();
