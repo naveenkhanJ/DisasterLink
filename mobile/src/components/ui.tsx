@@ -21,8 +21,10 @@ import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { ICONS, type IconElement, type IconName } from './iconData';
 
 import {
+  TAB_ICON_LABEL_GAP,
+  TAB_LABEL_LINE_HEIGHT,
   TAB_PADDING_TOP,
-  TAB_SOON_BOTTOM,
+  TAB_SOON_GAP,
   TAB_UNDERLINE_HEIGHT,
   TAB_UNDERLINE_INSET,
 } from '../constants';
@@ -357,7 +359,7 @@ export function ServiceUnavailableBanner({
 }: {
   text: string;
   onRetry: () => void;
-  /** Retry is running: the button is disabled and reads "Trying again…" (standards §10 item 12, P222). */
+  /** Retry is running, for at least `MIN_RETRY_FEEDBACK_MS`: the button is disabled and reads "Trying again…" (standards §10 item 12, P222, P225). */
   busy?: boolean;
   /** When the last retry ended with the fault still there: adds "Still unavailable — tried at HH:MM". */
   retriedAt?: Date;
@@ -407,15 +409,19 @@ export function TabBar({
   onReport: () => void;
   onSoon: (label: string) => void;
 }) {
-  // Every tab has the same layout (icon at a fixed top offset, label under it); the underline and
-  // "Not in this version" are absolutely positioned, so nothing moves the icons (standards §10 item 15, P222).
+  // Every tab has the same layout, from the top: icon at a fixed offset, the label, then the underline
+  // (transparent on the tabs that are not active) or, on Profile, "Not in this version" in its place. Items
+  // under the label never move the icon, and the underline follows the label's size (standards §10 item 15, P226).
   const tab = (name: Tab, icon: IconName, onPress: () => void) => {
     const on = name === active;
     return (
       <Pressable accessibilityRole="tab" onPress={onPress} style={styles.tab}>
         <Icon name={icon} size={22} color={on ? colors.text : colors.muted} />
         <Text style={[styles.tabText, on && styles.tabTextActive]}>{name}</Text>
-        {on ? <View testID="tab-underline" style={styles.tabUnderline} /> : null}
+        <View
+          testID="tab-underline"
+          style={[styles.tabUnderline, { backgroundColor: on ? colors.text : 'transparent' }]}
+        />
       </Pressable>
     );
   };
@@ -636,17 +642,21 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'flex-start',
     paddingTop: TAB_PADDING_TOP,
-    gap: 2,
   },
   tabUnderline: {
-    position: 'absolute',
-    bottom: 0,
-    left: TAB_UNDERLINE_INSET,
-    right: TAB_UNDERLINE_INSET,
+    alignSelf: 'stretch',
+    marginTop: TAB_PADDING_TOP,
+    marginHorizontal: TAB_UNDERLINE_INSET,
     height: TAB_UNDERLINE_HEIGHT,
-    backgroundColor: colors.text,
   },
-  tabText: { fontFamily: fonts.ui, fontSize: 12, fontWeight: '600', color: colors.muted },
+  tabText: {
+    fontFamily: fonts.ui,
+    fontSize: 12,
+    lineHeight: TAB_LABEL_LINE_HEIGHT,
+    fontWeight: '600',
+    color: colors.muted,
+    marginTop: TAB_ICON_LABEL_GAP,
+  },
   tabTextActive: { color: colors.text, fontWeight: '800' },
   soonTag: {
     fontFamily: fonts.ui,
@@ -658,8 +668,7 @@ export const styles = StyleSheet.create({
     borderColor: colors.borderStrong,
     borderRadius: 4,
     paddingHorizontal: 4,
-    position: 'absolute',
-    bottom: TAB_SOON_BOTTOM,
+    marginTop: TAB_SOON_GAP,
   },
   soonNotice: {
     flexDirection: 'row',

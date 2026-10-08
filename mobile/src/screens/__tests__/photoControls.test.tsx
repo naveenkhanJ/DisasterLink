@@ -138,7 +138,7 @@ describe('photo replace with visible controls (standards §10 item 9, P213; UC2-
     expect(screen.getByRole('button', { name: 'Take photo' })).toBeTruthy();
   });
 
-  it('WF2P-S03 (G1): the gallery button has the image icon (a rounded rectangle), the camera button its camera icon, and both buttons have the same width', async () => {
+  it('WF2P-S03 (G1): the gallery button has the image icon (a rounded rectangle), the camera button its camera icon, and the widths are in the proportion 1 : 1.3', async () => {
     const rig = makeRig();
     rig.photos.takePhoto.mockResolvedValue({ kind: 'photo', uri: FIRST });
     await toForm(rig);
@@ -148,12 +148,17 @@ describe('photo replace with visible controls (standards §10 item 9, P213; UC2-
 
     expect(typesIn(gallery).join(' ')).toContain('RNSVGRect');
     expect(typesIn(camera).join(' ')).not.toContain('RNSVGRect');
-    expect(StyleSheet.flatten(gallery.props.style).flex).toBe(1);
+    expect(StyleSheet.flatten(gallery.props.style).flex).toBe(1.3);
     expect(StyleSheet.flatten(camera.props.style).flex).toBe(1);
+    expect(StyleSheet.flatten(gallery.props.style).paddingHorizontal).toBe(8);
+    expect(StyleSheet.flatten(camera.props.style).paddingHorizontal).toBe(8);
     await run(() => fireEvent.press(camera));
     const another = screen.getByRole('button', { name: 'Choose another' });
+    const retake = screen.getByRole('button', { name: 'Retake photo' });
     expect(typesIn(another).join(' ')).toContain('RNSVGRect');
-    expect(StyleSheet.flatten(another.props.style).flex).toBe(1);
+    expect(typesIn(retake).join(' ')).not.toContain('RNSVGRect');
+    expect(StyleSheet.flatten(another.props.style).flex).toBe(1.3);
+    expect(StyleSheet.flatten(retake.props.style).flex).toBe(1);
   });
 
   it('WF2P-S03 (G2): "Remove" under the photo is a danger button (red border, red text); "View" stays secondary', async () => {

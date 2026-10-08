@@ -34,7 +34,7 @@ import {
   TextField,
   styles as ui,
 } from '../components/ui';
-import { MAX_ADDRESS_LENGTH, MAX_DESCRIPTION_LENGTH } from '../constants';
+import { MAX_ADDRESS_LENGTH, MAX_DESCRIPTION_LENGTH, PICK_GALLERY_FLEX } from '../constants';
 import { colors, space } from '../theme';
 import { Screen, screenStyles as s, useScrollIntoView, useScrollWhenShown } from './Screen';
 import { CameraPermissionNotice, ShowPhotoError } from './ShowPhotoError';
@@ -164,7 +164,7 @@ function PhotoBlock({
           label={attached ? 'Choose another' : 'Choose from gallery'}
           kind="secondary"
           icon="image"
-          style={{ flex: 1, paddingHorizontal: 8 }}
+          style={{ flex: PICK_GALLERY_FLEX, paddingHorizontal: 8 }}
           onPress={() => onPick('gallery')}
         />
       </View>
@@ -197,7 +197,6 @@ function ReportFormContent(props: ReportFormProps) {
     />
   );
   const addressShown = manual || pickerOpen || props.changingLocation || props.addressText !== '';
-  const noticeShown = props.locationUnavailable && hasLocationNotice(props.locationAccess);
   const scrollIntoView = useScrollIntoView();
   const hazardRef = useRef<View>(null);
   const descriptionRef = useRef<View>(null);
@@ -205,7 +204,6 @@ function ReportFormContent(props: ReportFormProps) {
   const locationRef = useRef<View>(null);
   const addressRef = useRef<View>(null);
   useScrollWhenShown(addressShown, addressRef);
-  useScrollWhenShown(noticeShown, locationRef);
   // A review gives a new `other` list (a photo or location edit keeps the old one), so only a review
   // scrolls to the first field with an error.
   const seenReview = useRef(errors.other);

@@ -459,6 +459,12 @@ export function nearestPlaceLabel(
   return `Near ${placeRowText(place, district)} · ${distance} km`;
 }
 
+/** The home's empty "My reports" line while the home is the saved copy (standards section 10 item 16, P225). */
+export const NO_REPORTS_OFFLINE = 'Reports load when you are online';
+
+/** The home's empty "Active warnings" line while the home is the saved copy (standards section 10 item 16, P225). */
+export const NO_WARNINGS_OFFLINE = 'Warnings load when you are online';
+
 /** The title of the home's location card when there is no fix (E1, G6, P222). */
 export const LOCATION_UNAVAILABLE_TITLE = 'Current location unavailable';
 
@@ -466,14 +472,17 @@ export const LOCATION_UNAVAILABLE_TITLE = 'Current location unavailable';
  * Gives the muted second line of the home's location card when there is no fix.
  *
  * @param access why there is no fix, when it is known
+ * @param appName the name under which Settings list this app (`hostAppName()`: "Expo Go" or
+ *   "DisasterLink"), named in the blocked line (standards section 10 item 14, P225)
  * @returns the reason and the action, or a plain waiting line when nothing is known
  */
 export function homeLocationReason(
   access: 'granted' | 'askable' | 'blocked' | 'servicesOff' | undefined,
+  appName: string,
 ): string {
   switch (access) {
     case 'blocked':
-      return 'Allow location access for Expo Go in Settings';
+      return `Allow location access for ${appName} in Settings`;
     case 'askable':
       return 'Allow location access to show it here';
     case 'servicesOff':

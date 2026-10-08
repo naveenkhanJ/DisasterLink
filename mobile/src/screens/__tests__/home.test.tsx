@@ -1,6 +1,7 @@
 import { act, fireEvent, screen } from '@testing-library/react-native';
 import { StyleSheet } from 'react-native';
 import { ApiError, NetworkError } from '../../api/httpClient';
+import { MIN_RETRY_FEEDBACK_MS } from '../../constants';
 import { withStatus } from '../../report/ReportDraft';
 import { FILLED_DRAFT, makeRig, ONLINE_HOME, renderApp, REPORT, run, ui, WARNING } from './support';
 
@@ -11,6 +12,10 @@ jest.mock('../../notifications/notifications', () => ({
 const SERVER_FAULT = new ApiError(500, 'Internal Server Error');
 
 describe('home screen', () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   it('WF2P-S01 / SC2 steps 1-2: shows the connectivity, the warning, the location and the empty lists', async () => {
     const rig = makeRig();
 
@@ -120,9 +125,39 @@ describe('home screen', () => {
 
     await renderApp(rig);
 
-    expect(screen.getByText('No active warnings')).toBeTruthy();
+    expect(screen.getByText('Warnings load when you are online')).toBeTruthy();
+    expect(screen.getByText('Reports load when you are online')).toBeTruthy();
     expect(screen.getByText('Current location unavailable')).toBeTruthy();
     expect(screen.getByText('The phone has not found its position yet')).toBeTruthy();
+  });
+
+  it('SC2 A8 (R6): offline with only one list empty, only that list gives the offline line', async () => {
+    const rig = makeRig();
+    rig.controller.loadHome.mockResolvedValue({
+      warnings: [],
+      myReports: [REPORT],
+      pendingDrafts: [],
+      language: 'ENGLISH',
+      fromCache: true,
+    });
+
+    await renderApp(rig);
+
+    expect(screen.getByText('Warnings load when you are online')).toBeTruthy();
+    expect(screen.queryByText('Reports load when you are online')).toBeNull();
+    expect(screen.queryByText('No reports yet')).toBeNull();
+  });
+
+  it('SC2 step 2 (R6): online the empty lists keep their own texts', async () => {
+    const rig = makeRig();
+    rig.controller.loadHome.mockResolvedValue({ ...ONLINE_HOME, warnings: [], myReports: [] });
+
+    await renderApp(rig);
+
+    expect(screen.getByText('No active warnings')).toBeTruthy();
+    expect(screen.getByText('No reports yet')).toBeTruthy();
+    expect(screen.queryByText('Warnings load when you are online')).toBeNull();
+    expect(screen.queryByText('Reports load when you are online')).toBeNull();
   });
 
   it('SC2 step 2: "My reports" lists the reports with their status and opens one', async () => {
@@ -182,6 +217,7 @@ describe('home screen', () => {
   });
 
   it('C1: Retry loads the home again and the banner goes away', async () => {
+    jest.useFakeTimers();
     const rig = makeRig();
     rig.controller.loadHome
       .mockResolvedValueOnce({ ...ONLINE_HOME, error: true })
@@ -189,6 +225,7 @@ describe('home screen', () => {
     await renderApp(rig);
 
     await run(() => fireEvent.press(screen.getByRole('button', { name: 'Retry' })));
+    await run(() => jest.advanceTimersByTimeAsync(MIN_RETRY_FEEDBACK_MS));
 
     expect(screen.queryByText('The service is unavailable and nothing was changed')).toBeNull();
     expect(rig.controller.loadHome).toHaveBeenCalledTimes(2);

@@ -23,7 +23,7 @@ import { Linking } from 'react-native';
 import type { GeoPoint, HazardReport, ReportDecisionNotice, SyncResult } from '../api/reportApi';
 import type { HazardType, Language, WarningLevel } from '../api/types';
 import type { AppEnv } from '../config/env';
-import { MAX_ADDRESS_LENGTH } from '../constants';
+import { MAX_ADDRESS_LENGTH, MIN_RETRY_FEEDBACK_MS } from '../constants';
 import { districtCentre } from '../location/districtCentre';
 import type { LocationAccess, LocationAccessState } from '../location/locationAccess';
 import { presentLocalAlert } from '../notifications/notifications';
@@ -126,6 +126,11 @@ export interface CitizenAppState {
   serviceUnavailable: boolean;
   /** When the last Retry ended with the fault still there; cleared when the banner goes (P222). */
   retriedAt: Date | undefined;
+  /**
+   * A Retry is running: from the press until both the call and the minimum feedback time are over
+   * (standards section 10 item 12, P225); the banner's "Trying again…" follows this, not `loading`.
+   */
+  retrying: boolean;
   /** The last synchronisation results (`showSyncResults`). */
   syncResults: SyncResult[];
   /** A rejected draft was just discarded (WF2P-S01d). */
@@ -261,6 +266,7 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
   const [report, setReport] = useState<HazardReport>();
   const [serviceUnavailable, setServiceUnavailable] = useState(false);
   const [retriedAt, setRetriedAt] = useState<Date>();
+  const [retrying, setRetrying] = useState(false);
   const [syncResults, setSyncResults] = useState<SyncResult[]>([]);
   const [draftDiscarded, setDraftDiscarded] = useState(false);
   const [alerts, setAlerts] = useState<AlertNotice[]>([]);
@@ -282,6 +288,7 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
   const discardQuestionRef = useRef(false);
   const unavailableRef = useRef(false);
   const serviceRef = useRef(false);
+  const retryingRef = useRef(false);
   const descriptionRef = useRef('');
   const addressRef = useRef('');
   const connectionRef = useRef<ConnectionState>('online');
@@ -876,19 +883,36 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
     [env.citizenLanguage, readReport],
   );
 
+  /**
+   * Retry (standards section 10 item 12, P225): the call and a delay of `MIN_RETRY_FEEDBACK_MS` run
+   * together, so "Trying again…" stays at least that long; a call that works applies its result when
+   * it arrives (the banner goes at once), and a fault that remains shows the "tried at" line when
+   * both are over, with the time of that moment.
+   */
   const retry = useCallback(async () => {
+    if (retryingRef.current) {
+      return;
+    }
+    retryingRef.current = true;
+    setRetrying(true);
     const current = routeRef.current;
-    await withLoading(async () => {
-      if (current.name === 'reportStatus') {
-        await readReport(current.reportId, { showLoading: false, keepBanner: true });
-      } else {
-        await guarded(refreshHome, true);
-      }
-    });
-    // The banner stays when the status call failed again, or the home loaded with part of it failing.
-    const still =
-      serviceRef.current || (routeRef.current.name === 'home' && homeRef.current?.error === true);
-    setRetriedAt(still ? new Date() : undefined);
+    try {
+      await withLoading(async () => {
+        const attempt =
+          current.name === 'reportStatus'
+            ? readReport(current.reportId, { showLoading: false, keepBanner: true })
+            : guarded(refreshHome, true);
+        const feedback = new Promise<void>((resolve) => setTimeout(resolve, MIN_RETRY_FEEDBACK_MS));
+        await Promise.all([attempt, feedback]);
+      });
+      // The banner stays when the status call failed again, or the home loaded with part of it failing.
+      const still =
+        serviceRef.current || (routeRef.current.name === 'home' && homeRef.current?.error === true);
+      setRetriedAt(still ? new Date() : undefined);
+    } finally {
+      retryingRef.current = false;
+      setRetrying(false);
+    }
   }, [withLoading, readReport, guarded, refreshHome]);
 
   // The "tried at" line belongs to the banner: it is shown only while the banner condition holds, and a new
@@ -931,6 +955,7 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
     report,
     serviceUnavailable,
     retriedAt: bannerCondition ? retriedAt : undefined,
+    retrying,
     syncResults,
     draftDiscarded,
     alerts,

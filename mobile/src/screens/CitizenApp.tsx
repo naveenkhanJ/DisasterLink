@@ -20,6 +20,7 @@ import {
   TabBar,
   styles as ui,
 } from '../components/ui';
+import { hostAppName } from '../config/env';
 import {
   DISCARDED_NOTICE_MS,
   MAX_ALERTS_SHOWN,
@@ -60,6 +61,7 @@ function CurrentScreen({ ui: app }: { ui: CitizenAppUI }) {
           view={app.home}
           currentLocation={app.currentLocation}
           locationAccess={app.locationAccess}
+          appName={hostAppName()}
           draftDiscarded={app.draftDiscarded}
           onSelectLanguage={(language) => void app.selectLanguage(language)}
           onAllowLocationAccess={() => void app.allowLocationAccess()}
@@ -173,7 +175,7 @@ export function CitizenApp({ ui: app }: { ui: CitizenAppUI }) {
             <ServiceUnavailableBanner
               text={SERVICE_UNAVAILABLE_TEXT}
               onRetry={() => void app.retry()}
-              busy={app.loading}
+              busy={app.retrying}
               retriedAt={app.retriedAt}
             />
           ) : null}

@@ -11,19 +11,23 @@
  * 12f; WF2P-S03a and S03b; standards §10 "Manual location", P213, P222). The same block, opened at
  * once, is the "Change" of a manual location, with the button "Keep this location" to close it.
  *
- * Opening the picker scrolls the place field into view and focuses it; the list appearing scrolls it
- * above the keyboard (standards §10 item 13, P222). The place names are phone-side labels, never
+ * Opening the picker focuses the place field and, once the keyboard is up, scrolls it to the top; the
+ * list appearing scrolls it above the keyboard (standards §10 item 13, P222, P225). The place names are phone-side labels, never
  * stored or sent. There are no coordinate fields and no online geocoder (P213). Place names:
  * GeoNames (CC BY 4.0).
  *
  * Implements CH-27 (FD-12).
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import MapView from 'react-native-maps';
 import type { GeoPoint } from '../api/reportApi';
 import { Banner, Button, ErrorText, Icon, TextField, styles as ui } from '../components/ui';
-import { CHOSEN_PLACE_KEEP_KM, MANUAL_PLACE_RADIUS_KM } from '../constants';
+import {
+  CHOSEN_PLACE_KEEP_KM,
+  MANUAL_PLACE_RADIUS_KM,
+  PICKER_SCROLL_FALLBACK_MS,
+} from '../constants';
 import { resolveDistrict } from '../location/LocationService';
 import {
   distanceKm,
@@ -179,11 +183,31 @@ export function ShowLocationUnavailable(props: ShowLocationUnavailableProps) {
   );
   const listShown = matches.length > 0;
 
+  // Opening: focus the place field first, then scroll it to the top once the keyboard is up, so the
+  // map shows under it (the field's final place is known only then). One scroll: on the first
+  // `keyboardDidShow`, or after PICKER_SCROLL_FALLBACK_MS when no keyboard event comes (the keyboard
+  // was already up, or a hardware keyboard). The listener and the timer go after it and on unmount
+  // (standards §10 item 13, P225).
   useEffect(() => {
-    if (open) {
-      scrollIntoView(fieldRef);
-      inputRef.current?.focus();
+    if (!open) {
+      return undefined;
     }
+    let scrolled = false;
+    const scrollOnce = () => {
+      if (!scrolled) {
+        scrolled = true;
+        scrollIntoView(fieldRef);
+      }
+      release();
+    };
+    const subscription = Keyboard.addListener('keyboardDidShow', scrollOnce);
+    const timer = setTimeout(scrollOnce, PICKER_SCROLL_FALLBACK_MS);
+    function release(): void {
+      subscription.remove();
+      clearTimeout(timer);
+    }
+    inputRef.current?.focus();
+    return release;
   }, [open, scrollIntoView]);
 
   useEffect(() => {

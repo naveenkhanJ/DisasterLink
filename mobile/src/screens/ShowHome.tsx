@@ -29,6 +29,8 @@ import {
   LOCATION_UNAVAILABLE_TITLE,
   homeLocationReason,
   locationSource,
+  NO_REPORTS_OFFLINE,
+  NO_WARNINGS_OFFLINE,
   UNSENT_SECTION_LINE,
   UNSENT_SECTION_TITLE,
   LEVEL_TONES,
@@ -42,6 +44,8 @@ export interface ShowHomeProps {
   view: HomeView;
   currentLocation: GeoPoint | undefined;
   locationAccess: LocationAccessState | undefined;
+  /** The name under which Settings list this app (`hostAppName()`), for the blocked-access line. */
+  appName: string;
   draftDiscarded: boolean;
   onSelectLanguage: (language: Language) => void;
   /** "Allow location access" on the location card (blocked or askable). */
@@ -173,10 +177,12 @@ function PendingRow({ draft, onOpen }: { draft: ReportDraft; onOpen: (id: string
 function CurrentLocation({
   location,
   access,
+  appName,
   onAllowAccess,
 }: {
   location: GeoPoint | undefined;
   access: LocationAccessState | undefined;
+  appName: string;
   onAllowAccess: () => void;
 }) {
   const near = useMemo(() => (location ? nearestPlace(location)?.name : undefined), [location]);
@@ -194,7 +200,7 @@ function CurrentLocation({
           ) : (
             <>
               <Text style={s.strong}>{LOCATION_UNAVAILABLE_TITLE}</Text>
-              <Text style={ui.muted}>{homeLocationReason(access)}</Text>
+              <Text style={ui.muted}>{homeLocationReason(access, appName)}</Text>
             </>
           )}
         </View>
@@ -238,7 +244,9 @@ export function ShowHome(props: ShowHomeProps) {
           <Text style={s.cardTitle}>Active warnings</Text>
         </View>
         {view.warnings.length === 0 ? (
-          <Text style={[ui.muted, { fontSize: 15, marginTop: 6 }]}>No active warnings</Text>
+          <Text style={[ui.muted, { fontSize: 15, marginTop: 6 }]}>
+            {view.fromCache ? NO_WARNINGS_OFFLINE : 'No active warnings'}
+          </Text>
         ) : (
           view.warnings.map((warning) => (
             <WarningBlock key={warning.warningId} warning={warning} language={view.language} />
@@ -249,12 +257,15 @@ export function ShowHome(props: ShowHomeProps) {
       <CurrentLocation
         location={props.currentLocation}
         access={props.locationAccess}
+        appName={props.appName}
         onAllowAccess={props.onAllowLocationAccess}
       />
       <View style={{ gap: 6 }}>
         <Text style={s.section}>My reports</Text>
         {view.myReports.length === 0 ? (
-          <Text style={[ui.muted, { fontSize: 15 }]}>No reports yet</Text>
+          <Text style={[ui.muted, { fontSize: 15 }]}>
+            {view.fromCache ? NO_REPORTS_OFFLINE : 'No reports yet'}
+          </Text>
         ) : (
           view.myReports.map((report) => (
             <ReportRow key={report.reportId} report={report} onOpen={props.onOpenReport} />

@@ -611,8 +611,8 @@ describe('loadHome', () => {
     expect((await controller.loadHome()).fromCache).toBe(true);
   });
 
-  it('C1: a 5xx on the warnings leaves them empty, flags the error, keeps my reports and is not cached', async () => {
-    const { controller, skeleton, homeCache } = rig();
+  it('C1: a 5xx on the warnings leaves them empty, flags the error and keeps my reports', async () => {
+    const { controller, skeleton } = rig();
     skeleton.getActiveWarnings.mockRejectedValue(new ApiError(500, 'The service is unavailable.'));
 
     const home = await controller.loadHome();
@@ -623,7 +623,105 @@ describe('loadHome', () => {
       fromCache: false,
       error: true,
     });
-    expect(homeCache.saveHome).not.toHaveBeenCalled();
+  });
+
+  describe('the home is cached per part (standards §10 item 16, P225; UC2-7h R6)', () => {
+    const OLD_WARNING = { warningId: 'WRN-OLD' } as ActiveWarning;
+    const OLD_REPORT = { ...REPORT, reportId: 'RPT-OLD' };
+
+    /** A rig whose cache already holds a home from an earlier, fully working load. */
+    async function withSavedHome() {
+      const parts = rig();
+      parts.skeleton.getActiveWarnings.mockResolvedValue([OLD_WARNING]);
+      parts.api.getReportsByReporter.mockResolvedValue([OLD_REPORT]);
+      await parts.controller.loadHome();
+      parts.homeCache.saveHome.mockClear();
+      return parts;
+    }
+
+    it('SC2 A8 (R6): warnings fail and reports work: the new reports are saved, the old warnings kept, and the view still flags the error', async () => {
+      const { controller, api, skeleton, homeCache } = await withSavedHome();
+      api.getReportsByReporter.mockResolvedValue([REPORT]);
+      skeleton.getActiveWarnings.mockRejectedValue(
+        new ApiError(500, 'The service is unavailable.'),
+      );
+
+      const home = await controller.loadHome();
+
+      expect(home).toMatchObject({ warnings: [], myReports: [REPORT], error: true });
+      expect(homeCache.saveHome).toHaveBeenCalledWith(
+        expect.objectContaining({ warnings: [OLD_WARNING], myReports: [REPORT], fromCache: false }),
+      );
+      expect(homeCache.saveHome.mock.calls[0][0].error).toBeUndefined();
+    });
+
+    it('SC2 A8 (R6): reports fail and warnings work: the new warnings are saved, the old reports kept', async () => {
+      const { controller, api, skeleton, homeCache } = await withSavedHome();
+      skeleton.getActiveWarnings.mockResolvedValue([WARNING]);
+      api.getReportsByReporter.mockRejectedValue(new ApiError(502, 'Bad Gateway'));
+
+      const home = await controller.loadHome();
+
+      expect(home).toMatchObject({ warnings: [WARNING], myReports: [], error: true });
+      expect(homeCache.saveHome).toHaveBeenCalledWith(
+        expect.objectContaining({ warnings: [WARNING], myReports: [OLD_REPORT] }),
+      );
+    });
+
+    it('SC2 A8 (R6): with nothing saved before, the failed part is saved as empty', async () => {
+      const { controller, skeleton, homeCache } = rig();
+      skeleton.getActiveWarnings.mockRejectedValue(
+        new ApiError(500, 'The service is unavailable.'),
+      );
+
+      await controller.loadHome();
+
+      expect(homeCache.saveHome).toHaveBeenCalledWith(
+        expect.objectContaining({ warnings: [], myReports: [REPORT] }),
+      );
+    });
+
+    it('SC2 A8 (R6): both parts fail: nothing is saved and the old copy stays', async () => {
+      const { controller, api, skeleton, homeCache, isOnline } = await withSavedHome();
+      skeleton.getActiveWarnings.mockRejectedValue(
+        new ApiError(500, 'The service is unavailable.'),
+      );
+      api.getReportsByReporter.mockRejectedValue(new ApiError(502, 'Bad Gateway'));
+
+      const home = await controller.loadHome();
+      isOnline.mockResolvedValue(false);
+      const offline = await controller.loadHome();
+
+      expect(home.error).toBe(true);
+      expect(homeCache.saveHome).not.toHaveBeenCalled();
+      expect(offline).toMatchObject({ warnings: [OLD_WARNING], myReports: [OLD_REPORT] });
+    });
+
+    it('SC2 A8 (R6): both parts work: both are saved as loaded', async () => {
+      const { controller, api, skeleton, homeCache } = await withSavedHome();
+      api.getReportsByReporter.mockResolvedValue([REPORT]);
+      skeleton.getActiveWarnings.mockResolvedValue([WARNING]);
+
+      const home = await controller.loadHome();
+
+      expect(home.error).toBeUndefined();
+      expect(homeCache.saveHome).toHaveBeenCalledWith(
+        expect.objectContaining({ warnings: [WARNING], myReports: [REPORT] }),
+      );
+    });
+
+    it('SC2 A8 (R6): going offline after a partial load shows the reports that were saved', async () => {
+      const { controller, skeleton, isOnline } = rig();
+      skeleton.getActiveWarnings.mockRejectedValue(
+        new ApiError(500, 'The service is unavailable.'),
+      );
+      await controller.loadHome();
+      isOnline.mockResolvedValue(false);
+
+      const offline = await controller.loadHome();
+
+      expect(offline).toMatchObject({ warnings: [], myReports: [REPORT], fromCache: true });
+    });
   });
 
   it('C1: a 5xx on my reports leaves them empty and flags the error', async () => {

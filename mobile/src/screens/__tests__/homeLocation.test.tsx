@@ -1,5 +1,6 @@
-import { fireEvent, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen } from '@testing-library/react-native';
 import { StyleSheet } from 'react-native';
+import { ShowHome } from '../ShowHome';
 import { makeRig, ONLINE_HOME, renderApp, run, ui, type Rig } from './support';
 
 jest.mock('../../notifications/notifications', () => ({
@@ -101,6 +102,50 @@ describe('the nearest place under a GPS fix (standards §10, Nearest-place label
     await run(() => fireEvent.press(screen.getByRole('button', { name: 'Review Report' })));
 
     expect(screen.getByText('GPS · accuracy ±8 m')).toBeTruthy();
+  });
+});
+
+/** Draws the home with no fix and a blocked permission, for the app name given. */
+async function renderBlockedHome(appName: string): Promise<void> {
+  await render(
+    <ShowHome
+      view={ONLINE_HOME}
+      currentLocation={undefined}
+      locationAccess="blocked"
+      appName={appName}
+      draftDiscarded={false}
+      onSelectLanguage={jest.fn()}
+      onAllowLocationAccess={jest.fn()}
+      onReportHazard={jest.fn()}
+      onOpenReport={jest.fn()}
+      onOpenDraft={jest.fn()}
+      onDismissDiscarded={jest.fn()}
+    />,
+  );
+}
+
+describe('the Settings line names the host app (standards §10 item 14, P225; UC2-7h R1)', () => {
+  it('WF2P-S01 (R1): in Expo Go the blocked line says "Expo Go"', async () => {
+    await renderBlockedHome('Expo Go');
+
+    expect(screen.getByText('Allow location access for Expo Go in Settings')).toBeTruthy();
+  });
+
+  it('WF2P-S01 (R1): in the app itself the blocked line says "DisasterLink"', async () => {
+    await renderBlockedHome('DisasterLink');
+
+    expect(screen.getByText('Allow location access for DisasterLink in Settings')).toBeTruthy();
+    expect(screen.queryByText(/Expo Go/)).toBeNull();
+  });
+
+  it('WF2P-S01 (R1): the app passes the name that hostAppName gives (under jest-expo, not Expo Go)', async () => {
+    const rig = makeRig();
+    rig.controller.captureLocation.mockResolvedValue(undefined);
+    rig.locationAccess.check.mockResolvedValue('blocked');
+
+    await renderApp(rig);
+
+    expect(screen.getByText(/^Allow location access for .+ in Settings$/)).toBeTruthy();
   });
 });
 

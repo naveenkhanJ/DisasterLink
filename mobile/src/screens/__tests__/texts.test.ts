@@ -156,11 +156,22 @@ describe('formats and wording of the screens', () => {
   });
 
   it('standards §10 item 14 (P222): the home location card gives the reason and the action on its second line', () => {
-    expect(homeLocationReason('blocked')).toBe('Allow location access for Expo Go in Settings');
-    expect(homeLocationReason('askable')).toBe('Allow location access to show it here');
-    expect(homeLocationReason('servicesOff')).toBe('Turn on Location Services in Settings');
-    expect(homeLocationReason('granted')).toBe('The phone has not found its position yet');
-    expect(homeLocationReason(undefined)).toBe('The phone has not found its position yet');
+    expect(homeLocationReason('blocked', 'Expo Go')).toBe(
+      'Allow location access for Expo Go in Settings',
+    );
+    expect(homeLocationReason('blocked', 'DisasterLink')).toBe(
+      'Allow location access for DisasterLink in Settings',
+    );
+    expect(homeLocationReason('askable', 'Expo Go')).toBe('Allow location access to show it here');
+    expect(homeLocationReason('servicesOff', 'Expo Go')).toBe(
+      'Turn on Location Services in Settings',
+    );
+    expect(homeLocationReason('granted', 'Expo Go')).toBe(
+      'The phone has not found its position yet',
+    );
+    expect(homeLocationReason(undefined, 'Expo Go')).toBe(
+      'The phone has not found its position yet',
+    );
   });
 
   it('standards §10 item 12 (P222): the retry line gives the local time of the phone, 24-hour, with leading zeros', () => {

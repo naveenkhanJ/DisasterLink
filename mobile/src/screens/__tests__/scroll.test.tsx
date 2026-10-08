@@ -1,6 +1,6 @@
 import { render, fireEvent, screen } from '@testing-library/react-native';
 import React, { useEffect, useRef } from 'react';
-import { ScrollView, TextInput, View } from 'react-native';
+import { Keyboard, ScrollView, TextInput, View } from 'react-native';
 import { useScrollIntoView } from '../Screen';
 import { FILLED_DRAFT, makeRig, ONLINE_HOME, renderApp, run, type Rig } from './support';
 
@@ -20,13 +20,32 @@ const scrolledTo = () =>
     (context: { props: { testID?: string } }) => context.props.testID,
   );
 
+/** The `keyboardDidShow` handlers that the screens registered and the `remove` of each subscription. */
+let keyboardHandlers: (() => void)[];
+let removeListener: jest.Mock;
+
+/** Tells the screens that the keyboard came up. */
+const keyboardShows = () => keyboardHandlers.forEach((handler) => handler());
+
 beforeEach(() => {
+  jest.useFakeTimers();
+  keyboardHandlers = [];
+  removeListener = jest.fn();
+  jest.spyOn(Keyboard, 'addListener').mockImplementation(((_event: string, handler: () => void) => {
+    keyboardHandlers.push(handler);
+    return { remove: removeListener };
+  }) as never);
   measureLayout.mockReset();
   scrollTo.mockReset();
   focus.mockReset();
   measureLayout.mockImplementation((_relativeTo: unknown, onSuccess: (...args: number[]) => void) =>
     onSuccess(0, 300, 358, 60),
   );
+});
+
+afterEach(() => {
+  jest.useRealTimers();
+  jest.restoreAllMocks();
 });
 
 async function toForm(rig: Rig): Promise<void> {
@@ -47,7 +66,7 @@ async function toFormWithoutFix(rig: Rig): Promise<void> {
 }
 
 describe('content that appears is scrolled into view (standards §10 item 13, P222; UC2-7e G8)', () => {
-  it('WF2P-S03a (G8): opening the picker scrolls the place field to 16 points below the top and focuses it', async () => {
+  it('WF2P-S03a (G8, R4): opening the picker focuses the place field first and scrolls it to 16 points below the top only once the keyboard is shown', async () => {
     await toFormWithoutFix(makeRig());
     measureLayout.mockClear();
     scrollTo.mockClear();
@@ -56,10 +75,64 @@ describe('content that appears is scrolled into view (standards §10 item 13, P2
       fireEvent.press(screen.getByRole('button', { name: 'Enter location manually' })),
     );
 
-    expect(scrolledTo()).toContain('place-field');
-    expect(scrollTo).toHaveBeenCalledWith({ y: 284, animated: true });
     expect(focus).toHaveBeenCalled();
     expect(focus.mock.contexts[0].props.accessibilityLabel).toBe('Type a town or village');
+    // Only the address field, which the picker brings with it, has been scrolled to so far.
+    expect(scrolledTo()).toEqual(['address-field']);
+    const focusedAt = focus.mock.invocationCallOrder[0];
+
+    await run(() => keyboardShows());
+
+    expect(scrolledTo()).toEqual(['address-field', 'place-field']);
+    expect(scrollTo).toHaveBeenLastCalledWith({ y: 284, animated: true });
+    expect(measureLayout.mock.invocationCallOrder[1]).toBeGreaterThan(focusedAt);
+  });
+
+  it('WF2P-S03a (R4): with no keyboard event the field is scrolled to once, after 400 ms', async () => {
+    await toFormWithoutFix(makeRig());
+    measureLayout.mockClear();
+
+    await run(() =>
+      fireEvent.press(screen.getByRole('button', { name: 'Enter location manually' })),
+    );
+    await run(() => jest.advanceTimersByTimeAsync(399));
+    expect(scrolledTo()).not.toContain('place-field');
+
+    await run(() => jest.advanceTimersByTimeAsync(1));
+
+    expect(scrolledTo()).toEqual(['address-field', 'place-field']);
+    expect(removeListener).toHaveBeenCalled();
+  });
+
+  it('WF2P-S03a (R4): after the first scroll a later keyboard event and the fallback scroll nowhere', async () => {
+    await toFormWithoutFix(makeRig());
+    await run(() =>
+      fireEvent.press(screen.getByRole('button', { name: 'Enter location manually' })),
+    );
+    await run(() => keyboardShows());
+    measureLayout.mockClear();
+
+    await run(() => keyboardShows());
+    await run(() => jest.advanceTimersByTimeAsync(1_000));
+
+    expect(scrolledTo()).toEqual([]);
+    expect(removeListener).toHaveBeenCalled();
+  });
+
+  it('WF2P-S03a (R4): closing the screen before the keyboard shows removes the listener and the timer, and nothing scrolls', async () => {
+    await toFormWithoutFix(makeRig());
+    await run(() =>
+      fireEvent.press(screen.getByRole('button', { name: 'Enter location manually' })),
+    );
+    measureLayout.mockClear();
+    removeListener.mockClear();
+
+    await screen.unmount();
+    keyboardShows();
+    await jest.advanceTimersByTimeAsync(1_000);
+
+    expect(removeListener).toHaveBeenCalled();
+    expect(scrolledTo()).toEqual([]);
   });
 
   it('WF2P-S03a (G8): never above the top of the page: a target near the top scrolls to 0', async () => {
@@ -72,11 +145,12 @@ describe('content that appears is scrolled into view (standards §10 item 13, P2
     await run(() =>
       fireEvent.press(screen.getByRole('button', { name: 'Enter location manually' })),
     );
+    await run(() => keyboardShows());
 
     expect(scrollTo).toHaveBeenCalledWith({ y: 0, animated: true });
   });
 
-  it('WF2P-S03a (G8): "Change" opens the picker at once and scrolls to and focuses the place field', async () => {
+  it('WF2P-S03a (G8, R4): "Change" opens the picker at once, focuses the place field and scrolls to it once the keyboard shows', async () => {
     const rig = makeRig();
     await toFormWithoutFix(rig);
     await run(() =>
@@ -96,9 +170,10 @@ describe('content that appears is scrolled into view (standards §10 item 13, P2
     focus.mockClear();
 
     await run(() => fireEvent.press(screen.getByRole('button', { name: 'Change location' })));
+    expect(focus).toHaveBeenCalled();
+    await run(() => keyboardShows());
 
     expect(scrolledTo()).toContain('place-field');
-    expect(focus).toHaveBeenCalled();
   });
 
   it('WF2P-S03a (G8): the place list appearing while typing scrolls the field so the list stays above the keyboard', async () => {
@@ -106,6 +181,7 @@ describe('content that appears is scrolled into view (standards §10 item 13, P2
     await run(() =>
       fireEvent.press(screen.getByRole('button', { name: 'Enter location manually' })),
     );
+    await run(() => keyboardShows());
     measureLayout.mockClear();
 
     await run(() => fireEvent.changeText(screen.getByLabelText('Type a town or village'), 'kalu'));
@@ -203,7 +279,7 @@ describe('content that appears is scrolled into view (standards §10 item 13, P2
     expect(scrolledTo()).toEqual([]);
   });
 
-  it('WF2P-S03g (G8): the location notice appearing on the form scrolls to the location block', async () => {
+  it('WF2P-S03g (R3): the location notice appearing as the form opens does not move the page, and the notice still shows', async () => {
     const rig = makeRig();
     rig.locationAccess.check.mockResolvedValue('blocked');
     await renderApp(rig);
@@ -216,13 +292,26 @@ describe('content that appears is scrolled into view (standards §10 item 13, P2
     await run(() => fireEvent.press(screen.getByRole('button', { name: 'Flood' })));
     expect(screen.getByText('Finding your location…')).toBeTruthy();
     measureLayout.mockClear();
+    scrollTo.mockClear();
 
     await run(() => noFix(undefined));
 
     expect(
       screen.getAllByText('Allow location access to use your current location').length,
     ).toBeGreaterThan(0);
-    expect(scrolledTo()).toContain('location-block');
+    expect(scrolledTo()).toEqual([]);
+    expect(scrollTo).not.toHaveBeenCalled();
+    expect(focus).not.toHaveBeenCalled();
+    expect(keyboardHandlers).toHaveLength(0);
+  });
+
+  it('WF2P-S03 (R3): the form opens at its top: no scroll, no focused field and no keyboard listener', async () => {
+    await toFormWithoutFix(makeRig());
+
+    expect(scrolledTo()).toEqual([]);
+    expect(scrollTo).not.toHaveBeenCalled();
+    expect(focus).not.toHaveBeenCalled();
+    expect(keyboardHandlers).toHaveLength(0);
   });
 
   it('WF2P-S03 (G8): the plain "GPS location is unavailable" does not scroll (only the S03g notice does)', async () => {

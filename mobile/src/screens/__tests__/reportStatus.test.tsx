@@ -1,5 +1,6 @@
 import { fireEvent, screen } from '@testing-library/react-native';
 import { ApiError, NetworkError } from '../../api/httpClient';
+import { MIN_RETRY_FEEDBACK_MS } from '../../constants';
 import { makeRig, ONLINE_HOME, renderApp, REPORT, run, ui } from './support';
 
 jest.mock('../../notifications/notifications', () => ({
@@ -14,6 +15,10 @@ const VERIFIED = {
 };
 
 describe('report status', () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   beforeEach(() => {
     jest.spyOn(console, 'warn').mockImplementation(() => undefined);
   });
@@ -67,6 +72,7 @@ describe('report status', () => {
   });
 
   it('WF2P-S06 (C1): a server fault shows the common error banner, and Retry reads the report again', async () => {
+    jest.useFakeTimers();
     const rig = makeRig();
     rig.controller.getReportStatus
       .mockRejectedValueOnce(new ApiError(503, 'Service Unavailable'))
@@ -77,6 +83,7 @@ describe('report status', () => {
     expect(screen.getByText('The service is unavailable and nothing was changed')).toBeTruthy();
     expect(screen.queryByText('Report status')).toBeNull();
     await run(() => fireEvent.press(screen.getByRole('button', { name: 'Retry' })));
+    await run(() => jest.advanceTimersByTimeAsync(MIN_RETRY_FEEDBACK_MS));
 
     expect(screen.queryByText('The service is unavailable and nothing was changed')).toBeNull();
     expect(screen.getByText('Verified')).toBeTruthy();

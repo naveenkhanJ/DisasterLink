@@ -231,6 +231,29 @@ export function createReportCaptureController(deps: CaptureDependencies): Report
     };
   }
 
+  /**
+   * Saves the home per part (standards section 10 item 16, P225): a part whose call worked is saved
+   * as loaded, a part whose call failed keeps what was saved before (or nothing); nothing is saved
+   * when both failed. So a fault in one call no longer leaves the other part out of the saved copy.
+   */
+  async function cacheWorkingParts(
+    view: HomeView,
+    warningsFailed: boolean,
+    reportsFailed: boolean,
+  ): Promise<void> {
+    if (warningsFailed && reportsFailed) {
+      return;
+    }
+    const saved = await deps.homeCache.loadHome();
+    await deps.homeCache.saveHome({
+      warnings: warningsFailed ? (saved?.warnings ?? []) : view.warnings,
+      myReports: reportsFailed ? (saved?.myReports ?? []) : view.myReports,
+      pendingDrafts: view.pendingDrafts,
+      language: view.language,
+      fromCache: false,
+    });
+  }
+
   function validateDraft(draft: ReportDraft): ValidationResult {
     const errors: string[] = [];
     if (!draft.hazardType) {
@@ -325,9 +348,7 @@ export function createReportCaptureController(deps: CaptureDependencies): Report
           fromCache: false,
           ...(failed ? { error: true } : {}),
         };
-        if (!failed) {
-          await deps.homeCache.saveHome(view);
-        }
+        await cacheWorkingParts(view, warnings.failed, reports.failed);
         return view;
       } catch (error) {
         if (error instanceof NetworkError) {

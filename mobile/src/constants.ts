@@ -146,14 +146,33 @@ export const POLL_TIMEOUT_MS = 4_000;
 /** How long "<item> — not available in this version" shows before it fades, in milliseconds (standards §10 item 12, P222). */
 export const SOON_NOTICE_MS = 3_000;
 
+/**
+ * The least time "Trying again…" stays on the error banner after Retry is pressed, so a quick answer
+ * is still seen to have happened (standards section 10 item 12, P225).
+ */
+export const MIN_RETRY_FEEDBACK_MS = 3_000;
+
 /** How long the sync-result banner "Report sent — …" shows before it fades, in milliseconds (standards §10 item 12, P222). */
 export const SENT_NOTICE_MS = 6_000;
 
 /** How long "Draft discarded — nothing was sent" shows before it fades, in milliseconds (standards §10 item 12, P222). */
 export const DISCARDED_NOTICE_MS = 4_000;
 
+/**
+ * How long the location picker waits for the keyboard to show before it scrolls its place field to the
+ * top anyway, in milliseconds: the keyboard may already be up, or a hardware keyboard is used
+ * (standards §10 item 13, P225).
+ */
+export const PICKER_SCROLL_FALLBACK_MS = 400;
+
 /** The space kept above content that is scrolled into view, in points (standards §10 item 13, P222). */
 export const SCROLL_TOP_MARGIN = 16;
+
+/**
+ * The width of "Choose from gallery" / "Choose another" relative to "Take photo" / "Retake photo" (which
+ * is 1), so the longer label fits on one line next to its icon (standards §10 item 9, P225).
+ */
+export const PICK_GALLERY_FLEX = 1.3;
 
 /** The padding above the icon of every tab of the tab bar, in points (standards §10 item 15, P222). */
 export const TAB_PADDING_TOP = 8;
@@ -164,5 +183,11 @@ export const TAB_UNDERLINE_INSET = 16;
 /** The height of the active tab's underline, in points (standards §10 item 15, P222). */
 export const TAB_UNDERLINE_HEIGHT = 2;
 
-/** The distance of "Not in this version" from the bottom of its tab, in points (standards §10 item 15, P222). */
-export const TAB_SOON_BOTTOM = 3;
+/** The line height of a tab's label, in points, so the underline below it sits at a known distance (standards §10 item 15, P226). */
+export const TAB_LABEL_LINE_HEIGHT = 15;
+
+/** The gap between a tab's icon and its label, in points (standards §10 item 15, P226). */
+export const TAB_ICON_LABEL_GAP = 2;
+
+/** The gap between a tab's label and "Not in this version" on the Profile tab, in points (standards §10 item 15, P226). */
+export const TAB_SOON_GAP = 2;
