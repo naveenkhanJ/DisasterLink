@@ -71,7 +71,7 @@
 - **In the implementation:** Chart.js (standards §10) with the same data.
 
 **Icons, photos and people:**
-- Icons are simple line icons drawn in-house as inline SVG (bell, warning triangle, home, chart, shelter, report, sync, offline, camera, pin, check, cross); no external icon set is used.
+- Icons are simple line icons drawn in-house as inline SVG (bell, warning triangle, home, chart, shelter, report, sync, offline, camera, pin, check, cross; the app adds `image` for the gallery button, P222); no external icon set is used.
 - Photos are always a placeholder box (wf: grey with a cross; ui: a neutral tinted box with a camera icon); there are no stock photos.
 - People are shown as an initials avatar, never a photograph.
 
