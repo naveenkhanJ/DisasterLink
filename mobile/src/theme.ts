@@ -18,7 +18,10 @@ export const colors = {
   errorText: '#B91C1C',
   errorBorder: '#EF4444',
   photoBg: '#E2E8F0',
+  // The warning-level tones are the officer console's (`backend/.../static/css/app.css`, --l1-*, --l2-*, --l3-*).
+  l1: { bg: '#FEF9C3', text: '#854D0E', border: '#FACC15' },
   l2: { bg: '#FEF3C7', text: '#92400E', border: '#F59E0B' },
+  l3: { bg: '#FEE2E2', text: '#B91C1C', border: '#DC2626' },
   ok: { bg: '#D1FAE5', text: '#065F46', border: '#10B981' },
   warn: { bg: '#FEF3C7', text: '#92400E', border: '#F59E0B' },
   info: { bg: '#E0ECFF', text: '#1E3A8A', border: '#93C5FD' },
@@ -34,4 +37,4 @@ export const fonts = {
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24 } as const;
 export const radius = { sm: 8, md: 12, pill: 999 } as const;
 
-export type Tone = 'neutral' | 'l2' | 'ok' | 'warn';
+export type Tone = 'neutral' | 'l1' | 'l2' | 'l3' | 'ok' | 'warn';
