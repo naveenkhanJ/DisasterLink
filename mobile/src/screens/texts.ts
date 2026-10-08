@@ -133,6 +133,9 @@ export const CONNECTION_TEXTS: Record<
   serverDown: { label: 'Server not reachable', icon: 'error', tone: 'warn' },
 };
 
+/** The note the connection strip adds while the home shows the saved copy (standards section 10 item 11, P229). */
+export const SAVED_COPY_NOTE = '· showing the saved copy';
+
 /** The tone each warning level is drawn in: its colour, always together with its text (wireframe-spec 8 rule 1). */
 export const LEVEL_TONES: Record<WarningLevel, 'l1' | 'l2' | 'l3'> = {
   LEVEL_1_YELLOW: 'l1',

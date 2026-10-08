@@ -1,4 +1,6 @@
-import { fireEvent, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen } from '@testing-library/react-native';
+import { StyleSheet } from 'react-native';
+import { ConnectionStrip } from '../ConnectionStrip';
 import { makeRig, ONLINE_HOME, renderApp, run, ui } from './support';
 
 jest.mock('../../notifications/notifications', () => ({
@@ -13,13 +15,14 @@ describe('the connection strip (standards §10 item 11, P213; UC2-7c R7, R9, R11
     expect(ui().connection).toBe('online');
   });
 
-  it('WF2P-S01a: the saved copy keeps its note on the home; the strip does not claim "Offline"', async () => {
+  it('WF2P-S01a (R9): the saved copy is noted in the strip, not on the home; the strip does not claim "Offline"', async () => {
     const rig = makeRig();
     rig.controller.loadHome.mockResolvedValue({ ...ONLINE_HOME, fromCache: true });
 
     await renderApp(rig);
 
-    expect(screen.getByText('Showing the copy saved on this phone')).toBeTruthy();
+    expect(screen.getByText('· showing the saved copy')).toBeTruthy();
+    expect(screen.queryByText('Showing the copy saved on this phone')).toBeNull();
     expect(screen.queryByText('Offline')).toBeNull();
     expect(screen.getByRole('radio', { name: 'Tamil' }).props.accessibilityState.disabled).toBe(
       true,
@@ -137,5 +140,131 @@ describe('the connection strip (standards §10 item 11, P213; UC2-7c R7, R9, R11
 
     expect(rig.controller.syncPending).not.toHaveBeenCalled();
     expect(ui().connection).toBe('online');
+  });
+});
+
+const STATES = [
+  ['online', 'Online'],
+  ['noInternet', 'No internet connection'],
+  ['serverDown', 'Server not reachable'],
+] as const;
+
+describe('the saved-copy note in the strip (standards §10 item 11, P229; UC2-7j R9)', () => {
+  it.each(STATES)(
+    'WF2P-S01a (R9): in the state %s the strip shows the note after the state when it is on',
+    async (state, label) => {
+      await render(<ConnectionStrip state={state} savedCopy />);
+
+      expect(screen.getByText(label)).toBeTruthy();
+      expect(screen.getByText('· showing the saved copy')).toBeTruthy();
+      expect(screen.getByLabelText(`${label} · showing the saved copy`)).toBeTruthy();
+    },
+  );
+
+  it.each(STATES)(
+    'WF2P-S01a (R9): in the state %s the strip has no note when it is off',
+    async (state, label) => {
+      await render(<ConnectionStrip state={state} savedCopy={false} />);
+
+      expect(screen.getByText(label)).toBeTruthy();
+      expect(screen.queryByText('· showing the saved copy')).toBeNull();
+      expect(screen.getByLabelText(label)).toBeTruthy();
+    },
+  );
+
+  it('WF2P-S01a (R9): the note can shrink and wrap inside the strip', async () => {
+    await render(<ConnectionStrip state="noInternet" savedCopy />);
+
+    const note = screen.getByText('· showing the saved copy');
+
+    expect(StyleSheet.flatten(note.props.style).flexShrink).toBe(1);
+  });
+
+  it('WF2P-S01a (R9): the note shows only on the home, and only while the home is the saved copy', async () => {
+    const rig = makeRig();
+    rig.controller.loadHome.mockResolvedValue({ ...ONLINE_HOME, fromCache: true });
+    await renderApp(rig);
+    expect(screen.getByText('· showing the saved copy')).toBeTruthy();
+
+    await run(() => fireEvent.press(screen.getByRole('button', { name: 'Report Hazard' })));
+
+    expect(screen.queryByText('· showing the saved copy')).toBeNull();
+  });
+
+  it('WF2P-S01a (R9): the live home has no note', async () => {
+    await renderApp(makeRig());
+
+    expect(screen.queryByText('· showing the saved copy')).toBeNull();
+  });
+});
+
+describe('the home reloads when the connection is lost (standards §10 item 11, P229; UC2-7j R8)', () => {
+  const SAVED = { ...ONLINE_HOME, fromCache: true };
+
+  it('SC2 A8 (R8): on the home Online to No internet reloads the home once, shows the saved copy and the note, and the C1 banner goes', async () => {
+    const rig = makeRig();
+    rig.controller.loadHome.mockResolvedValue({ ...ONLINE_HOME, error: true });
+    await renderApp(rig);
+    expect(screen.getByText('The service is unavailable and nothing was changed')).toBeTruthy();
+    rig.controller.loadHome.mockClear();
+    rig.controller.loadHome.mockResolvedValue(SAVED);
+
+    await run(() => ui().onNetworkChange(false));
+
+    expect(rig.controller.loadHome).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('No internet connection')).toBeTruthy();
+    expect(screen.getByText('· showing the saved copy')).toBeTruthy();
+    expect(screen.queryByText('The service is unavailable and nothing was changed')).toBeNull();
+  });
+
+  it('SC2 E4 (R8): on the home Online to Server not reachable reloads the home once', async () => {
+    const rig = makeRig();
+    await renderApp(rig);
+    rig.controller.loadHome.mockClear();
+    rig.controller.loadHome.mockResolvedValue(SAVED);
+
+    await run(() => ui().onServerReachability(false));
+
+    expect(rig.controller.loadHome).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('Server not reachable')).toBeTruthy();
+    expect(screen.getByText('· showing the saved copy')).toBeTruthy();
+  });
+
+  it('SC2 A8 (R8): on the form nothing reloads when the connection is lost', async () => {
+    const rig = makeRig();
+    await renderApp(rig);
+    await run(() => fireEvent.press(screen.getByRole('button', { name: 'Report Hazard' })));
+    await run(() => fireEvent.press(screen.getByRole('button', { name: 'Flood' })));
+    rig.controller.loadHome.mockClear();
+
+    await run(() => ui().onNetworkChange(false));
+
+    expect(rig.controller.loadHome).not.toHaveBeenCalled();
+  });
+
+  it('SC2 A8 (R8): No internet to Server not reachable and back reload nothing', async () => {
+    const rig = makeRig();
+    await renderApp(rig);
+    await run(() => ui().onNetworkChange(false));
+    rig.controller.loadHome.mockClear();
+
+    // While the phone is offline a failed or a successful poll leaves the strip at No internet.
+    await run(() => ui().onServerReachability(false));
+    await run(() => ui().onServerReachability(true));
+
+    expect(ui().connection).toBe('noInternet');
+    expect(rig.controller.loadHome).not.toHaveBeenCalled();
+  });
+
+  it('SC2 E4 18i (R8): the reconnect path is unchanged: serverDown to online syncs and reloads the home once', async () => {
+    const rig = makeRig();
+    await renderApp(rig);
+    await run(() => ui().onServerReachability(false));
+    rig.controller.loadHome.mockClear();
+
+    await run(() => ui().onServerReachability(true));
+
+    expect(rig.controller.syncPending).toHaveBeenCalledTimes(1);
+    expect(rig.controller.loadHome).toHaveBeenCalledTimes(1);
   });
 });

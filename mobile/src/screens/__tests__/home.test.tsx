@@ -91,7 +91,8 @@ describe('home screen', () => {
 
     await renderApp(rig);
 
-    expect(screen.getByText('Showing the copy saved on this phone')).toBeTruthy();
+    expect(screen.queryByText('Showing the copy saved on this phone')).toBeNull();
+    expect(screen.getByText('· showing the saved copy')).toBeTruthy();
     expect(screen.getByText('Language can be changed when you are online')).toBeTruthy();
     expect(screen.getByRole('radio', { name: 'Tamil' }).props.accessibilityState.disabled).toBe(
       true,

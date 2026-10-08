@@ -814,7 +814,12 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
     await guarded(refreshHome);
   }, [controller, guarded, refreshHome]);
 
-  /** Works out the strip's state from the two signals; a return from serverDown to online syncs. */
+  /**
+   * Works out the strip's state from the two signals. A return from serverDown to online syncs; a loss
+   * of the connection (online to noInternet or serverDown) while the home is shown reloads the home at
+   * once: offline it reads the saved copy with no network call, and the C1 banner of the failed live
+   * load goes with the view that carried it (standards section 10 item 11, P229; R8).
+   */
   const updateConnection = useCallback(() => {
     const next: ConnectionState = !networkRef.current
       ? 'noInternet'
@@ -828,7 +833,10 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
     if (previous === 'serverDown' && next === 'online') {
       void onConnectivityRestored();
     }
-  }, [onConnectivityRestored]);
+    if (previous === 'online' && next !== 'online' && routeRef.current.name === 'home') {
+      void guarded(refreshHome);
+    }
+  }, [onConnectivityRestored, guarded, refreshHome]);
 
   const onNetworkChange = useCallback(
     (online: boolean) => {

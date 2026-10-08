@@ -166,7 +166,10 @@ export function CitizenApp({ ui: app }: { ui: CitizenAppUI }) {
   return (
     <View style={styles.app}>
       <AppHeader onBack={BACK_ROUTES.has(app.route.name) ? () => void app.goBack() : undefined} />
-      <ConnectionStrip state={app.connection} />
+      <ConnectionStrip
+        state={app.connection}
+        savedCopy={app.route.name === 'home' && app.home.fromCache === true}
+      />
       {app.loading ? <LoadingRow /> : null}
       {soon ? <SoonNotice label={soon.label} onClose={() => setSoon(null)} /> : null}
       {noticeShown ? (

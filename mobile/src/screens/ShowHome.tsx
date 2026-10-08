@@ -232,7 +232,6 @@ export function ShowHome(props: ShowHomeProps) {
           <Text style={styles.bannerText}>Draft discarded — nothing was sent</Text>
         </Banner>
       ) : null}
-      {view.fromCache ? <Text style={ui.muted}>Showing the copy saved on this phone</Text> : null}
       <LanguageSelector
         selected={view.language}
         disabled={view.fromCache}
