@@ -334,11 +334,11 @@ public class Shelter {
   }
 
   /**
-   * Package-private helper to attach an operating organisation.
+   * Sets the operating organisation of the shelter.
    *
-   * @param operator the operating organisation, or {@code null}
+   * @param operator the operating organisation, or {@code null} if there is none
    */
-  void setOperator(Organization operator) {
+  public void setOperator(Organization operator) {
     this.operator = operator;
   }
 
