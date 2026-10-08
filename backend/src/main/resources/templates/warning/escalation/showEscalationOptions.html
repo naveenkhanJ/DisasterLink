@@ -1,6 +1,8 @@
 <!DOCTYPE html>
-<!-- WF1b-S01 — Escalate Warning. Prototype (P89): static sample data from the scenarios; no behaviour.
-     Bind the values with th:text / th:each when the controller is wired (implementation-standards §4). -->
+<!--/* WF1b-S01 — Escalate Warning: showEscalationOptions(options) (Escalate steps 3–4), with the states WF1b-S01a
+     showNoHigherLevel(warning) (A3) and WF1b-S01b showNotEscalatable(warning) (E2).
+     Rendered by EscalationUI.startEscalation; the sidebar is the duty officer's when opened from the verification
+     console, the DMC officer's when opened from the warning dashboard (A1). */-->
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{fragments/layout :: head('Escalate Warning')}">
 <meta charset="utf-8"><title>Escalate Warning — DMC Sri Lanka</title>
@@ -8,19 +10,34 @@
 </head>
 <body>
 <div class="app">
-<aside class="sidebar" th:replace="~{fragments/layout :: sidebar-duty('Warnings')}"><div class="brand"><span class="brand__badge">DMC</span>DMC Sri Lanka</div><nav class="nav"><a class="nav__item" href="../../hazardreport/showPendingReports.html"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h8"/></svg>Verification</a><a class="nav__item is-active" href="../../warning/showHazards.html"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>Warnings</a><a class="nav__item" href="../../analytics/analyticsWorkspace.html"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><path d="M8 17V11"/><path d="M13 17V7"/><path d="M18 17v-4"/></svg>Analytics</a><button type="button" class="nav__item nav__item--soon" data-soon="Hazards"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16.3A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 .5 9"/><path d="m13 12-3 5h4l-3 5"/></svg><span><span class="nav__label">Hazards</span><span class="soon-tag">Not in this version</span></span></button><button type="button" class="nav__item nav__item--soon" data-soon="Operational picture"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg><span><span class="nav__label">Operational picture</span><span class="soon-tag">Not in this version</span></span></button></nav></aside>
+<aside class="sidebar" th:replace="${dutyOfficer} ? ~{fragments/layout :: sidebar-duty('Warnings')} : ~{fragments/layout :: sidebar-dmc('Warnings')}"></aside>
 <div class="main">
-<header class="topbar" th:replace="~{fragments/layout :: topbar('Escalate Warning')}"><div><h1 class="topbar__title">Escalate Warning</h1><p class="topbar__subtitle">Flood — Kalu Ganga at Ratnapura</p></div><div class="user"><span class="user__avatar">KP</span><div><div class="user__name">K. Perera</div><div class="user__role">DMC Duty Officer</div></div></div></header>
-<main class="page">
-<section class="card "><div class="row"><span style="font-size:18px;font-weight:800">WRN-2026-0087</span><span class="label">Current level</span><span class="tag tag--l2">Level 2 – Amber (Be Alert)</span><span class="tag tag--ok">Active</span></div>
-<p style="margin-top:8px">Target: Ratnapura district, Kalu river basin</p><p>Covered districts: Ratnapura, Kalutara</p><p>Channels: Push, SMS, Audible alert</p>
-<p class="muted">Issued 9 Oct 2026, 09:45 · Expires 10 Oct 2026, 09:45</p></section><section class="card "><div class="card__head"><div><h2 class="card__title">New level</h2></div></div><a class="tile tile--l3" style="width:373px;justify-content:space-between;text-decoration:none;color:inherit" href="../../warning/escalation/escalationDetailsForm.html">
-<span class="row" style="gap:8px"><span class="tile__swatch"></span>Level 3 – Red (Evacuate)</span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a>
-<p class="muted" style="margin-top:10px">Only levels above the current level are offered.</p></section><div><button type="button" class="btn btn--secondary">Cancel escalation</button></div>
+<header class="topbar" th:replace="~{fragments/layout :: topbar('Escalate Warning')}"></header>
+<main class="page" th:with="warningId=${escalation != null} ? ${escalation.warning.warningId} : ${refused.warningId}">
+<div th:replace="~{fragments/layout :: errorBanner}"></div>
+<th:block th:if="${escalation != null}">
+<section class="card"><div class="row"><span style="font-size:18px;font-weight:800" th:text="${escalation.warning.warningId}">WRN-2026-0087</span><span class="label">Current level</span><span class="tag" th:classappend="${escalation.warning.levelClass}" th:text="${escalation.warning.levelLabel}">Level 2 – Amber (Be Alert)</span><span class="tag" th:classappend="${escalation.warning.active} ? 'tag--ok'" th:text="${escalation.warning.status}">Active</span></div>
+<p style="margin-top:8px" th:text="'Target: ' + ${escalation.target}">Target: Ratnapura district, Kalu river basin</p><p th:text="'Covered districts: ' + ${escalation.warning.coveredDistricts}">Covered districts: Ratnapura, Kalutara</p><p th:text="'Channels: ' + ${escalation.channels}">Channels: Push, SMS, Audible alert</p>
+<p class="muted" th:text="'Issued ' + ${escalation.warning.issued} + ' · Expires ' + ${escalation.warning.expires}">Issued 20 May 2026, 10:45 · Expires 21 May 2026, 10:45</p></section>
+<section class="card" th:unless="${escalation.allowedLevels.isEmpty()}"><div class="card__head"><div><h2 class="card__title">New level</h2></div></div>
+<div class="row"><form method="post" th:each="level : ${escalation.allowedLevels}" th:action="@{/warning/{id}/escalate/level(id=${warningId})}" style="margin:0"><input type="hidden" name="newLevel" th:value="${level.code}">
+<button type="submit" class="tile" th:classappend="'tile--l' + ${level.code.substring(6, 7)}" style="width:373px;justify-content:space-between"><span class="row" style="gap:8px"><span class="tile__swatch"></span><span th:text="${level.label}">Level 3 – Red (Evacuate)</span></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button></form></div>
+<p class="muted" style="margin-top:10px">Only levels above the current level are offered.</p></section>
+<div class="notice" role="status" th:if="${escalation.allowedLevels.isEmpty()}" th:fragment="showNoHigherLevel"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg><div th:text="'This warning is already at the highest level, ' + ${escalation.warning.levelLabel} + '. It cannot be escalated.'">This warning is already at the highest level, Level 3 – Red (Evacuate). It cannot be escalated.</div></div>
+<form method="post" th:action="@{/warning/{id}/escalate/cancel(id=${warningId})}"><button type="submit" class="btn btn--secondary" th:text="${escalation.allowedLevels.isEmpty()} ? 'Close' : 'Cancel escalation'">Cancel escalation</button></form>
+</th:block>
+<th:block th:if="${refused != null}" th:fragment="showNotEscalatable">
+<section class="card"><div class="row"><span style="font-size:18px;font-weight:800" th:text="${refused.warningId}">WRN-2026-0087</span><span class="label">Current level</span><span class="tag" th:classappend="${refused.levelClass}" th:text="${refused.levelLabel}">Level 2 – Amber (Be Alert)</span><span class="tag" th:classappend="${refused.active} ? 'tag--ok'" th:text="${refused.status}">Expired</span></div>
+<p class="muted" style="margin-top:8px" th:text="'Issued ' + ${refused.issued} + ' · Expires ' + ${refused.expires}">Issued 20 May 2026, 10:45 · Expires 21 May 2026, 10:45</p></section>
+<div class="notice notice--error" role="alert"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+<div th:unless="${refused.active}"><p th:text="'This warning cannot be escalated: it expired on ' + ${refused.expires} + '. Nothing was changed.'">This warning cannot be escalated: it expired on 21 May 2026, 10:45. Nothing was changed.</p><p>You can issue a new warning for the hazard from the warning dashboard.</p></div>
+<div th:if="${refused.active}"><p th:text="'This warning cannot be escalated: it is already at ' + ${refused.levelLabel} + '. Nothing was changed.'">This warning cannot be escalated: it is already at Level 3 – Red (Evacuate). Nothing was changed.</p><p>Review the escalated warning on the warning dashboard.</p></div></div>
+<div class="row"><form method="post" th:action="@{/warning/{id}/escalate/cancel(id=${warningId})}" style="margin:0"><button type="submit" class="btn btn--secondary">Close</button></form>
+<a class="btn btn--secondary" th:href="@{/warning}">Open warning dashboard<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a></div>
+</th:block>
 </main>
 </div>
 </div>
 <script src="../../../static/js/nav-notice.js" th:src="@{/js/nav-notice.js}"></script>
-<script src="../../../static/js/districts.js" th:src="@{/js/districts.js}"></script>
 </body>
 </html>

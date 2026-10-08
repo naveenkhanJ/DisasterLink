@@ -213,29 +213,31 @@ public class Notification {
   }
 
   /**
-   * Records a successful delivery.
+   * Records a successful delivery (sd Broadcast Warning message 7). The time orders the
+   * notifications of a round, so it decides which one is the latest (P62 FX-09).
    *
-   * <p>Placeholder owned by Lakmal: the body is written on his branch (implementation standards
-   * section 3, "Operations on shared entities").
+   * <p>Implements CH-23.
    *
    * @param at when the gateway reported the delivery
-   * @throws UnsupportedOperationException always, until the operation is implemented
+   * @throws NullPointerException if {@code at} is {@code null}
    */
   public void markDelivered(LocalDateTime at) {
-    throw new UnsupportedOperationException("not implemented yet — Lakmal");
+    this.sentTime = Objects.requireNonNull(at, "at");
+    this.deliveryStatus = DeliveryStatus.DELIVERED;
   }
 
   /**
-   * Records a failed delivery.
+   * Records a failed delivery (sd Broadcast Warning message 8). The time orders the notifications
+   * of a round, so it decides which one is the latest (P62 FX-09).
    *
-   * <p>Placeholder owned by Lakmal: the body is written on his branch (implementation standards
-   * section 3, "Operations on shared entities").
+   * <p>Implements CH-23.
    *
    * @param at when the gateway reported the failure
-   * @throws UnsupportedOperationException always, until the operation is implemented
+   * @throws NullPointerException if {@code at} is {@code null}
    */
   public void markFailed(LocalDateTime at) {
-    throw new UnsupportedOperationException("not implemented yet — Lakmal");
+    this.sentTime = Objects.requireNonNull(at, "at");
+    this.deliveryStatus = DeliveryStatus.FAILED;
   }
 
   @Override
