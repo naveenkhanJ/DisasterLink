@@ -17,7 +17,11 @@ the skeleton's modules around it. **UC2's screens and behaviour are Afham's** an
    - `.env` is git-ignored; `.env.example` is committed.
 3. Let the phone reach the server: the iPhone and the PC on the **same Wi-Fi**, and a **Windows Firewall inbound rule for
    TCP port 8080 on Private networks** (Windows Defender Firewall → Advanced settings → Inbound Rules → New Rule → Port →
-   TCP 8080 → Allow → Private only).
+   TCP 8080 → Allow → Private only). If every call fails with "The server could not be reached.", check that (a) the
+   IPv4 address of the PC's Wi-Fi adapter (`ipconfig`) is still the one in `EXPO_PUBLIC_API_URL` — the router may give the
+   PC a new address — and restart Expo with `npx expo start --clear` after changing `.env`; (b) Windows has the Wi-Fi
+   network as **Private** (Settings → Network & internet → Wi-Fi → the network → Network profile type), because the
+   firewall rule covers Private networks only; (c) `http://<that address>:8080/` opens in the iPhone's browser.
 4. Start the back end with the `dev` profile (seeded demo): from the repository root, `cd backend` and
    `.\mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=dev`.
 5. In this folder run `npx expo start`, scan the QR code with the iPhone camera and open it in **Expo Go (SDK 57)**. Each
@@ -27,7 +31,9 @@ the skeleton's modules around it. **UC2's screens and behaviour are Afham's** an
 
 Verified on 13 October 2026 (Afham's iPhone, Expo Go SDK 57): plain-HTTP calls from Expo Go to the PC's LAN address work;
 local notifications show as a banner with sound once permission is granted — await `configureNotifications()` before the
-first alert.
+first alert. On 14 October 2026 a report upload from Expo Go to `POST /api/reports` (camera and gallery photo, JPEG at
+quality 0.7) was ACCEPTED once the JSON parts were sent as `Blob`s and the photo as an `expo-file-system` `File`
+(standards §12.3).
 
 ## Tests and tooling
 
