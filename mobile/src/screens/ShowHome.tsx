@@ -27,6 +27,7 @@ import {
   LANGUAGE_OPTIONS,
   LEVEL_LABELS,
   LOCATION_UNAVAILABLE_TITLE,
+  FINDING_LOCATION_TEXT,
   homeLocationReason,
   locationSource,
   NO_REPORTS_OFFLINE,
@@ -46,6 +47,8 @@ export interface ShowHomeProps {
   locationAccess: LocationAccessState | undefined;
   /** The name under which Settings list this app (`hostAppName()`), for the blocked-access line. */
   appName: string;
+  /** A fix is being read (standards section 10 item 4, P231). */
+  locating: boolean;
   draftDiscarded: boolean;
   onSelectLanguage: (language: Language) => void;
   /** "Allow location access" on the location card (blocked or askable). */
@@ -178,15 +181,17 @@ function CurrentLocation({
   location,
   access,
   appName,
+  locating,
   onAllowAccess,
 }: {
   location: GeoPoint | undefined;
   access: LocationAccessState | undefined;
   appName: string;
+  locating: boolean;
   onAllowAccess: () => void;
 }) {
   const near = useMemo(() => (location ? nearestPlace(location)?.name : undefined), [location]);
-  const canAllow = access === 'blocked' || access === 'askable';
+  const canAllow = !locating && (access === 'blocked' || access === 'askable');
   return (
     <Card>
       <View style={s.rowCenter}>
@@ -197,6 +202,8 @@ function CurrentLocation({
               <Text style={s.strong}>{`Current location · ${formatCoordinates(location)}`}</Text>
               <Text style={ui.muted}>{locationSource(location, true, near)}</Text>
             </>
+          ) : locating ? (
+            <Text style={s.strong}>{FINDING_LOCATION_TEXT}</Text>
           ) : (
             <>
               <Text style={s.strong}>{LOCATION_UNAVAILABLE_TITLE}</Text>
@@ -257,6 +264,7 @@ export function ShowHome(props: ShowHomeProps) {
         location={props.currentLocation}
         access={props.locationAccess}
         appName={props.appName}
+        locating={props.locating}
         onAllowAccess={props.onAllowLocationAccess}
       />
       <View style={{ gap: 6 }}>

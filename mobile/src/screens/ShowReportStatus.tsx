@@ -11,7 +11,13 @@ import { Text, View } from 'react-native';
 import type { HazardReport } from '../api/reportApi';
 import { Card, Icon, LabelValue, ScreenTitle, Tag, styles as ui } from '../components/ui';
 import { Screen, screenStyles as s } from './Screen';
-import { formatDateTime, hazardTypeIcon, hazardTypeLabel, STATUS_TAGS } from './texts';
+import {
+  formatDateTime,
+  hazardTypeIcon,
+  hazardTypeLabel,
+  REPORT_LOADS_ONLINE_TEXT,
+  STATUS_TAGS,
+} from './texts';
 
 /**
  * Draws the report-status screen.
@@ -55,6 +61,36 @@ export function ShowReportStatus({
           </LabelValue>
         ) : null}
       </Card>
+    </Screen>
+  );
+}
+
+/**
+ * Draws the status screen when offline and no copy has the report: the title, the report ID and the
+ * line that it loads when online (no banner and no Retry; standards section 10 item 17, deviation
+ * D-UC2-6, P231). Pull-to-refresh stays available.
+ *
+ * @param props the report ID and the pull-to-refresh state and handler
+ * @returns the screen
+ */
+export function ShowReportStatusOffline({
+  reportId,
+  refreshing,
+  onRefresh,
+}: {
+  reportId: string;
+  refreshing: boolean;
+  onRefresh: () => void;
+}) {
+  return (
+    <Screen refreshing={refreshing} onRefresh={onRefresh}>
+      <ScreenTitle title="Report status" />
+      <Card style={{ paddingVertical: 4 }}>
+        <LabelValue label="Report ID" last>
+          {reportId}
+        </LabelValue>
+      </Card>
+      <Text style={ui.muted}>{REPORT_LOADS_ONLINE_TEXT}</Text>
     </Screen>
   );
 }

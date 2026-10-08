@@ -19,6 +19,7 @@ import {
 import { createHomeCache, type HomeCache } from '../store/HomeCache';
 import { createOfflineReportStore, type OfflineReportStore } from '../store/OfflineReportStore';
 import { isOnline } from '../sync/connectivityTriggers';
+import { createServerState, type ServerState } from '../sync/serverState';
 
 /** Everything the screens use. */
 export interface AppServices {
@@ -33,6 +34,8 @@ export interface AppServices {
   locationAccess: LocationAccess;
   photos: PhotoService;
   controller: ReportCaptureController;
+  /** Whether the strip says "Server not reachable"; the controller's `isOnline` reads it (standards §10 item 11, P231). */
+  serverState: ServerState;
 }
 
 /**
@@ -52,6 +55,7 @@ export function createAppServices(): AppServices {
   const location = createLocationService();
   const locationAccess = createLocationAccess();
   const photos = createPhotoService();
+  const serverState = createServerState();
   const controller = createReportCaptureController({
     reportApi,
     skeletonApi,
@@ -59,7 +63,9 @@ export function createAppServices(): AppServices {
     homeCache,
     location,
     photos,
-    isOnline,
+    // The strip's "Server not reachable" counts as offline for the app's own calls; the connectivity
+    // triggers keep the network-only `isOnline` (standards §10 item 11, P231).
+    isOnline: async () => !serverState.isDown() && (await isOnline()),
     citizenId: env.citizenId,
     registeredDistrict: env.citizenDistrict,
     newId: () => Crypto.randomUUID(),
@@ -76,5 +82,6 @@ export function createAppServices(): AppServices {
     locationAccess,
     photos,
     controller,
+    serverState,
   };
 }

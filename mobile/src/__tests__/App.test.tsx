@@ -68,6 +68,7 @@ describe('App start-up', () => {
       store: { findPending },
       locationAccess,
       photos: {},
+      serverState: { setDown: jest.fn() },
     } as unknown as ReturnType<typeof createAppServices>);
     jest.mocked(configureNotifications).mockImplementation(
       () =>

@@ -90,14 +90,16 @@ describe('report status', () => {
     expect(rig.controller.getReportStatus).toHaveBeenCalledTimes(2);
   });
 
-  it('WF2P-S06 (C1): an unreachable server shows the banner too', async () => {
+  it('WF2P-S06 (D-UC2-6): an unreachable server is not a fault: with no copy of the report the screen says it loads when online, with no banner', async () => {
     const rig = makeRig();
     rig.controller.getReportStatus.mockRejectedValue(new NetworkError('offline'));
     await renderApp(rig);
 
     await run(() => ui().openReportStatus('RPT-2026-KLT-0847'));
 
-    expect(screen.getByText('The service is unavailable and nothing was changed')).toBeTruthy();
+    expect(screen.getByText('This report loads when you are online')).toBeTruthy();
+    expect(screen.queryByText('The service is unavailable and nothing was changed')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
   });
 
   it('WF2P-S06: the tab Home goes back to the home; the tab Report starts a new report', async () => {

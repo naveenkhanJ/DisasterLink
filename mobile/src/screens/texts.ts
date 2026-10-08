@@ -468,6 +468,12 @@ export const NO_REPORTS_OFFLINE = 'Reports load when you are online';
 /** The home's empty "Active warnings" line while the home is the saved copy (standards section 10 item 16, P225). */
 export const NO_WARNINGS_OFFLINE = 'Warnings load when you are online';
 
+/** The title of the home's location card while a fix is being read and none is shown (standards section 10 item 4, P231). */
+export const FINDING_LOCATION_TEXT = 'Finding your location…';
+
+/** The muted text of the status screen when offline and no copy has the report (standards section 10 item 17, P231). */
+export const REPORT_LOADS_ONLINE_TEXT = 'This report loads when you are online';
+
 /** The title of the home's location card when there is no fix (E1, G6, P222). */
 export const LOCATION_UNAVAILABLE_TITLE = 'Current location unavailable';
 

@@ -268,3 +268,68 @@ describe('the home reloads when the connection is lost (standards §10 item 11, 
     expect(rig.controller.loadHome).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('the strip sets the server holder before it syncs or reloads (standards §10 item 11, P231; UC2-7k F1)', () => {
+  /** The call order of the holder's `setDown` calls, with their arguments. */
+  const downCalls = (rig: ReturnType<typeof makeRig>) =>
+    rig.serverState.setDown.mock.calls.map((call, index) => ({
+      down: call[0],
+      order: rig.serverState.setDown.mock.invocationCallOrder[index],
+    }));
+
+  it('SC2 E4 (F1): Server not reachable sets the holder down, and the return to Online clears it before the sync and the reload', async () => {
+    const rig = makeRig();
+    await renderApp(rig);
+    await run(() => ui().onServerReachability(false));
+    expect(downCalls(rig).at(-1)?.down).toBe(true);
+    rig.controller.loadHome.mockClear();
+
+    await run(() => ui().onServerReachability(true));
+
+    const cleared = downCalls(rig).at(-1);
+    expect(cleared?.down).toBe(false);
+    expect(cleared?.order).toBeLessThan(rig.controller.syncPending.mock.invocationCallOrder[0]);
+    expect(cleared?.order).toBeLessThan(rig.controller.loadHome.mock.invocationCallOrder[0]);
+  });
+
+  it('SC2 E4 (F1): the holder is set down before the reload on the loss of the server', async () => {
+    const rig = makeRig();
+    await renderApp(rig);
+    rig.controller.loadHome.mockClear();
+
+    await run(() => ui().onServerReachability(false));
+
+    expect(downCalls(rig).at(-1)?.down).toBe(true);
+    expect(downCalls(rig).at(-1)?.order).toBeLessThan(
+      rig.controller.loadHome.mock.invocationCallOrder[0],
+    );
+  });
+
+  it('SC2 A2 (F1): No internet is not "down": the holder is clear, so the sync works whichever listener runs first', async () => {
+    const rig = makeRig();
+    await renderApp(rig);
+    await run(() => ui().onServerReachability(false));
+    await run(() => ui().onNetworkChange(false));
+    expect(downCalls(rig).at(-1)?.down).toBe(false);
+    rig.controller.syncPending.mockClear();
+
+    // The connectivity trigger's callback runs before the network listener reaches the hook.
+    await run(() => ui().onConnectivityRestored());
+    await run(() => ui().onNetworkChange(true));
+
+    expect(rig.controller.syncPending).toHaveBeenCalledTimes(1);
+    expect(downCalls(rig).at(-1)?.down).toBe(false);
+  });
+
+  it('SC2 A2 (F1): a poll that failed during No internet does not leave the holder down after the internet returns', async () => {
+    const rig = makeRig();
+    await renderApp(rig);
+    await run(() => ui().onNetworkChange(false));
+    await run(() => ui().onServerReachability(false));
+
+    await run(() => ui().onNetworkChange(true));
+
+    expect(ui().connection).toBe('online');
+    expect(downCalls(rig).at(-1)?.down).toBe(false);
+  });
+});

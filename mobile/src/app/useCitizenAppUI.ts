@@ -20,6 +20,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Linking } from 'react-native';
+import { NetworkError } from '../api/httpClient';
 import type { GeoPoint, HazardReport, ReportDecisionNotice, SyncResult } from '../api/reportApi';
 import type { HazardType, Language, WarningLevel } from '../api/types';
 import type { AppEnv } from '../config/env';
@@ -31,6 +32,7 @@ import type { PhotoService } from '../report/PhotoService';
 import { composeDescription, splitDescription } from '../report/descriptionAddress';
 import type { ReportCaptureController } from '../report/ReportCaptureController';
 import type { HomeView, ReportDraft, SubmissionResult } from '../report/ReportDraft';
+import type { ServerState } from '../sync/serverState';
 import {
   decisionNoticeText,
   LEVEL_LABELS,
@@ -84,6 +86,8 @@ export interface UiServices {
   controller: ReportCaptureController;
   photos: Pick<PhotoService, 'takePhoto' | 'choosePhoto' | 'deletePhoto'>;
   locationAccess: LocationAccess;
+  /** The holder the hook sets from the connection strip (standards §10 item 11, P231). */
+  serverState: Pick<ServerState, 'setDown'>;
   env: Pick<AppEnv, 'citizenLanguage' | 'citizenDistrict'>;
 }
 
@@ -122,6 +126,15 @@ export interface CitizenAppState {
   sentReportId: string | undefined;
   /** The report of the status screen (`showReportStatus`). */
   report: HazardReport | undefined;
+  /** The report shown is the copy from the home or the submission, not read live (standards §10 item 17, P231). */
+  reportFromCopy: boolean;
+  /** Offline and no copy has the report: the status screen says it loads when online (standards §10 item 17, P231). */
+  reportMissing: boolean;
+  /**
+   * A fix of the phone's position is being read: while it is and none is shown, the home's location card reads
+   * "Finding your location…" (standards §10 item 4, P231).
+   */
+  locating: boolean;
   /** An online action failed with a technical fault: the common error banner (C1). */
   serviceUnavailable: boolean;
   /** When the last Retry ended with the fault still there; cleared when the banner goes (P222). */
@@ -141,7 +154,7 @@ export interface CitizenAppState {
   decision: DecisionCard | undefined;
   /** A submission is in progress. */
   submitting: boolean;
-  /** An online action (home, status, language) is running. */
+  /** An online action started on the screen shown (the home, that report's status, a retry) is running (standards §10 item 4, P231). */
   loading: boolean;
   /** A pull-to-refresh is running. */
   refreshing: boolean;
@@ -227,6 +240,17 @@ function emptyHome(language: Language): HomeView {
   return { warnings: [], myReports: [], pendingDrafts: [], language, fromCache: false };
 }
 
+/**
+ * Gives the key under which a screen's loads are counted, so the loading row shows only on the screen
+ * that started the load (standards §10 item 4, P231).
+ *
+ * @param route the route
+ * @returns `status:<id>` for a report status, otherwise the route's name (`home` for the home)
+ */
+function loadingKey(route: Route): string {
+  return route.name === 'reportStatus' ? `status:${route.reportId}` : route.name;
+}
+
 /** The screens of the report flow, where leaving may need the discard question. */
 const FLOW_ROUTES: ReadonlySet<string> = new Set(['chooseHazardType', 'reportForm', 'review']);
 
@@ -252,7 +276,7 @@ function hasContent(draft: ReportDraft): boolean {
  * @returns the state and the inputs; the inputs keep their identity between renders
  */
 export function useCitizenAppUI(services: UiServices): CitizenAppUI {
-  const { controller, photos, env, locationAccess: access } = services;
+  const { controller, photos, env, locationAccess: access, serverState } = services;
   const [route, setRoute] = useState<Route>({ name: 'home' });
   const [home, setHome] = useState<HomeView>(() => emptyHome(env.citizenLanguage));
   const [currentLocation, setCurrentLocation] = useState<GeoPoint>();
@@ -264,6 +288,9 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
   const [result, setResultState] = useState<SubmissionResult>();
   const [sentReportId, setSentReportId] = useState<string>();
   const [report, setReport] = useState<HazardReport>();
+  const [reportFromCopy, setReportFromCopy] = useState(false);
+  const [reportMissing, setReportMissing] = useState(false);
+  const [locating, setLocating] = useState(false);
   const [serviceUnavailable, setServiceUnavailable] = useState(false);
   const [retriedAt, setRetriedAt] = useState<Date>();
   const [retrying, setRetrying] = useState(false);
@@ -277,7 +304,7 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
   const [changingLocation, setChangingLocation] = useState(false);
   const [connection, setConnection] = useState<ConnectionState>('online');
   const [submitting, setSubmitting] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loadingCounts, setLoadingCounts] = useState<Record<string, number>>({});
   const [refreshing, setRefreshing] = useState(false);
   const [discardQuestion, setDiscardQuestionState] = useState(false);
   const draftRef = useRef<ReportDraft>(undefined);
@@ -296,7 +323,10 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
   const reachableRef = useRef(true);
   const pendingLeave = useRef<() => void | Promise<void>>(undefined);
   const submittingRef = useRef(false);
-  const loadingCount = useRef(0);
+  const locatingCount = useRef(0);
+  const homeSeq = useRef(0);
+  const readSeq = useRef(0);
+  const reportRef = useRef<HazardReport>(undefined);
   const nextAlertId = useRef(0);
   const mapStart = useMemo(() => districtCentre(env.citizenDistrict), [env.citizenDistrict]);
 
@@ -374,28 +404,54 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
     }
   }, []);
 
-  /** Runs an action with the loading flag set; overlapping actions share one count. */
-  const withLoading = useCallback(async (action: () => Promise<void>) => {
-    loadingCount.current += 1;
-    setLoading(true);
+  /**
+   * Runs an action with the loading count of a screen's key raised; overlapping actions of one key share a
+   * count, and the hook's `loading` looks only at the key of the screen shown (standards §10 item 4, P231).
+   */
+  const withLoading = useCallback(async (key: string, action: () => Promise<void>) => {
+    setLoadingCounts((previous) => ({ ...previous, [key]: (previous[key] ?? 0) + 1 }));
     try {
       await action();
     } finally {
-      loadingCount.current -= 1;
-      setLoading(loadingCount.current > 0);
+      setLoadingCounts((previous) => ({ ...previous, [key]: previous[key] - 1 }));
     }
   }, []);
 
+  /**
+   * Loads the home. Only the latest load applies its view, and a load that was superseded and then fails is
+   * ignored, so a late reply never replaces a newer one or raises the banner (standards §10 item 4, P231).
+   */
   const refreshHome = useCallback(async () => {
-    const view = await controller.loadHome();
+    homeSeq.current += 1;
+    const mine = homeSeq.current;
+    let view: HomeView;
+    try {
+      view = await controller.loadHome();
+    } catch (error) {
+      if (mine !== homeSeq.current) {
+        return;
+      }
+      throw error;
+    }
+    if (mine !== homeSeq.current) {
+      return;
+    }
     homeRef.current = view;
     setHome(view);
   }, [controller]);
 
+  /** Reads the phone's position for the home; `locating` is true from the start until it ends (P231). */
   const refreshLocation = useCallback(async () => {
-    const fix = await controller.captureLocation();
-    setCurrentLocation(fix);
-    setAccess(fix ? undefined : await access.check());
+    locatingCount.current += 1;
+    setLocating(true);
+    try {
+      const fix = await controller.captureLocation();
+      setCurrentLocation(fix);
+      setAccess(fix ? undefined : await access.check());
+    } finally {
+      locatingCount.current -= 1;
+      setLocating(locatingCount.current > 0);
+    }
   }, [controller, access, setAccess]);
 
   /** Captures the location for the draft; a fix that arrives for another draft is ignored. */
@@ -440,11 +496,10 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
     navigate({ name: 'home' });
     setDraft(undefined);
     resetForm();
-    await guarded(() =>
-      withLoading(async () => {
-        await Promise.all([refreshHome(), refreshLocation()]);
-      }),
-    );
+    // The loading row covers the server part only; the fix is read alongside, outside the row (P231).
+    await guarded(async () => {
+      await Promise.all([withLoading('home', refreshHome), refreshLocation()]);
+    });
   }, [navigate, setDraft, resetForm, guarded, withLoading, refreshHome, refreshLocation]);
 
   const refreshHomeScreen = useCallback(async () => {
@@ -464,7 +519,7 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
         return;
       }
       await guarded(() =>
-        withLoading(async () => {
+        withLoading('home', async () => {
           await controller.changeLanguage(language);
           await refreshHome();
         }),
@@ -649,9 +704,41 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
     navigate({ name: 'submissionResult' });
   }, [controller, navigate, setResult]);
 
+  /** Sets what the status screen shows: a report (live or copy), or the "loads when online" state. */
+  const showStatus = useCallback(
+    (next: { report?: HazardReport; fromCopy?: boolean; missing?: boolean }) => {
+      reportRef.current = next.report;
+      setReport(next.report);
+      setReportFromCopy(next.fromCopy ?? false);
+      setReportMissing(next.missing ?? false);
+    },
+    [],
+  );
+
+  /**
+   * Offline, the status comes from the copy: the report with that ID in the home on screen, else the
+   * submission's report; with neither, the screen says it loads when online (standards §10 item 17, P231).
+   */
+  const showReportCopy = useCallback(
+    (reportId: string) => {
+      const submitted = resultRef.current?.report;
+      const copy =
+        homeRef.current?.myReports.find((item) => item.reportId === reportId) ??
+        (submitted?.reportId === reportId ? submitted : undefined);
+      showStatus(copy ? { report: copy, fromCopy: true } : { missing: true });
+    },
+    [showStatus],
+  );
+
   /**
    * Reads a report for the status screen; the old report stays shown while it reloads. A pull-to-refresh passes
    * `showLoading: false`, so only the pull indicator shows, as on the home.
+   *
+   * Offline (the strip is not Online) no request is made and the copy is used. Online, an unreachable server or a
+   * timeout (`NetworkError`) falls back to the copy; any other error is the C1 banner. The result applies only while
+   * that report's status is open and this is the latest read, so a late reply never replaces a newer one and a
+   * superseded failure raises nothing (standards §10 items 4 and 17, P231). `assumeOnline` is for the reconnect
+   * read, which runs when the connectivity trigger may be ahead of the strip.
    */
   const readReport = useCallback(
     async (
@@ -659,24 +746,54 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
       {
         showLoading = true,
         keepBanner = false,
-      }: { showLoading?: boolean; keepBanner?: boolean } = {},
+        assumeOnline = false,
+      }: { showLoading?: boolean; keepBanner?: boolean; assumeOnline?: boolean } = {},
     ) => {
-      const read = async () => {
-        setReport(await controller.getReportStatus(reportId));
+      readSeq.current += 1;
+      const mine = readSeq.current;
+      const current = () => {
+        const open = routeRef.current;
+        return (
+          mine === readSeq.current && open.name === 'reportStatus' && open.reportId === reportId
+        );
       };
-      await guarded(() => (showLoading ? withLoading(read) : read()), keepBanner);
+      const read = async () => {
+        if (!assumeOnline && connectionRef.current !== 'online') {
+          showReportCopy(reportId);
+          return;
+        }
+        try {
+          const fresh = await controller.getReportStatus(reportId);
+          if (current()) {
+            showStatus({ report: fresh });
+          }
+        } catch (error) {
+          if (!current()) {
+            return;
+          }
+          if (error instanceof NetworkError) {
+            showReportCopy(reportId);
+            return;
+          }
+          throw error;
+        }
+      };
+      await guarded(
+        () => (showLoading ? withLoading(`status:${reportId}`, read) : read()),
+        keepBanner,
+      );
     },
-    [controller, guarded, withLoading],
+    [controller, guarded, withLoading, showReportCopy, showStatus],
   );
 
   const openReportStatusFrom = useCallback(
     async (reportId: string, from: StatusOrigin) => {
       navigate({ name: 'reportStatus', reportId, from });
       setDecision(undefined);
-      setReport(undefined);
+      showStatus({});
       await readReport(reportId);
     },
-    [navigate, readReport],
+    [navigate, readReport, showStatus],
   );
 
   const openReportStatus = useCallback(
@@ -812,13 +929,22 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
       console.warn('[CitizenAppUI] the synchronisation failed:', error);
     }
     await guarded(refreshHome);
-  }, [controller, guarded, refreshHome]);
+    // A report status that is open is read live again, with its loading row; the copy stays until it arrives
+    // (standards §10 item 17, P231). The trigger may run ahead of the strip, so only "Server not reachable" holds it back.
+    const open = routeRef.current;
+    if (open.name === 'reportStatus') {
+      await readReport(open.reportId, { assumeOnline: connectionRef.current !== 'serverDown' });
+    }
+  }, [controller, guarded, refreshHome, readReport]);
 
   /**
    * Works out the strip's state from the two signals. A return from serverDown to online syncs; a loss
    * of the connection (online to noInternet or serverDown) while the home is shown reloads the home at
    * once: offline it reads the saved copy with no network call, and the C1 banner of the failed live
-   * load goes with the view that carried it (standards section 10 item 11, P229; R8).
+   * load goes with the view that carried it (standards section 10 item 11, P229; R8). With a report status open,
+   * a loss reads it again when the C1 banner is up or no report is shown, which takes the copy path; a live report
+   * already shown stays (standards section 10 item 17, P231). The holder `serverState` is set first, so the
+   * synchronisation and the reload see the new value (P231).
    */
   const updateConnection = useCallback(() => {
     const next: ConnectionState = !networkRef.current
@@ -828,15 +954,21 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
         : 'online';
     const previous = connectionRef.current;
     connectionRef.current = next;
+    serverState.setDown(next === 'serverDown');
     setConnection(next);
     // noInternet to online is raised by the connectivity triggers; only the server's return is raised here.
     if (previous === 'serverDown' && next === 'online') {
       void onConnectivityRestored();
     }
-    if (previous === 'online' && next !== 'online' && routeRef.current.name === 'home') {
-      void guarded(refreshHome);
+    if (previous === 'online' && next !== 'online') {
+      const open = routeRef.current;
+      if (open.name === 'home') {
+        void guarded(refreshHome);
+      } else if (open.name === 'reportStatus' && (serviceRef.current || !reportRef.current)) {
+        void readReport(open.reportId, { showLoading: false });
+      }
     }
-  }, [onConnectivityRestored, guarded, refreshHome]);
+  }, [serverState, onConnectivityRestored, guarded, refreshHome, readReport]);
 
   const onNetworkChange = useCallback(
     (online: boolean) => {
@@ -905,7 +1037,7 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
     setRetrying(true);
     const current = routeRef.current;
     try {
-      await withLoading(async () => {
+      await withLoading(loadingKey(current), async () => {
         const attempt =
           current.name === 'reportStatus'
             ? readReport(current.reportId, { showLoading: false, keepBanner: true })
@@ -961,6 +1093,9 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
     result,
     sentReportId,
     report,
+    reportFromCopy,
+    reportMissing,
+    locating,
     serviceUnavailable,
     retriedAt: bannerCondition ? retriedAt : undefined,
     retrying,
@@ -969,7 +1104,7 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
     alerts,
     decision,
     submitting,
-    loading,
+    loading: (loadingCounts[loadingKey(route)] ?? 0) > 0,
     refreshing,
     discardQuestion,
     openHome,

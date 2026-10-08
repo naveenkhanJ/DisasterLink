@@ -113,6 +113,7 @@ async function renderBlockedHome(appName: string): Promise<void> {
       currentLocation={undefined}
       locationAccess="blocked"
       appName={appName}
+      locating={false}
       draftDiscarded={false}
       onSelectLanguage={jest.fn()}
       onAllowLocationAccess={jest.fn()}

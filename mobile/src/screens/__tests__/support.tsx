@@ -80,6 +80,7 @@ export interface Rig {
   photos: { takePhoto: jest.Mock; choosePhoto: jest.Mock; deletePhoto: jest.Mock };
   locationAccess: { check: jest.Mock; request: jest.Mock };
   services: UiServices;
+  serverState: { setDown: jest.Mock };
 }
 
 let latest: CitizenAppUI | undefined;
@@ -136,6 +137,7 @@ export function makeRig(): Rig {
       uri: 'file:///documents/draft-1.jpg',
     })),
   };
+  const serverState = { setDown: jest.fn() };
   return {
     controller,
     photos,
@@ -143,9 +145,11 @@ export function makeRig(): Rig {
       controller,
       photos,
       locationAccess,
+      serverState,
       env: { citizenLanguage: 'ENGLISH', citizenDistrict: 'KALUTARA' },
     },
     locationAccess,
+    serverState,
   };
 }
 

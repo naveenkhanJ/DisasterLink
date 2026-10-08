@@ -36,7 +36,7 @@ import { Screen } from './Screen';
 import { ShowAlert } from './ShowAlert';
 import { ShowHome } from './ShowHome';
 import { ShowReportDecision } from './ShowReportDecision';
-import { ShowReportStatus } from './ShowReportStatus';
+import { ShowReportStatus, ShowReportStatusOffline } from './ShowReportStatus';
 import { ShowReview } from './ShowReview';
 import { ShowSubmissionResult } from './ShowSubmissionResult';
 import { ShowSyncResults } from './ShowSyncResults';
@@ -62,6 +62,7 @@ function CurrentScreen({ ui: app }: { ui: CitizenAppUI }) {
           currentLocation={app.currentLocation}
           locationAccess={app.locationAccess}
           appName={hostAppName()}
+          locating={app.locating}
           draftDiscarded={app.draftDiscarded}
           onSelectLanguage={(language) => void app.selectLanguage(language)}
           onAllowLocationAccess={() => void app.allowLocationAccess()}
@@ -74,9 +75,19 @@ function CurrentScreen({ ui: app }: { ui: CitizenAppUI }) {
     );
   }
   if (route.name === 'reportStatus') {
-    return app.report ? (
-      <ShowReportStatus
-        report={app.report}
+    if (app.report) {
+      return (
+        <ShowReportStatus
+          report={app.report}
+          refreshing={app.refreshing}
+          onRefresh={() => void app.refreshReportStatus()}
+        />
+      );
+    }
+    // Offline and no copy has the report (standards section 10 item 17, P231); otherwise the first read is running.
+    return app.reportMissing ? (
+      <ShowReportStatusOffline
+        reportId={route.reportId}
         refreshing={app.refreshing}
         onRefresh={() => void app.refreshReportStatus()}
       />
@@ -168,7 +179,10 @@ export function CitizenApp({ ui: app }: { ui: CitizenAppUI }) {
       <AppHeader onBack={BACK_ROUTES.has(app.route.name) ? () => void app.goBack() : undefined} />
       <ConnectionStrip
         state={app.connection}
-        savedCopy={app.route.name === 'home' && app.home.fromCache === true}
+        savedCopy={
+          (app.route.name === 'home' && app.home.fromCache === true) ||
+          (app.route.name === 'reportStatus' && app.reportFromCopy)
+        }
       />
       {app.loading ? <LoadingRow /> : null}
       {soon ? <SoonNotice label={soon.label} onClose={() => setSoon(null)} /> : null}

@@ -216,20 +216,21 @@ describe('progress and refresh (standards §10 items 4 and 5)', () => {
   it('standards §10 item 4: overlapping actions keep the flag until the last one is done', async () => {
     const rig = makeRig();
     await renderApp(rig);
-    const status = deferred<typeof REPORT>();
-    const language = deferred<undefined>();
-    rig.controller.getReportStatus.mockReturnValue(status.promise);
-    rig.controller.changeLanguage.mockReturnValue(language.promise);
+    const first = deferred<undefined>();
+    const second = deferred<undefined>();
+    rig.controller.changeLanguage
+      .mockReturnValueOnce(first.promise)
+      .mockReturnValueOnce(second.promise);
 
     await act(async () => {
-      void ui().openReportStatus('RPT-1');
       void ui().selectLanguage('TAMIL');
+      void ui().selectLanguage('SINHALA');
     });
     expect(ui().loading).toBe(true);
-    await run(() => status.resolve(REPORT));
+    await run(() => first.resolve(undefined));
     expect(ui().loading).toBe(true);
     expect(screen.getByText('Loading…')).toBeTruthy();
-    await run(() => language.resolve(undefined));
+    await run(() => second.resolve(undefined));
 
     expect(ui().loading).toBe(false);
   });
