@@ -1,6 +1,9 @@
 <!DOCTYPE html>
-<!-- WF1-S03 — Create Hazard Warning. Prototype (P89): static sample data from the scenarios; no behaviour.
-     Bind the values with th:text / th:each when the controller is wired (implementation-standards §4). -->
+<!--/* WF1-S03 — Create Hazard Warning: showWarningForm(hazard) (SC1 steps 5–10), with the states WF1-S03a (A2, no
+     affected area) and WF1-S03b (E3, errors with the counters) through showValidationErrors(errors), and the E4
+     "Update hazard" drawer (the updatePanel fragment of showHazardDetails).
+     Rendered by WarningDashboardUI; the form posts to enterWarningDetails, which redirects to requestPreview.
+     The form keeps the values entered whenever it is shown again (MD C2). */-->
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{fragments/layout :: head('Create Hazard Warning')}">
 <meta charset="utf-8"><title>Create Hazard Warning — DMC Sri Lanka</title>
@@ -8,33 +11,108 @@
 </head>
 <body>
 <div class="app">
-<aside class="sidebar" th:replace="~{fragments/layout :: sidebar-dmc('Warnings')}"><div class="brand"><span class="brand__badge">DMC</span>DMC Sri Lanka</div><nav class="nav"><a class="nav__item is-active" href="../warning/showHazards.html"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>Warnings</a><a class="nav__item" href="../analytics/analyticsWorkspace.html"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><path d="M8 17V11"/><path d="M13 17V7"/><path d="M18 17v-4"/></svg>Analytics</a><button type="button" class="nav__item nav__item--soon" data-soon="Hazards"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16.3A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 .5 9"/><path d="m13 12-3 5h4l-3 5"/></svg><span><span class="nav__label">Hazards</span><span class="soon-tag">Not in this version</span></span></button><button type="button" class="nav__item nav__item--soon" data-soon="Operational picture"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg><span><span class="nav__label">Operational picture</span><span class="soon-tag">Not in this version</span></span></button></nav></aside>
+<aside class="sidebar" th:replace="~{fragments/layout :: sidebar-dmc('Warnings')}"></aside>
 <div class="main">
-<header class="topbar" th:replace="~{fragments/layout :: topbar('Create Hazard Warning')}"><div><h1 class="topbar__title">Create Hazard Warning</h1><p class="topbar__subtitle">Prepare the warning for the selected hazard</p></div><div class="user"><span class="user__avatar">NJ</span><div><div class="user__name">N. Jayasinghe</div><div class="user__role">DMC Officer</div></div></div></header>
+<header class="topbar" th:replace="~{fragments/layout :: topbar('Create Hazard Warning')}"></header>
 <main class="page">
-<section class="card "><div class="row row--between"><div><div class="row"><strong>Flood — Kalu Ganga at Ratnapura</strong><span class="mono-id">HZ-2026-0142</span>
-<span class="label">Severity</span><span class="tag">Medium</span><span>Ratnapura, Kalutara</span></div><p class="small muted">Kalu Ganga rising at the Ratnapura gauge; minor flood level exceeded</p></div>
-<button type="button" class="btn btn--secondary">Update hazard</button></div></section>
-<div class="grid grid--main-side"><section class="card "><div class="stack" style="gap:12px">
-<div><p class="label">1 · Warning level</p><div class="tiles" style="margin-top:6px"><label class="tile tile--l1"><span class=tile__swatch></span>Level 1 – Yellow (Remain Vigilant)</label><label class="tile tile--l2 is-selected"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Level 2 – Amber (Be Alert)</label><label class="tile tile--l3"><span class=tile__swatch></span>Level 3 – Red (Evacuate)</label></div></div>
-<div><p class="label">2 · Affected area — Districts</p><div class="chips" style="margin-top:6px"><span class="chip">Ampara</span><span class="chip">Anuradhapura</span><span class="chip">Badulla</span><span class="chip">Batticaloa</span><span class="chip">Colombo</span><span class="chip">Galle</span><span class="chip">Gampaha</span><span class="chip">Hambantota</span><span class="chip">Jaffna</span><span class="chip">Kalutara</span><span class="chip">Kandy</span><span class="chip">Kegalle</span><span class="chip">Kilinochchi</span><span class="chip">Kurunegala</span><span class="chip">Mannar</span><span class="chip">Matale</span><span class="chip">Matara</span><span class="chip">Monaragala</span><span class="chip">Mullaitivu</span><span class="chip">Nuwara Eliya</span><span class="chip">Polonnaruwa</span><span class="chip">Puttalam</span><span class="chip is-selected"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Ratnapura</span><span class="chip">Trincomalee</span><span class="chip">Vavuniya</span></div></div>
+<div th:replace="~{fragments/layout :: errorBanner}"></div>
+<section class="card"><div class="row row--between" style="align-items:flex-start"><div><div class="row"><strong th:text="${hazard.label}">Flood — Kalu Ganga at Ratnapura</strong><span class="mono-id" th:text="${hazard.hazardId}">HZ-2026-0142</span>
+<span class="label">Severity</span><span class="tag" th:text="${hazard.severity}">Medium</span><span th:text="${hazard.districts}">Ratnapura, Kalutara</span></div><p class="small muted" th:text="${hazard.description}">Kalu Ganga rising at the Ratnapura gauge; minor flood level exceeded</p></div>
+<details th:attr="open=${updateOpen} ? 'open' : null" style="max-width:392px"><summary class="btn btn--secondary">Update hazard</summary>
+<div style="margin-top:12px" th:with="missing=${null}"><section th:replace="~{warning/showHazardDetails :: updatePanel('form')}"></section></div></details></div></section>
+
+<form id="warning-form" method="post" th:action="@{/warning/hazards/{id}/details(id=${hazard.hazardId})}" class="stack" style="gap:16px">
+<th:block th:fragment="showValidationErrors">
+<div class="notice notice--error" role="alert" th:if="${fieldErrors.containsKey('general')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg><div th:text="${fieldErrors.get('general')}">A warning cannot be issued until the missing information is provided</div></div>
+</th:block>
+<div class="grid grid--main-side"><section class="card"><div class="stack" style="gap:12px">
+<div><p class="label">1 · Warning level</p><div class="tiles" style="margin-top:6px">
+<label th:each="level, iter : ${levelOptions}" class="tile" th:classappend="'tile--l' + ${iter.count} + (${warningForm.warningLevel != null and warningForm.warningLevel.name() == level.code} ? ' is-selected' : '')"><input type="radio" name="warningLevel" required th:value="${level.code}" th:checked="${warningForm.warningLevel != null and warningForm.warningLevel.name() == level.code}"><span class="tile__swatch"></span><span th:text="${level.label}">Level 2 – Amber (Be Alert)</span></label></div></div>
+<div><p class="label">2 · Affected area — Districts</p>
+<div class="notice notice--error" role="alert" style="margin-top:6px" th:if="${fieldErrors.containsKey('area')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg><div th:text="${fieldErrors.get('area')}">An affected area is required: select at least one district or river basin</div></div>
+<div class="chips" style="margin-top:6px"><label class="chip" th:each="option : ${districtOptions}" th:classappend="${warningForm.targetDistricts.![name()].contains(option.code)} ? 'is-selected'"><input type="checkbox" name="targetDistricts" th:value="${option.code}" th:checked="${warningForm.targetDistricts.![name()].contains(option.code)}"> <span th:text="${option.label}">Ratnapura</span></label></div></div>
 <div class="grid grid--halves"><div class="field"><span class="label">River basins</span>
-<div class="input row row--between"><span><span class="chip is-selected"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Kalu<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></span></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></div></div>
-<div class="field"><label class="label">3 · Validity — Expires</label><input class="input" value="10 Oct 2026, 09:45"></div></div></div></section><div class="stack"><section class="card "><div class="card__head"><div><h2 class="card__title">Selected area</h2></div></div><div class="row" style="align-items:flex-start;flex-wrap:nowrap"><div class="district-map" data-selected="Ratnapura" data-height="190"></div>
-<div><p>Districts: Ratnapura</p><p>River basins: Kalu</p><p class="help" style="margin-top:8px">Basin districts are added on the preview</p></div></div></section><section class="card "><p class="label">5 · Notification channels</p><div style="margin-top:12px"><label class="check"><input type="checkbox" checked>Push</label><label class="check"><input type="checkbox" checked>SMS</label><label class="check"><input type="checkbox" checked>Audible alert</label></div></section></div></div>
+<div class="chips"><label class="chip is-selected" th:each="option : ${basinOptions}" th:if="${warningForm.targetRiverBasins.![name()].contains(option.code)}"><input type="checkbox" name="targetRiverBasins" th:value="${option.code}" checked> <span th:text="${option.label}">Kalu</span></label></div>
+<details><summary class="input row row--between" style="cursor:pointer"><span class="muted">Choose river basins</span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></summary>
+<div class="chips" style="margin-top:6px"><label class="chip" th:each="option : ${basinOptions}" th:unless="${warningForm.targetRiverBasins.![name()].contains(option.code)}"><input type="checkbox" name="targetRiverBasins" th:value="${option.code}"> <span th:text="${option.label}">Kelani</span></label></div></details></div>
+<div class="field" th:classappend="${fieldErrors.containsKey('expiryTime')} ? 'field--error'"><label class="label" for="expiryTime">3 · Validity — Expires</label><input class="input" type="datetime-local" id="expiryTime" name="expiryTime" th:value="${warningForm.expiryTime != null} ? ${#temporals.format(warningForm.expiryTime, 'yyyy-MM-dd''T''HH:mm')} : ''">
+<p class="error-text" th:if="${fieldErrors.containsKey('expiryTime')}"><svg class="icon" style="width:16px;height:16px" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg><span th:text="${fieldErrors.get('expiryTime')}">The expiry time must be after now</span></p></div></div></div></section>
+<div class="stack"><section class="card"><div class="card__head"><div><h2 class="card__title">Selected area</h2></div></div><div class="row" style="align-items:flex-start;flex-wrap:nowrap"><div class="district-map" th:attr="data-selected=${selectedDistricts == 'none'} ? '' : ${selectedDistricts}" data-height="190"></div>
+<div><p th:text="'Districts: ' + ${selectedDistricts}">Districts: Ratnapura</p><p th:text="'River basins: ' + ${selectedBasins}">River basins: Kalu</p><p class="help" style="margin-top:8px">Basin districts are added on the preview</p></div></div></section>
+<section class="card" th:classappend="${fieldErrors.containsKey('channels')} ? 'field--error'"><p class="label">5 · Notification channels</p><div style="margin-top:12px"><label class="check" th:each="option : ${channelOptions}"><input type="checkbox" name="channels" th:value="${option.code}" th:checked="${warningForm.channels.![name()].contains(option.code)}"><span th:text="${option.label}">Push</span></label></div>
+<p class="error-text" th:if="${fieldErrors.containsKey('channels')}"><svg class="icon" style="width:16px;height:16px" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg><span th:text="${fieldErrors.get('channels')}">At least one notification channel is required</span></p></section></div></div>
+
 <h2 class="section-title">4 · Message and emergency instructions</h2>
-<div class="grid grid--three"><section class="card "><div class="row row--between"><strong>Sinhala</strong><span class="counter">201 / 201</span></div>
-<div class="stack" style="gap:8px;margin-top:8px"><div class="field"><label class="label">Message</label><textarea class="textarea si" rows="5">DMC ගංවතුර අවවාදය - මට්ටම 2 ඇම්බර්: රත්නපුර සහ කළුතර දිස්ත්‍රික්කවල කළු ගඟ ඉහළ යයි. පහත් බිම් හැර යාමට සූදානම් වන්න.</textarea></div>
-<div class="field"><label class="label">Emergency instructions</label><textarea class="textarea si" rows="4">ලේඛන, වටිනා දෑ උසට ගෙනයන්න. ඉවත් වන්න කීවොත් ග්‍රාම නිලධාරී කී ආරක්ෂිත ස්ථානයට යන්න.</textarea></div></div></section><section class="card "><div class="row row--between"><strong>Tamil</strong><span class="counter">200 / 201</span></div>
-<div class="stack" style="gap:8px;margin-top:8px"><div class="field"><label class="label">Message</label><textarea class="textarea ta" rows="5">DMC வெள்ள எச்சரிக்கை - நிலை 2 அம்பர்: இரத்தினபுரி மற்றும் களுத்துறையில் களு கங்கை உயர்கிறது. தாழ்நிலத்திலிருந்து வெளியேறத் தயாராகவும்.</textarea></div>
-<div class="field"><label class="label">Emergency instructions</label><textarea class="textarea ta" rows="4">கூறினால் கிராம உத்தியோகத்தர் கூறும் பாதுகாப்பு நிலையம் செல்லவும்.</textarea></div></div></section><section class="card "><div class="row row--between"><strong>English</strong><span class="counter">239 / 459</span></div>
-<div class="stack" style="gap:8px;margin-top:8px"><div class="field"><label class="label">Message</label><textarea class="textarea " rows="5">DMC FLOOD WARNING - Level 2 Amber: Kalu Ganga rising in Ratnapura and Kalutara. Prepare to evacuate low-lying areas.</textarea></div>
-<div class="field"><label class="label">Emergency instructions</label><textarea class="textarea " rows="4">Move documents and valuables to higher ground. If told to evacuate, go to the safety centre named by your Grama Niladhari.</textarea></div></div></section></div>
-<div class="footer-bar"><span></span><a class="btn btn--primary" href="../warning/showPreview.html">Proceed to preview</a></div>
+<th:block th:with="textErrors=${fieldErrors.keySet().?[startsWith('message') or startsWith('instructions')]}"><div class="notice notice--error" role="alert" th:unless="${textErrors.isEmpty()}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg><div th:text="'Correct ' + ${textErrors.size()} + (${textErrors.size() == 1} ? ' field' : ' fields') + ' before the preview'">Correct 2 fields before the preview</div></div></th:block>
+<div class="grid grid--three">
+<section th:replace="~{warning/showWarningForm :: languageCard('Sinhala', 'si', 'messageSinhala', ${warningForm.messageSinhala}, 'instructionsSinhala', ${warningForm.instructionsSinhala}, 201)}"></section>
+<section th:replace="~{warning/showWarningForm :: languageCard('Tamil', 'ta', 'messageTamil', ${warningForm.messageTamil}, 'instructionsTamil', ${warningForm.instructionsTamil}, 201)}"></section>
+<section th:replace="~{warning/showWarningForm :: languageCard('English', '', 'messageEnglish', ${warningForm.messageEnglish}, 'instructionsEnglish', ${warningForm.instructionsEnglish}, 459)}"></section>
+</div>
+<div class="footer-bar"><span></span><button type="submit" class="btn btn--primary">Proceed to preview</button></div>
+</form>
 </main>
 </div>
 </div>
+
+
+<script th:replace="~{warning/showWarningForm :: smsCounter}"></script>
 <script src="../../static/js/nav-notice.js" th:src="@{/js/nav-notice.js}"></script>
-<script src="../../static/js/districts.js" th:src="@{/js/districts.js}"></script><link rel="stylesheet" th:href="@{/vendor/leaflet-1.9.4/leaflet.css}"><script th:src="@{/vendor/leaflet-1.9.4/leaflet.js}"></script><script src="../../static/js/district-map.js" th:src="@{/js/district-map.js}"></script>
+<th:block th:replace="~{fragments/layout :: mapAssets}"></th:block>
+<!--/* The fragments of the warning form, also used by the escalation details form (escalationDetailsForm). Defined here and never rendered in place. */-->
+<th:block th:remove="all">
+<!--/* One language: message, instructions, and the counter of the SMS text (message + 1 + instructions). */-->
+<section class="card" th:fragment="languageCard(language, script, messageField, message, instructionsField, instructions, limit)" data-sms-card>
+<div class="row row--between"><strong th:text="${language}">Sinhala</strong><span class="counter" th:classappend="${fieldErrors.containsKey(instructionsField) and fieldErrors.get(instructionsField).contains('characters')} ? 'counter--over'" data-counter th:attr="data-limit=${limit}">0 / 201</span></div>
+<div class="stack" style="gap:8px;margin-top:8px">
+<div class="field" th:classappend="${fieldErrors.containsKey(messageField)} ? 'field--error'"><label class="label" th:for="${messageField}">Message</label><textarea class="textarea" th:classappend="${script}" rows="5" th:id="${messageField}" th:name="${messageField}" th:text="${message}" data-message></textarea>
+<p class="error-text" th:if="${fieldErrors.containsKey(messageField)}"><svg class="icon" style="width:16px;height:16px" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg><span th:text="${fieldErrors.get(messageField)}">Sinhala message is required</span></p></div>
+<div class="field" th:classappend="${fieldErrors.containsKey(instructionsField)} ? 'field--error'"><label class="label" th:for="${instructionsField}">Emergency instructions</label><textarea class="textarea" th:classappend="${script}" rows="4" th:id="${instructionsField}" th:name="${instructionsField}" th:text="${instructions}" data-instructions></textarea>
+<p class="error-text" th:if="${fieldErrors.containsKey(instructionsField)}"><svg class="icon" style="width:16px;height:16px" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg><span th:text="${fieldErrors.get(instructionsField)}">Sinhala instructions are required</span></p></div></div></section>
+<script th:fragment="smsCounter">
+// Display aids only; WarningTextValidator on the server decides (SC1 step 9, E3).
+// The counter shows the SMS text of one language: message + one line break + instructions. A text in the GSM
+// 7-bit alphabet is counted against 459 (extension characters count 2); any other character switches it to
+// UCS-2, counted in UTF-16 units against 201.
+(function () {
+  var GSM = '@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !"#¤%&\'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà';
+  var GSM_EXTENSION = '^{}\\[~]|€';
+  var GSM_LIMIT = 459, UNICODE_LIMIT = 201;
+  function smsLength(text) {
+    var gsm = true, length = 0;
+    for (var i = 0; i < text.length; i++) {
+      var c = text.charAt(i);
+      if (GSM_EXTENSION.indexOf(c) >= 0) { length += 2; } else if (GSM.indexOf(c) >= 0) { length += 1; } else { gsm = false; }
+    }
+    return gsm ? { length: length, limit: GSM_LIMIT } : { length: text.length, limit: UNICODE_LIMIT };
+  }
+  document.querySelectorAll('[data-sms-card]').forEach(function (card) {
+    var message = card.querySelector('[data-message]');
+    var instructions = card.querySelector('[data-instructions]');
+    var counter = card.querySelector('[data-counter]');
+    function update() {
+      var count = smsLength(message.value + '\n' + instructions.value);
+      counter.textContent = count.length + ' / ' + count.limit;
+      counter.classList.toggle('counter--over', count.length > count.limit);
+    }
+    message.addEventListener('input', update);
+    instructions.addEventListener('input', update);
+    update();
+  });
+  // Selected chips and tiles show their state while the officer chooses (the server re-renders them).
+  document.querySelectorAll('.chip input, .tile input').forEach(function (input) {
+    input.addEventListener('change', function () {
+      if (input.type === 'radio') {
+        document.querySelectorAll('input[name="' + input.name + '"]').forEach(function (other) {
+          other.closest('.tile').classList.toggle('is-selected', other.checked);
+        });
+      } else {
+        input.closest('.chip').classList.toggle('is-selected', input.checked);
+      }
+    });
+  });
+})();
+</script>
+</th:block>
 </body>
 </html>

@@ -1,6 +1,9 @@
 <!DOCTYPE html>
-<!-- WF1-S02 — Warning Dashboard. Prototype (P89): static sample data from the scenarios; no behaviour.
-     Bind the values with th:text / th:each when the controller is wired (implementation-standards §4). -->
+<!--/* WF1-S02 — Warning Dashboard, hazard details: showHazardDetails(view) (SC1 steps 4–5, 18–19), with the states
+     WF1-S02a showHazardIncomplete(missing) (A1 5a), WF1-S02b showValidationErrors(errors) on the update panel (E5),
+     and WF1-S02c showActiveWarning(warning, summary) with Escalate (steps 18–19, A5 5d).
+     Rendered by WarningDashboardUI.selectHazard / editHazard; the model holds view records only.
+     The fragment "updatePanel" is the "Update hazard" panel, also used in the drawer of showWarningForm. */-->
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{fragments/layout :: head('Warning Dashboard')}">
 <meta charset="utf-8"><title>Warning Dashboard — DMC Sri Lanka</title>
@@ -8,21 +11,46 @@
 </head>
 <body>
 <div class="app">
-<aside class="sidebar" th:replace="~{fragments/layout :: sidebar-dmc('Warnings')}"><div class="brand"><span class="brand__badge">DMC</span>DMC Sri Lanka</div><nav class="nav"><a class="nav__item is-active" href="../warning/showHazards.html"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>Warnings</a><a class="nav__item" href="../analytics/analyticsWorkspace.html"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><path d="M8 17V11"/><path d="M13 17V7"/><path d="M18 17v-4"/></svg>Analytics</a><button type="button" class="nav__item nav__item--soon" data-soon="Hazards"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16.3A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 .5 9"/><path d="m13 12-3 5h4l-3 5"/></svg><span><span class="nav__label">Hazards</span><span class="soon-tag">Not in this version</span></span></button><button type="button" class="nav__item nav__item--soon" data-soon="Operational picture"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg><span><span class="nav__label">Operational picture</span><span class="soon-tag">Not in this version</span></span></button></nav></aside>
+<aside class="sidebar" th:replace="~{fragments/layout :: sidebar-dmc('Warnings')}"></aside>
 <div class="main">
-<header class="topbar" th:replace="~{fragments/layout :: topbar('Warning Dashboard')}"><div><h1 class="topbar__title">Warning Dashboard</h1><p class="topbar__subtitle">Hazard details</p></div><div class="user"><span class="user__avatar">NJ</span><div><div class="user__name">N. Jayasinghe</div><div class="user__role">DMC Officer</div></div></div></header>
+<header class="topbar" th:replace="~{fragments/layout :: topbar('Warning Dashboard')}"></header>
 <main class="page">
-<div class="grid grid--details"><section class="card card--tall"><div class="card__head"><div><h2 class="card__title">Assessable hazards</h2></div></div><a class="list-item is-selected" style="display:block;text-decoration:none" href="#">
-<strong>Flood — Kalu Ganga at Ratnapura</strong><div class="small muted">Medium · Ratnapura, Kalutara</div></a></section><div class="stack"><section class="card "><div class="card__head"><div><h2 class="card__title">Hazard details</h2></div></div><p style="margin-bottom:8px"><strong>Flood — Kalu Ganga at Ratnapura</strong> <span class="mono-id">HZ-2026-0142</span></p>
-<dl class="details"><dt>Type</dt><dd>Flood</dd><dt>Description</dt><dd>Kalu Ganga rising at the Ratnapura gauge; minor flood level exceeded</dd><dt>Severity</dt><dd><span class="tag">Medium</span></dd><dt>Location name</dt><dd>Kalu Ganga at Ratnapura</dd><dt>Districts</dt><dd>Ratnapura, Kalutara</dd><dt>River basin</dt><dd>Kalu</dd><dt>Source</dt><dd>Agency bulletin</dd><dt>Start time</dt><dd>9 Oct 2026, 06:30</dd><dt>Status</dt><dd><span class="tag">Active</span></dd><dt>Active warning</dt><dd>None</dd></dl></section><section class="card "><div class="card__head"><div><h2 class="card__title">Update hazard</h2></div></div><div class="stack" style="gap:10px"><div class="field"><label class="label">Description</label><textarea class="textarea " rows="2">Kalu Ganga rising at the Ratnapura gauge; minor flood level exceeded</textarea></div>
-<div class="grid" style="grid-template-columns:150px 1fr"><div class="field"><label class="label">Severity</label><select class="select"><option>Medium</option></select></div>
-<div class="field"><span class="label">Districts</span><div class="chips"><span class="chip is-selected"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Ratnapura</span><span class="chip is-selected"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Kalutara</span><span class="chip"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>Add district</span></div></div></div>
-<div><button type="button" class="btn btn--secondary">Save hazard update</button></div></div></section></div>
-<section class="card "><div class="card__head"><div><h2 class="card__title">Hazard districts</h2></div></div><div class="district-map" data-selected="Ratnapura,Kalutara" data-height="300"></div></section></div>
+<div th:replace="~{fragments/layout :: errorBanner}"></div>
+<div class="grid grid--details">
+<section class="card card--tall"><div class="card__head"><div><h2 class="card__title">Assessable hazards</h2></div></div>
+<a class="list-item" style="display:block;text-decoration:none;color:inherit;margin-bottom:8px" th:each="item : ${hazards}" th:href="@{/warning/hazards/{id}(id=${item.hazardId})}" th:classappend="${item.hazardId == hazard.hazardId} ? 'is-selected'">
+<strong th:text="${item.label}">Flood — Kalu Ganga at Ratnapura</strong><div class="small muted" th:text="${item.severity} + ' · ' + ${item.districts}">Medium · Ratnapura, Kalutara</div></a></section>
+<div class="stack">
+<div class="notice notice--warn" role="status" th:fragment="showHazardIncomplete" th:unless="${#lists.isEmpty(missing)}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg><div th:text="'A warning cannot be issued until the missing information is provided: ' + ${#strings.listJoin(missing, ', ')}">A warning cannot be issued until the missing information is provided: affected districts</div></div>
+<section class="card"><div class="card__head"><div><h2 class="card__title">Hazard details</h2></div></div><p style="margin-bottom:8px"><strong th:text="${hazard.label}">Flood — Kalu Ganga at Ratnapura</strong> <span class="mono-id" th:text="${hazard.hazardId}">HZ-2026-0142</span></p>
+<dl class="details"><dt>Type</dt><dd th:text="${hazard.type}">Flood</dd><dt>Description</dt><dd th:text="${hazard.description}">Kalu Ganga rising at the Ratnapura gauge; minor flood level exceeded</dd><dt>Severity</dt><dd><span class="tag" th:text="${hazard.severity}">Medium</span></dd><dt>Location name</dt><dd th:text="${hazard.locationName}">Kalu Ganga at Ratnapura</dd><dt>Districts</dt><dd th:text="${hazard.districts}">Ratnapura, Kalutara</dd><dt>River basin</dt><dd th:text="${hazard.riverBasin}">Kalu</dd><dt>Source</dt><dd th:text="${hazard.source}">Agency bulletin</dd><dt>Start time</dt><dd th:text="${hazard.startTime}">20 May 2026, 09:30</dd><dt>Status</dt><dd><span class="tag" th:text="${hazard.status}">Active</span></dd><dt>Active warning</dt><dd th:text="${activeWarning != null} ? ${activeWarning.warningId} : 'None'">None</dd></dl></section>
+<section class="card" th:if="${activeWarning != null}" th:fragment="showActiveWarning"><div class="card__head"><div><h2 class="card__title">Active warning</h2></div></div>
+<div class="row"><span style="font-size:16px;font-weight:800" th:text="${activeWarning.warningId}">WRN-2026-0087</span><span class="tag" th:classappend="${activeWarning.levelClass}" th:text="${activeWarning.levelLabel}">Level 2 – Amber (Be Alert)</span><span class="tag" th:classappend="${activeWarning.active} ? 'tag--ok'" th:text="${activeWarning.status}">Active</span></div>
+<p style="margin-top:6px" th:text="'Covered districts: ' + ${activeWarning.coveredDistricts}">Covered districts: Ratnapura, Kalutara</p>
+<p class="muted" th:text="'Issued ' + ${activeWarning.issued} + ' · Expires ' + ${activeWarning.expires}">Issued 20 May 2026, 10:45 · Expires 21 May 2026, 10:45</p>
+<p style="margin-top:6px"><strong th:text="${dispatch.delivered}">102,549</strong> notifications delivered</p>
+<p class="row" style="gap:6px" th:unless="${dispatch.hasFailures}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>No failures</p>
+<p class="row" style="gap:6px" th:if="${dispatch.hasFailures}"><strong th:text="${dispatch.failedTotal} + ' failed'">1,240 failed</strong></p>
+<div class="row" style="margin-top:12px"><a class="btn btn--primary" th:href="@{/warning/{id}/escalate(id=${activeWarning.warningId},from='dashboard')}">Escalate</a></div></section>
+<section class="card" th:fragment="updatePanel(returnTo)"><div class="card__head"><div><h2 class="card__title">Update hazard</h2></div></div>
+<form method="post" th:action="@{/warning/hazards/{id}/update(id=${hazard.hazardId})}" class="stack" style="gap:10px">
+<input type="hidden" name="returnTo" th:value="${returnTo}">
+<div class="field"><label class="label" for="update-description">Description</label><textarea class="textarea" id="update-description" name="description" rows="2" th:text="${updateForm.description}">Kalu Ganga rising at the Ratnapura gauge; minor flood level exceeded</textarea></div>
+<div class="grid" style="grid-template-columns:150px 1fr"><div class="field"><label class="label" for="update-severity">Severity</label><select class="select" id="update-severity" name="severity"><option value="">—</option><option th:each="option : ${severityOptions}" th:value="${option.code}" th:text="${option.label}" th:selected="${updateForm.severity != null and updateForm.severity.name() == option.code}">Medium</option></select></div>
+<div class="field" th:classappend="${!#lists.isEmpty(updateErrors)} ? 'field--error'"><span class="label">Districts</span>
+<div class="chips"><label class="chip is-selected" th:each="option : ${districtOptions}" th:if="${updateForm.districts != null and updateForm.districts.![name()].contains(option.code)}"><input type="checkbox" name="districts" th:value="${option.code}" checked> <span th:text="${option.label}">Ratnapura</span></label></div>
+<details style="margin-top:6px"><summary class="chip"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>Add district</summary>
+<div class="chips" style="margin-top:6px"><label class="chip" th:each="option : ${districtOptions}" th:unless="${updateForm.districts != null and updateForm.districts.![name()].contains(option.code)}"><input type="checkbox" name="districts" th:value="${option.code}"> <span th:text="${option.label}">Colombo</span></label></div></details>
+<p class="error-text" th:each="error : ${updateErrors}" th:if="${updateErrors != null}"><svg class="icon" style="width:16px;height:16px" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg><span th:text="${error}">At least one district is required</span></p></div></div>
+<div><button type="submit" class="btn" th:classappend="${!#lists.isEmpty(missing)} ? 'btn--primary' : 'btn--secondary'">Save hazard update</button></div>
+</form></section>
+</div>
+<section class="card"><div class="card__head"><div><h2 class="card__title">Hazard districts</h2></div></div><div class="district-map" th:attr="data-selected=${hazard.mapDistricts}" data-height="300"></div></section>
+</div>
 </main>
 </div>
 </div>
 <script src="../../static/js/nav-notice.js" th:src="@{/js/nav-notice.js}"></script>
-<script src="../../static/js/districts.js" th:src="@{/js/districts.js}"></script><link rel="stylesheet" th:href="@{/vendor/leaflet-1.9.4/leaflet.css}"><script th:src="@{/vendor/leaflet-1.9.4/leaflet.js}"></script><script src="../../static/js/district-map.js" th:src="@{/js/district-map.js}"></script>
+<th:block th:replace="~{fragments/layout :: mapAssets}"></th:block>
 </body>
 </html>

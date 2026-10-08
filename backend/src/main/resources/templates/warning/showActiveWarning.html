@@ -1,6 +1,7 @@
 <!DOCTYPE html>
-<!-- WF1-S05 — Dispatch Status. Prototype (P89): static sample data from the scenarios; no behaviour.
-     Bind the values with th:text / th:each when the controller is wired (implementation-standards §4). -->
+<!--/* WF1-S05 — Dispatch Status: showActiveWarning(warning, summary) (SC1 steps 13–17), with the states WF1-S05a
+     showDeliveryFailure(channel, failedRecipientIds) and the resend card (E1 16a–16d), and WF1-S05b after the
+     resend (E1 16e). Rendered by WarningDashboardUI.confirmBroadcast / resendOnChannel. */-->
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{fragments/layout :: head('Dispatch Status')}">
 <meta charset="utf-8"><title>Dispatch Status — DMC Sri Lanka</title>
@@ -8,17 +9,31 @@
 </head>
 <body>
 <div class="app">
-<aside class="sidebar" th:replace="~{fragments/layout :: sidebar-dmc('Warnings')}"><div class="brand"><span class="brand__badge">DMC</span>DMC Sri Lanka</div><nav class="nav"><a class="nav__item is-active" href="../warning/showHazards.html"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>Warnings</a><a class="nav__item" href="../analytics/analyticsWorkspace.html"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><path d="M8 17V11"/><path d="M13 17V7"/><path d="M18 17v-4"/></svg>Analytics</a><button type="button" class="nav__item nav__item--soon" data-soon="Hazards"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16.3A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 .5 9"/><path d="m13 12-3 5h4l-3 5"/></svg><span><span class="nav__label">Hazards</span><span class="soon-tag">Not in this version</span></span></button><button type="button" class="nav__item nav__item--soon" data-soon="Operational picture"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg><span><span class="nav__label">Operational picture</span><span class="soon-tag">Not in this version</span></span></button></nav></aside>
+<aside class="sidebar" th:replace="~{fragments/layout :: sidebar-dmc('Warnings')}"></aside>
 <div class="main">
-<header class="topbar" th:replace="~{fragments/layout :: topbar('Dispatch Status')}"><div><h1 class="topbar__title">Dispatch Status</h1><p class="topbar__subtitle">Flood — Kalu Ganga at Ratnapura</p></div><div class="user"><span class="user__avatar">NJ</span><div><div class="user__name">N. Jayasinghe</div><div class="user__role">DMC Officer</div></div></div></header>
+<header class="topbar" th:replace="~{fragments/layout :: topbar('Dispatch Status')}"></header>
 <main class="page">
-<section class="card "><p class="label">Warning</p><div class="row"><span style="font-size:18px;font-weight:800">WRN-2026-0087</span><span class="tag tag--l2">Level 2 – Amber (Be Alert)</span><span class="tag tag--ok">Active</span></div>
-<p style="margin-top:6px">Covered districts: Ratnapura, Kalutara</p><p class="muted">Issued 9 Oct 2026, 09:45 · Expires 10 Oct 2026, 09:45</p></section><div class="grid grid--halves"><section class="card "><div class="card__head"><div><h2 class="card__title">Delivery</h2></div></div><p class="big-number">102,549</p><p class="label">Notifications delivered</p><p class="row" style="gap:6px;margin-top:12px"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>No failures</p></section>
-<section class="card "><div class="card__head"><div><h2 class="card__title">Failures by channel</h2></div></div><div class="kv"><span>Push</span><strong>None</strong></div><div class="kv"><span>SMS</span><strong>None</strong></div><div class="kv"><span>Audible alert</span><strong>None</strong></div><div class="kv"><span>Unreachable recipients</span><strong>None</strong></div></section></div>
+<div th:replace="~{fragments/layout :: errorBanner}"></div>
+<div class="notice notice--ok" role="status" th:if="${notice != null}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><div><strong th:text="${notice}">Resend on SMS complete</strong></div></div>
+<th:block th:if="${warning != null and dispatch != null}">
+<div class="notice notice--warn" role="alert" th:each="failure : ${dispatch.failures}" th:fragment="showDeliveryFailure"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg><div><strong th:text="${failure.text}">SMS delivery failed for 1,240 recipients</strong></div></div>
+<section class="card"><p class="label">Warning</p><div class="row"><span style="font-size:18px;font-weight:800" th:text="${warning.warningId}">WRN-2026-0087</span><span class="tag" th:classappend="${warning.levelClass}" th:text="${warning.levelLabel}">Level 2 – Amber (Be Alert)</span><span class="tag" th:classappend="${warning.active} ? 'tag--ok'" th:text="${warning.status}">Active</span></div>
+<p style="margin-top:6px" th:text="'Covered districts: ' + ${warning.coveredDistricts}">Covered districts: Ratnapura, Kalutara</p><p class="muted" th:text="'Issued ' + ${warning.issued} + ' · Expires ' + ${warning.expires}">Issued 20 May 2026, 10:45 · Expires 21 May 2026, 10:45</p></section>
+<div class="grid grid--halves"><section class="card"><div class="card__head"><div><h2 class="card__title">Delivery</h2></div></div><p class="big-number" th:text="${dispatch.delivered}">102,549</p><p class="label">Notifications delivered</p>
+<p class="row" style="gap:6px;margin-top:12px" th:unless="${dispatch.hasFailures}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>No failures</p>
+<p class="row" style="gap:6px;margin-top:12px" th:if="${dispatch.hasFailures}"><strong th:text="${dispatch.failedTotal} + ' failed'">1,240 failed</strong></p></section>
+<section class="card"><div class="card__head"><div><h2 class="card__title">Failures by channel</h2></div></div>
+<div class="kv" th:each="row : ${dispatch.channels}"><span th:text="${row.channel}">SMS</span><strong th:unless="${row.failed}" th:text="${row.failures}">None</strong><span class="tag tag--bad" th:if="${row.failed}" th:text="${row.failures}">1,240 recipients</span></div>
+<div class="kv"><span>Unreachable recipients</span><strong th:text="${dispatch.unreachable}">None</strong></div></section></div>
+<section class="card" th:if="${dispatch.hasFailures}"><div class="card__head"><div><h2 class="card__title">Resend to failed recipients</h2></div></div>
+<form method="post" class="row" style="align-items:flex-end" th:action="@{/warning/hazards/{hazard}/warnings/{warning}/resend(hazard=${hazardId},warning=${warning.warningId})}">
+<div class="field" style="min-width:220px"><label class="label" for="resend-channel">Channel</label><select class="select" id="resend-channel" name="channel"><option th:each="option : ${channelOptions}" th:value="${option.code}" th:text="${option.label}" th:selected="${option.code == dispatch.failures[0].channel}">SMS</option></select></div>
+<p class="help stretch">Resend on SMS once the SMS Gateway is available again, or on Push to reach only citizens with the app.</p>
+<button type="submit" class="btn btn--primary">Resend</button></form></section>
+</th:block>
 </main>
 </div>
 </div>
 <script src="../../static/js/nav-notice.js" th:src="@{/js/nav-notice.js}"></script>
-<script src="../../static/js/districts.js" th:src="@{/js/districts.js}"></script>
 </body>
 </html>
