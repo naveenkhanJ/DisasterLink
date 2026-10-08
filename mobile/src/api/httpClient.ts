@@ -6,6 +6,7 @@
  * {@link NetworkError}. The caller treats a 4xx as a rejection and a 5xx or a network error as
  * "try again later" (§12.1 item 2).
  */
+import { File } from 'expo-file-system';
 import {
   HTTP_ERROR_MIN,
   HTTP_NO_CONTENT,
@@ -54,14 +55,23 @@ export class NetworkError extends Error {
   }
 }
 
-/** A file to upload as a part of a multipart request. */
+/**
+ * A file to upload as a part of a multipart request. It is sent as an `expo-file-system` `File` made
+ * from `uri`: the server receives the file's own name and the content type that `File` derives from
+ * the file's extension, so the file must keep a `.jpg` or `.png` name. `name` and `type` are not
+ * sent.
+ */
 export interface FilePart {
   uri: string;
   name: string;
   type: string;
 }
 
-/** A JSON part of a multipart request: React Native's `FormData` needs the content type spelled out. */
+/**
+ * The client's own description of a JSON part of a multipart request (made with {@link jsonPart}).
+ * It is not React Native's form-part shape: {@link toFormValue} turns it into a `Blob` of the given
+ * type when the request is built.
+ */
 export interface JsonPart {
   string: string;
   type: string;
@@ -81,6 +91,31 @@ export interface MultipartPart {
  */
 export function jsonPart(value: unknown): JsonPart {
   return { string: JSON.stringify(value), type: JSON_CONTENT_TYPE };
+}
+
+/**
+ * Turns the value of a multipart part into what `FormData` can carry in Expo SDK 57, whose global
+ * `fetch` (`expo/fetch`) accepts only a string, a `Blob` or an object with `bytes()` as a form part.
+ *
+ * @param value a plain string, a {@link JsonPart} or a {@link FilePart}
+ * @returns the string itself, a `Blob` of the JSON text and its type, or the file as a `File`
+ * @throws Error whatever the `File` constructor throws for an unusable `uri`
+ */
+export function toFormValue(value: string | JsonPart | FilePart): string | Blob {
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (isFilePart(value)) {
+    // `File` implements the Blob interface and `bytes()`, which expo/fetch reads; the cast only
+    // satisfies the typing of `FormData.append`.
+    return new File(value.uri) as unknown as Blob;
+  }
+  return new Blob([value.string], { type: value.type });
+}
+
+/** Tells a file part from a JSON part by its `uri` property. */
+function isFilePart(value: JsonPart | FilePart): value is FilePart {
+  return 'uri' in value;
 }
 
 /** The operations of the client; the skeleton's and the use cases' API modules take this interface. */
@@ -159,6 +194,7 @@ export function createHttpClient(
       if (error instanceof ApiError) {
         throw error;
       }
+      console.warn(`[httpClient] ${method} ${path} failed:`, error);
       if (controller.signal.aborted) {
         throw new NetworkError(`The server did not answer within ${timeoutMs} ms.`, error);
       }
@@ -176,18 +212,17 @@ export function createHttpClient(
   }
 
   return {
-    getJson: <T>(path: string) =>
-      send<T>('GET', path, { headers: { Accept: JSON_CONTENT_TYPE } }),
+    getJson: <T>(path: string) => send<T>('GET', path, { headers: { Accept: JSON_CONTENT_TYPE } }),
     postJson: <T = void>(path: string, body: unknown) => send<T>('POST', path, json(body)),
     putJson: <T = void>(path: string, body: unknown) => send<T>('PUT', path, json(body)),
-    postMultipart: <T>(path: string, parts: MultipartPart[]) => {
-      // Believed, not verified (standards §12.3 Upload): React Native's FormData sends a string part
-      // without a Content-Type, which Spring refuses for @RequestPart, so each JSON part is appended
-      // as { string, type: 'application/json' } and a file as { uri, name, type }. Test it from the
-      // iPhone early.
+    postMultipart: async <T>(path: string, parts: MultipartPart[]) => {
+      // Standards §12.3 Upload, verified on the iPhone on 14 October 2026: expo/fetch accepts only a
+      // string, a Blob or an object with bytes() as a form part, so a JSON part is sent as a Blob of
+      // type application/json and a file as an expo-file-system File (see toFormValue). The form is
+      // built before send(), so a failure here reaches the caller as itself, not as a NetworkError.
       const form = new FormData();
       for (const part of parts) {
-        form.append(part.name, part.value as unknown as string | Blob);
+        form.append(part.name, toFormValue(part.value));
       }
       return send<T>('POST', path, { headers: { Accept: JSON_CONTENT_TYPE }, body: form });
     },
