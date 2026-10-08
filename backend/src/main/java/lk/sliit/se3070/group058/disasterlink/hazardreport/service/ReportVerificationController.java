@@ -20,6 +20,7 @@ import lk.sliit.se3070.group058.disasterlink.shared.domain.NotificationChannel;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.Recipient;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.ReportDecisionNotice;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.ReportStatus;
+import lk.sliit.se3070.group058.disasterlink.shared.domain.Warning;
 import lk.sliit.se3070.group058.disasterlink.shared.gateway.NotificationGateway;
 import lk.sliit.se3070.group058.disasterlink.shared.repository.DMCDutyOfficerRepository;
 import lk.sliit.se3070.group058.disasterlink.shared.repository.HazardRepository;
@@ -74,7 +75,10 @@ import org.springframework.transaction.support.TransactionTemplate;
  * is demonstrated after the merge; {@code rejectReport} does not call it.
  *
  * <p>The reads return entities whose associations are lazy (reporter, reviewer, hazard, a hazard's
- * districts); the caller maps them inside its own transaction.
+ * districts); the caller maps them inside its own transaction. The one exception is the active
+ * warning of a {@link VerificationOutcome}: it is returned after the commit, so its target
+ * districts, which the escalation prompt shows, are initialised inside the decision's transaction
+ * (UC2-4).
  */
 @Service
 public class ReportVerificationController {
@@ -425,8 +429,17 @@ public class ReportVerificationController {
   }
 
   private VerificationOutcome outcomeOf(HazardReport report, String hazardId) {
-    return new VerificationOutcome(
-        report, warningController.getActiveWarningForHazard(hazardId).orElse(null));
+    Warning warning = warningController.getActiveWarningForHazard(hazardId).orElse(null);
+    if (warning != null) {
+      // The outcome is returned after the commit, and the escalation prompt reads the warning's
+      // target districts, a lazy collection: load them while the session is open (SC2 29a). The
+      // getter returns an unmodifiable wrapper, so Hibernate.initialize on it would do nothing;
+      // reading the size loads the collection behind the wrapper.
+      int districts = warning.getTargetDistricts().size();
+      String warningId = warning.getWarningId();
+      LOG.debug("Active warning {} targets {} district(s)", warningId, districts);
+    }
+    return new VerificationOutcome(report, warning);
   }
 
   private HazardReport findReport(String reportId) {

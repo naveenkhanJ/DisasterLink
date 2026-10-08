@@ -1,6 +1,6 @@
 <!DOCTYPE html>
-<!-- WF2C-S01 — Verification queue. Prototype (P89): static sample data from the scenarios; no behaviour.
-     Bind the values with th:text / th:each when the controller is wired (implementation-standards §4). -->
+<!--/* WF2C-S01 — Verification queue. Server-rendered by hazardreport.web.VerificationConsoleUI (UC2-4): the rows come
+     from the view records of VerificationConsoleMapper; no JavaScript of our own. */-->
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{fragments/layout :: head('Verification queue')}">
 <meta charset="utf-8"><title>Verification queue — DMC Sri Lanka</title>
@@ -8,15 +8,16 @@
 </head>
 <body>
 <div class="app">
-<aside class="sidebar" th:replace="~{fragments/layout :: sidebar-duty('Verification')}"><div class="brand"><span class="brand__badge">DMC</span>DMC Sri Lanka</div><nav class="nav"><a class="nav__item is-active" href="../hazardreport/showPendingReports.html"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h8"/></svg>Verification</a><a class="nav__item" href="../warning/showHazards.html"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>Warnings</a><a class="nav__item" href="../analytics/analyticsWorkspace.html"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><path d="M8 17V11"/><path d="M13 17V7"/><path d="M18 17v-4"/></svg>Analytics</a><button type="button" class="nav__item nav__item--soon" data-soon="Hazards"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16.3A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 .5 9"/><path d="m13 12-3 5h4l-3 5"/></svg><span><span class="nav__label">Hazards</span><span class="soon-tag">Not in this version</span></span></button><button type="button" class="nav__item nav__item--soon" data-soon="Operational picture"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg><span><span class="nav__label">Operational picture</span><span class="soon-tag">Not in this version</span></span></button></nav></aside>
+<aside class="sidebar" th:replace="~{fragments/layout :: sidebar-duty('Verification')}"></aside>
 <div class="main">
-<header class="topbar" th:replace="~{fragments/layout :: topbar('Verification queue')}"><div><h1 class="topbar__title">Verification queue</h1><p class="topbar__subtitle">Reports with the status Pending verification, oldest first</p></div><div class="user"><span class="user__avatar">KP</span><div><div class="user__name">K. Perera</div><div class="user__role">DMC Duty Officer</div></div></div></header>
+<header class="topbar" th:replace="~{fragments/layout :: topbar('Verification queue')}"></header>
 <main class="page">
-<div class="grid grid--three"><section class="card "><p class="label">Pending verification</p><p class="big-number" style="margin-top:12px">3 reports</p></section></div>
-<section class="card "><div class="card__head"><div><h2 class="card__title">Pending reports</h2></div></div><table class="table"><thead><tr><th>Report ID</th><th>Hazard type</th><th>District</th><th>Capture time</th><th>Reporter type</th><th>Status</th><th></th></tr></thead><tbody><tr><td><strong>RPT-2026-KLT-0843</strong></td><td>Flood</td><td>Kalutara</td><td>9 Oct 2026, 19:55</td><td>Citizen</td>
-<td><span class="tag tag--warn">Pending verification</span></td><td class="num"><a class="btn btn--secondary btn--small" href="../hazardreport/showReportDetails.html">View</a></td></tr><tr><td><strong>RPT-2026-KLT-0845</strong></td><td>Flood</td><td>Kalutara</td><td>9 Oct 2026, 20:15</td><td>Citizen</td>
-<td><span class="tag tag--warn">Pending verification</span></td><td class="num"><a class="btn btn--secondary btn--small" href="../hazardreport/showReportDetails.html">View</a></td></tr><tr><td><strong>RPT-2026-KLT-0847</strong></td><td>Flood</td><td>Kalutara</td><td>9 Oct 2026, 20:35</td><td>Citizen</td>
-<td><span class="tag tag--warn">Pending verification</span></td><td class="num"><a class="btn btn--secondary btn--small" href="../hazardreport/showReportDetails.html">View</a></td></tr></tbody></table></section>
+<div th:replace="~{fragments/layout :: errorBanner}"></div>
+<div class="grid grid--three"><section class="card "><p class="label">Pending verification</p><p class="big-number" style="margin-top:12px" th:text="${count}">3 reports</p></section></div>
+<section class="card "><div class="card__head"><div><h2 class="card__title">Pending reports</h2></div></div>
+<p class="muted" th:if="${#lists.isEmpty(rows)}">No reports are waiting for verification</p>
+<table class="table" th:unless="${#lists.isEmpty(rows)}"><thead><tr><th>Report ID</th><th>Hazard type</th><th>District</th><th>Capture time</th><th>Reporter type</th><th>Status</th><th></th></tr></thead><tbody><tr th:each="row : ${rows}"><td><strong th:text="${row.reportId}">RPT-2026-KLT-0843</strong></td><td th:text="${row.hazardType}">Flood</td><td th:text="${row.district}">Kalutara</td><td th:text="${row.captureTime}">21 May 2026, 07:05</td><td th:text="${row.reporterType}">Citizen</td>
+<td><span class="tag tag--warn" th:text="${row.status}">Pending verification</span></td><td class="num"><a class="btn btn--secondary btn--small" th:href="@{/hazardreport/{id}(id=${row.reportId})}">View</a></td></tr></tbody></table></section>
 </main>
 </div>
 </div>

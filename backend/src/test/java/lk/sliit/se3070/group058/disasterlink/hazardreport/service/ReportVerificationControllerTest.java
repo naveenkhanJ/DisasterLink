@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockingDetails;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -26,6 +27,7 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 import lk.sliit.se3070.group058.disasterlink.hazardreport.domain.HazardReport;
 import lk.sliit.se3070.group058.disasterlink.hazardreport.domain.NearbyReport;
@@ -347,6 +349,33 @@ class ReportVerificationControllerTest {
                 message.contains(REPORT_ID)
                     && message.contains(OFFICER_ID)
                     && message.contains("PUSH"));
+  }
+
+  @Test
+  @DisplayName(
+      "SC2 29a: the warning's target districts are loaded inside the decision's transaction")
+  void targetDistrictsAreInitialisedBeforeTheCommit() {
+    HazardReport report = pendingReport();
+    Hazard hazard = SampleEntities.hazard(HAZARD_ID);
+    Warning warning = mock(Warning.class);
+    AtomicBoolean readBeforeCommit = new AtomicBoolean();
+    when(warning.getTargetDistricts())
+        .thenAnswer(
+            call -> {
+              readBeforeCommit.set(
+                  mockingDetails(transactionManager).getInvocations().stream()
+                      .noneMatch(invocation -> invocation.getMethod().getName().equals("commit")));
+              return List.of(District.RATNAPURA);
+            });
+    arrangePending(report);
+    when(hazards.findById(HAZARD_ID)).thenReturn(Optional.of(hazard));
+    when(warnings.getActiveWarningForHazard(HAZARD_ID)).thenReturn(Optional.of(warning));
+    when(push.sendNotice(any(), any())).thenReturn(true);
+
+    controller.verifyReport(REPORT_ID, HAZARD_ID, OFFICER_ID);
+
+    verify(warning).getTargetDistricts();
+    assertThat(readBeforeCommit).isTrue();
   }
 
   @Test
