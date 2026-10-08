@@ -74,11 +74,13 @@ export interface AlertNotice {
   text: string;
 }
 
-/** The decision card (`showReportDecision`): the notice and its text in the citizen's language. */
+/**
+ * The decision card (`showReportDecision`): the notice. The card builds its text from the notice in
+ * the selected language, so it follows the selector (standards section 10 item 18, P240); the local
+ * notification keeps the text it arrived with.
+ */
 export interface DecisionCard {
   notice: ReportDecisionNotice;
-  text: string;
-  language: Language;
 }
 
 /** What the hook needs from the app's services. */
@@ -1023,7 +1025,7 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
     (notice: ReportDecisionNotice) => {
       const language = homeRef.current?.language ?? env.citizenLanguage;
       const text = decisionNoticeText(notice, language);
-      setDecision({ notice, text, language });
+      setDecision({ notice });
       Promise.resolve()
         .then(() => presentLocalAlert(DECISION_TITLE, text))
         .catch((error: unknown) =>

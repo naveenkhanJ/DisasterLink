@@ -57,7 +57,9 @@ import org.springframework.web.servlet.HandlerMapping;
  * straight to recording): the first POST, {@link #confirmVerification} or {@link
  * #confirmNewHazard}, only renders the page with the dialog and records nothing; the POST of
  * "Confirm verification" alone calls {@code verifyReport} or {@code verifyAsNewHazard}. The checks
- * of the new-hazard details stay in the control: incomplete details are refused on Confirm.
+ * of the new-hazard details stay in the control: {@link #confirmNewHazard} asks {@code
+ * validateNewHazardDetails} on the first press and shows the errors, with no dialog, when there are
+ * any (P240); Confirm runs the same check again inside {@code verifyAsNewHazard}.
  *
  * <p><b>Transactions.</b> The three decision calls are made without any surrounding transaction (no
  * {@code @Transactional} here), so the control's own transaction is the outermost one: only then is
@@ -267,9 +269,11 @@ public class VerificationConsoleUI {
   /**
    * Asks the officer to confirm "Verify as New Hazard" (SC2 A6, step 25n with the confirmation of
    * D-UC2-7, P238): the new-hazard form with every value kept and the dialog "Verify &lt;report
-   * ID&gt; as a new hazard?" that repeats the hazard type, severity, districts and place name.
-   * Nothing is decided and the details are not checked here; a report that is no longer pending
-   * gives the already-decided page (E10).
+   * ID&gt; as a new hazard?" that repeats the hazard type, severity, districts and place name. The
+   * details are checked first by the control's {@code validateNewHazardDetails} (SC2 E9, 25u;
+   * P240): with errors the form shows them under their fields with the values kept and no dialog
+   * opens. Nothing is decided here; a report that is no longer pending gives the already-decided
+   * page (E10).
    *
    * @param reportId the identifier of the report
    * @param form the posted new-hazard form
@@ -280,6 +284,10 @@ public class VerificationConsoleUI {
   public String confirmNewHazard(
       @PathVariable String reportId, @ModelAttribute NewHazardForm form, Model model) {
     model.addAttribute("form", mapper.toFormView(form));
+    List<String> errors = control.validateNewHazardDetails(mapper.toDetails(form));
+    if (!errors.isEmpty()) {
+      model.addAttribute("fieldErrors", mapper.fieldErrors(errors));
+    }
     String view =
         render(
             model,
@@ -290,7 +298,7 @@ public class VerificationConsoleUI {
             false,
             null);
     ReportPage page = shownPage(model);
-    if (page.report().pending()) {
+    if (errors.isEmpty() && page.report().pending()) {
       model.addAttribute("newHazardSummary", mapper.summarise(page, form));
     }
     return view;

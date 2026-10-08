@@ -272,6 +272,33 @@ public class ReportVerificationController {
   }
 
   /**
+   * Checks the details of a new hazard without deciding anything (SC2 E9, steps 25t and 25u; model
+   * dictionary v0.17): the console calls it on the first press of "Verify as New Hazard", so that
+   * incomplete details are shown with their errors before the confirmation dialog opens (deviation
+   * D-UC2-7, P240). {@link #verifyAsNewHazard} runs the same check, so the rule exists once. It
+   * reads nothing and writes nothing.
+   *
+   * @param details the severity, districts, place name and optional description entered
+   * @return the errors, in the order severity, districts, place name, each with the wording of E9;
+   *     empty when the details are complete
+   * @throws NullPointerException if {@code details} is {@code null}
+   */
+  public List<String> validateNewHazardDetails(NewHazardDetails details) {
+    Objects.requireNonNull(details, "details");
+    List<String> errors = new ArrayList<>();
+    if (details.severity() == null) {
+      errors.add(SEVERITY_REQUIRED);
+    }
+    if (details.districts().isEmpty()) {
+      errors.add(DISTRICTS_REQUIRED);
+    }
+    if (details.locationName() == null || details.locationName().isBlank()) {
+      errors.add(PLACE_NAME_REQUIRED);
+    }
+    return errors;
+  }
+
+  /**
    * Verifies a report as a new hazard (SC2 A6; SD2 14.1.1 to 14.1.4): the officer's details are
    * checked, a hazard is created from the report and the details, and the report is linked to it.
    *
@@ -407,16 +434,7 @@ public class ReportVerificationController {
   }
 
   private NewHazardDetails completed(NewHazardDetails details, HazardReport report) {
-    List<String> errors = new ArrayList<>();
-    if (details.severity() == null) {
-      errors.add(SEVERITY_REQUIRED);
-    }
-    if (details.districts().isEmpty()) {
-      errors.add(DISTRICTS_REQUIRED);
-    }
-    if (details.locationName() == null || details.locationName().isBlank()) {
-      errors.add(PLACE_NAME_REQUIRED);
-    }
+    List<String> errors = validateNewHazardDetails(details);
     if (!errors.isEmpty()) {
       throw new InvalidHazardDetailsException(errors);
     }

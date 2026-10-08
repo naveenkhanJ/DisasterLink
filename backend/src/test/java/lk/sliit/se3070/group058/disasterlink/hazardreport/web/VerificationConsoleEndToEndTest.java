@@ -179,6 +179,21 @@ class VerificationConsoleEndToEndTest {
   @DisplayName(
       "SC2 A6, E9: a new hazard with no districts is refused with the error, then verified")
   void verifyAsNewHazard() throws Exception {
+    String checked =
+        html(
+            mockMvc
+                .perform(
+                    post("/hazardreport/" + SECOND + "/new-hazard")
+                        .param("severity", "HIGH")
+                        .param("locationName", "Kelani at Kaduwela"))
+                .andExpect(status().isOk()));
+    assertThat(checked)
+        .contains("Districts are required", "Kelani at Kaduwela")
+        .doesNotContain("Confirm verification", "Report verified");
+    assertThat(hazards.count()).isZero();
+    assertThat(reports.findById(SECOND).orElseThrow().getStatus())
+        .isEqualTo(ReportStatus.PENDING_VERIFICATION);
+
     String asked =
         html(
             mockMvc

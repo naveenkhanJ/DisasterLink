@@ -200,7 +200,13 @@ export function CitizenApp({ ui: app }: { ui: CitizenAppUI }) {
             <ShowSyncResults results={app.syncResults} onClose={app.dismissSyncResults} />
           ) : null}
           {shownAlerts.map((alert) => (
-            <ShowAlert key={alert.id} alert={alert} onClose={() => app.dismissAlert(alert.id)} />
+            <ShowAlert
+              key={alert.id}
+              alert={alert}
+              language={app.home.language}
+              warnings={app.home.warnings}
+              onClose={() => app.dismissAlert(alert.id)}
+            />
           ))}
           {hiddenAlerts > 0 ? (
             <Pressable accessibilityRole="button" onPress={() => app.requestLeave(app.openHome)}>
@@ -214,6 +220,7 @@ export function CitizenApp({ ui: app }: { ui: CitizenAppUI }) {
         {app.decision ? (
           <ShowReportDecision
             decision={app.decision}
+            language={app.home.language}
             onOpen={() => {
               const reportId = app.decision?.notice.reportId ?? '';
               app.requestLeave(() => app.openReportStatus(reportId));

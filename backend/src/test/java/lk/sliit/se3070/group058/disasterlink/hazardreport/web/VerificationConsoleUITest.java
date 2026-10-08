@@ -840,10 +840,44 @@ class VerificationConsoleUITest {
   }
 
   @Test
-  @DisplayName(
-      "SC2 A6 / D-UC2-7: the dialog does not check the details; left-out values show as a dash")
-  void newHazardDialogDoesNotCheckTheDetails() throws Exception {
+  @DisplayName("SC2 E9 25u / D-UC2-7 (P240): missing details show their errors at once, no dialog")
+  void newHazardWithMissingDetailsShowsTheErrorsAndNoDialog() throws Exception {
     arrangePending();
+    when(control.validateNewHazardDetails(any(NewHazardDetails.class)))
+        .thenReturn(List.of("Districts are required"));
+
+    String html =
+        html(
+            mockMvc
+                .perform(
+                    post("/hazardreport/{id}/new-hazard", REPORT_ID)
+                        .param("severity", "HIGH")
+                        .param("locationName", "Kelani at Kaduwela")
+                        .param("description", "Road is cut"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("hazardreport/showReportDetails")));
+
+    assertContains(
+        html,
+        "Districts are required",
+        "field--error",
+        "Verify as new hazard",
+        "value=\"Kelani at Kaduwela\"",
+        ">Road is cut</textarea>",
+        "Pending verification");
+    assertThat(html).containsPattern("value=\"HIGH\"\\s+selected=\"selected\"");
+    assertLacks(html, "scrim", "Confirm verification", "Report verified");
+    verify(control).validateNewHazardDetails(any(NewHazardDetails.class));
+    verify(control, never()).verifyAsNewHazard(anyString(), any(), anyString());
+  }
+
+  @Test
+  @DisplayName("SC2 E9 25u / D-UC2-7 (P240): all three errors show under their fields, no dialog")
+  void newHazardWithNothingEnteredShowsAllThreeErrors() throws Exception {
+    arrangePending();
+    when(control.validateNewHazardDetails(any(NewHazardDetails.class)))
+        .thenReturn(
+            List.of("Severity is required", "Districts are required", "Place name is required"));
 
     String html =
         html(
@@ -852,8 +886,34 @@ class VerificationConsoleUITest {
                     post("/hazardreport/{id}/new-hazard", REPORT_ID).param("locationName", " "))
                 .andExpect(status().isOk()));
 
-    assertContains(html, "scrim", "Verify RPT-2026-KLT-0847 as a new hazard?", "—");
-    assertLacks(html, "Severity is required", "Districts are required", "Place name is required");
+    assertContains(
+        html, "Severity is required", "Districts are required", "Place name is required");
+    assertLacks(html, "scrim", "Confirm verification");
+    verify(control, never()).verifyAsNewHazard(anyString(), any(), anyString());
+  }
+
+  @Test
+  @DisplayName("SC2 A6 / D-UC2-7 (P240): complete details are checked once and the dialog opens")
+  void newHazardWithCompleteDetailsShowsTheDialog() throws Exception {
+    arrangePending();
+    when(control.validateNewHazardDetails(any(NewHazardDetails.class))).thenReturn(List.of());
+
+    String html =
+        html(
+            mockMvc
+                .perform(
+                    post("/hazardreport/{id}/new-hazard", REPORT_ID)
+                        .param("severity", "LOW")
+                        .param("districts", "KALUTARA")
+                        .param("locationName", "Kelani"))
+                .andExpect(status().isOk()));
+
+    assertContains(html, "scrim", "Verify RPT-2026-KLT-0847 as a new hazard?");
+    assertLacks(html, "field--error");
+    ArgumentCaptor<NewHazardDetails> checked = ArgumentCaptor.forClass(NewHazardDetails.class);
+    verify(control).validateNewHazardDetails(checked.capture());
+    assertThat(checked.getValue().locationName()).isEqualTo("Kelani");
+    assertThat(checked.getValue().districts()).containsExactly(District.KALUTARA);
     verify(control, never()).verifyAsNewHazard(anyString(), any(), anyString());
   }
 
@@ -957,6 +1017,8 @@ class VerificationConsoleUITest {
   @DisplayName("SC2 E10 / D-UC2-7: a report decided meanwhile shows the decided page at the dialog")
   void newHazardDialogOnADecidedReportIsAlreadyDecided() throws Exception {
     arrangeReads(report(ReportStatus.VERIFIED), List.of(), List.of());
+    when(control.validateNewHazardDetails(any(NewHazardDetails.class)))
+        .thenReturn(List.of("Districts are required"));
 
     String html =
         html(
@@ -966,7 +1028,7 @@ class VerificationConsoleUITest {
                 .andExpect(view().name("hazardreport/showReportDetails")));
 
     assertContains(html, "This report has already been decided");
-    assertLacks(html, "scrim", "Confirm verification");
+    assertLacks(html, "scrim", "Confirm verification", "Districts are required");
     verify(control, never()).verifyAsNewHazard(anyString(), any(), anyString());
   }
 
