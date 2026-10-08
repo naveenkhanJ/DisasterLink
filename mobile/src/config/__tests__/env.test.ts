@@ -1,16 +1,31 @@
-import { getEnv, parseEnv, resolveApiUrl, type RawEnv } from '../env';
+import { getEnv, hostAppName, parseEnv, resolveApiUrl, type RawEnv } from '../env';
 
 /** The development server's address that the mocked `Constants.expoConfig.hostUri` returns. */
 let mockHostUri: string | undefined;
 
+/** What the mocked `Constants.expoGoConfig` holds: set only when running in Expo Go. */
+let mockExpoGoConfig: object | null;
+
+/** The app name that the mocked `Constants.expoConfig.name` returns; `undefined` for no `expoConfig`. */
+let mockAppName: string | undefined;
+
 jest.mock('expo-constants', () => ({
   __esModule: true,
   default: {
+    get expoGoConfig() {
+      return mockExpoGoConfig;
+    },
     get expoConfig() {
-      return { hostUri: mockHostUri };
+      return mockAppName === undefined ? null : { hostUri: mockHostUri, name: mockAppName };
     },
   },
 }));
+
+beforeEach(() => {
+  mockHostUri = undefined;
+  mockExpoGoConfig = null;
+  mockAppName = 'DisasterLink';
+});
 
 /** A raw environment with only the address set; each test overrides what it checks. */
 function raw(overrides: Partial<RawEnv> = {}): RawEnv {
@@ -227,5 +242,23 @@ describe('getEnv', () => {
       expect(() => getEnv()).toThrow(/EXPO_PUBLIC_API_URL is auto/);
       expect(info).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe('hostAppName (standards §10 item 14, P225; UC2-7h R1)', () => {
+  it('is "Expo Go" when the code runs in Expo Go (Constants.expoGoConfig is set)', () => {
+    mockExpoGoConfig = { sdkVersion: '57.0.0' };
+
+    expect(hostAppName()).toBe('Expo Go');
+  });
+
+  it('is the app name from the configuration otherwise ("DisasterLink")', () => {
+    expect(hostAppName()).toBe('DisasterLink');
+  });
+
+  it('is "this app" when neither Expo Go nor a configuration with a name is known', () => {
+    mockAppName = undefined;
+
+    expect(hostAppName()).toBe('this app');
   });
 });

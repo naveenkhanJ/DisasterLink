@@ -1,24 +1,85 @@
 <!DOCTYPE html>
-<!-- WF2C-S02 — Report RPT-2026-KLT-0847. Prototype (P89): static sample data from the scenarios; no behaviour.
-     Bind the values with th:text / th:each when the controller is wired (implementation-standards §4). -->
+<!--/* WF2C-S02 — Report details (also S02c new hazard, S02d validation errors, S02h already decided).
+     Server-rendered by hazardreport.web.VerificationConsoleUI (UC2-4): every value comes from the view records
+     of VerificationConsoleMapper; no JavaScript of our own. The fragments evidence, candidates and statusTag are
+     reused by the other four pages of this folder. */-->
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments/layout :: head('Report RPT-2026-KLT-0847')}">
-<meta charset="utf-8"><title>Report RPT-2026-KLT-0847 — DMC Sri Lanka</title>
+<head th:replace="~{fragments/layout :: head('Report ' + ${page.report.reportId})}">
+<meta charset="utf-8"><title>Report — DMC Sri Lanka</title>
 <link rel="stylesheet" href="../../static/css/app.css">
 </head>
 <body>
+
+<!--/* The three fragments below are included by the five pages of this folder; th:remove keeps them out of
+     this page's own output. */-->
+<div th:remove="all">
+<!--/* Status tag: warn for pending, ok with a check for verified, bad with a cross for rejected. */-->
+<span class="tag" th:fragment="statusTag(label, code)"
+      th:classappend="${code == 'VERIFIED'} ? 'tag--ok' : (${code == 'REJECTED'} ? 'tag--bad' : 'tag--warn')"><svg
+    th:if="${code == 'VERIFIED'}" class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><svg
+    th:if="${code == 'REJECTED'}" class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg><th:block
+    th:text="${label}">Pending verification</th:block></span>
+
+<!--/* Left column: the report, its map and the nearby reports (WF2C-S02). */-->
+<div class="stack" th:fragment="evidence(page)">
+<section class="card "><div class="card__head"><div><h2 class="card__title">Report</h2></div></div><div class="grid" style="grid-template-columns:1fr 260px;gap:24px">
+<dl class="details"><dt>Report ID</dt><dd th:text="${page.report.reportId}">RPT-2026-KLT-0847</dd><dt>Status</dt><dd><span th:replace="~{hazardreport/showReportDetails :: statusTag(${page.report.status}, ${page.report.statusCode})}"></span></dd><dt>Reporter</dt><dd th:text="${page.report.reporterName}">Asela Gunawardene</dd><dt>Reporter type</dt><dd th:text="${page.report.reporterType}">Citizen</dd><dt>Hazard type</dt><dd th:text="${page.report.hazardType}">Flood</dd><dt>Description</dt><dd th:text="${page.report.description}">Description</dd><dt>Location</dt><dd th:text="${page.report.location}">6.5888 N, 79.9640 E · GPS · accuracy ±8 m</dd><dt>District</dt><dd th:text="${page.report.district}">Kalutara</dd><dt>Capture time</dt><dd th:text="${page.report.captureTime}">21 May 2026, 07:40</dd><dt>Received time</dt><dd th:text="${page.report.receivedTime}">21 May 2026, 07:42</dd></dl>
+<div class="photo" style="height:180px"><img th:src="@{/reports/{id}/photo(id=${page.report.reportId})}" alt="Photo of the report" style="width:100%;height:100%;object-fit:cover"></div></div></section><section class="card "><div class="row" style="align-items:flex-start;flex-wrap:nowrap;gap:24px"><div class="district-map" th:attr="data-selected=${page.report.district},data-dot=${page.report.dot}" data-height="260"></div>
+<div><h2 class="card__title">Location</h2><p class="muted" style="margin-top:6px" th:text="${page.report.locationNote}">Kalutara District — report location 6.5888 N, 79.9640 E</p></div></div></section><section class="card "><div class="card__head"><div><h2 class="card__title">Nearby reports (same type, within 5 km, last 24 hours)</h2></div></div>
+<p class="muted" th:if="${#lists.isEmpty(page.nearby)}">No nearby reports</p>
+<table class="table table--compact" th:unless="${#lists.isEmpty(page.nearby)}"><thead><tr><th>Report ID</th><th>Hazard type</th><th>District</th><th>Capture time</th><th>Distance</th><th>Status</th></tr></thead><tbody><tr th:each="near : ${page.nearby}"><td th:text="${near.reportId}">RPT-2026-KLT-0843</td><td th:text="${near.hazardType}">Flood</td><td th:text="${near.district}">Kalutara</td><td th:text="${near.captureTime}">19:55</td><td th:text="${near.distance}">1.2 km</td><td><span class="tag tag--warn" th:text="${near.status}">Pending verification</span></td></tr></tbody></table></section></div>
+
+<!--/* Candidate hazards; with selectable the first one is preselected for "Verify and Link" (form verify-form). */-->
+<section class="card " th:fragment="candidates(page, selectable)"><div class="card__head"><div><h2 class="card__title">Candidate hazards</h2></div></div>
+<p class="muted" th:if="${#lists.isEmpty(page.candidates)}" th:text="'No active ' + ${page.report.hazardTypeLower} + ' hazard fits this report'">No active flood hazard fits this report</p>
+<label class="list-item row" th:each="candidate : ${page.candidates}" th:classappend="${selectable and candidate.hazardId == page.selectedHazardId} ? 'is-selected'" style="align-items:flex-start;flex-wrap:nowrap"><input type="radio" name="hazardId" form="verify-form" th:if="${selectable}" th:value="${candidate.hazardId}" th:checked="${candidate.hazardId == page.selectedHazardId}">
+<div class="small" style="line-height:19px"><strong style="font-size:14px" th:text="${candidate.label}">Flood — Kalu Ganga at Ratnapura</strong><br><span th:text="${candidate.hazardId}">HZ-2026-0142</span><br><span th:text="${candidate.severity}">Severity Medium</span><br><span th:text="${candidate.districts}">Ratnapura, Kalutara</span><br th:if="${candidate.riverBasin != null}"><span th:if="${candidate.riverBasin != null}" th:text="${candidate.riverBasin}">River basin Kalu</span><br><span th:text="${candidate.source}">Source Agency bulletin</span></div></label></section>
+
+</div>
+
 <div class="app">
-<aside class="sidebar" th:replace="~{fragments/layout :: sidebar-duty('Verification')}"><div class="brand"><span class="brand__badge">DMC</span>DMC Sri Lanka</div><nav class="nav"><a class="nav__item is-active" href="../hazardreport/showPendingReports.html"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h8"/></svg>Verification</a><a class="nav__item" href="../warning/showHazards.html"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>Warnings</a><a class="nav__item" href="../analytics/analyticsWorkspace.html"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><path d="M8 17V11"/><path d="M13 17V7"/><path d="M18 17v-4"/></svg>Analytics</a><button type="button" class="nav__item nav__item--soon" data-soon="Hazards"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16.3A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 .5 9"/><path d="m13 12-3 5h4l-3 5"/></svg><span><span class="nav__label">Hazards</span><span class="soon-tag">Not in this version</span></span></button><button type="button" class="nav__item nav__item--soon" data-soon="Operational picture"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg><span><span class="nav__label">Operational picture</span><span class="soon-tag">Not in this version</span></span></button></nav></aside>
+<aside class="sidebar" th:replace="~{fragments/layout :: sidebar-duty('Verification')}"></aside>
 <div class="main">
-<header class="topbar" th:replace="~{fragments/layout :: topbar('Report RPT-2026-KLT-0847')}"><div><h1 class="topbar__title">Report RPT-2026-KLT-0847</h1><p class="topbar__subtitle"><a href="showPendingReports.html">← Back to queue</a> · Pending verification — review the evidence and decide</p></div><div class="user"><span class="user__avatar">KP</span><div><div class="user__name">K. Perera</div><div class="user__role">DMC Duty Officer</div></div></div></header>
+<header class="topbar" th:replace="~{fragments/layout :: topbar('Report ' + ${page.report.reportId})}"></header>
 <main class="page">
-<div class="grid grid--main-side"><div class="stack"><section class="card "><div class="card__head"><div><h2 class="card__title">Report</h2></div></div><div class="grid" style="grid-template-columns:1fr 260px;gap:24px">
-<dl class="details"><dt>Report ID</dt><dd>RPT-2026-KLT-0847</dd><dt>Status</dt><dd><span class="tag tag--warn">Pending verification</span></dd><dt>Reporter</dt><dd>Asela Gunawardene</dd><dt>Reporter type</dt><dd>Citizen</dd><dt>Hazard type</dt><dd>Flood</dd><dt>Description</dt><dd>Kalu Ganga water has breached the sandbag barriers near the Kalutara bridge. Flooding is now moving into the service road. Heavy continuous rainfall still active.</dd><dt>Location</dt><dd>6.5888 N, 79.9640 E · GPS · accuracy ±8 m</dd><dt>District</dt><dd>Kalutara</dd><dt>Capture time</dt><dd>9 Oct 2026, 20:35</dd><dt>Received time</dt><dd>9 Oct 2026, 20:36</dd></dl>
-<div class="photo" style="height:180px"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="3"/></svg> photo</div></div></section><section class="card "><div class="row" style="align-items:flex-start;flex-wrap:nowrap;gap:24px"><div class="district-map" data-selected="Kalutara" data-height="260" data-dot="6.5888,79.964"></div>
-<div><h2 class="card__title">Location</h2><p class="muted" style="margin-top:6px">Kalutara District — report location 6.5888 N, 79.9640 E</p></div></div></section><section class="card "><div class="card__head"><div><h2 class="card__title">Nearby reports (same type, within 5 km, last 24 hours)</h2></div></div><table class="table table--compact"><thead><tr><th>Report ID</th><th>Hazard type</th><th>District</th><th>Capture time</th><th>Distance</th><th>Status</th></tr></thead><tbody><tr><td>RPT-2026-KLT-0843</td><td>Flood</td><td>Kalutara</td><td>19:55</td><td>1.2 km</td><td><span class="tag tag--warn">Pending verification</span></td></tr><tr><td>RPT-2026-KLT-0845</td><td>Flood</td><td>Kalutara</td><td>20:15</td><td>2.8 km</td><td><span class="tag tag--warn">Pending verification</span></td></tr></tbody></table></section></div><div class="stack"><section class="card "><div class="card__head"><div><h2 class="card__title">Candidate hazards</h2></div></div><label class="list-item is-selected row" style="align-items:flex-start;flex-wrap:nowrap"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
-<div class="small" style="line-height:19px"><strong style="font-size:14px">Flood — Kalu Ganga at Ratnapura</strong><br>HZ-2026-0142<br>Severity Medium<br>Ratnapura, Kalutara<br>River basin Kalu<br>Source Agency bulletin</div></label></section><section class="card "><div class="card__head"><div><h2 class="card__title">Decision</h2></div></div><div class="stack" style="gap:10px"><a class="btn btn--primary btn--block" href="../hazardreport/showDecisionRecorded.html">Verify and Link</a>
-<button type="button" class="btn btn--secondary btn--block">Verify as New Hazard</button><a class="btn btn--danger btn--block" href="../hazardreport/rejectionReason.html"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>Reject</a>
-<p class="help">Verification never issues or changes a warning.</p></div></section></div></div>
+<div th:replace="~{fragments/layout :: errorBanner}"></div>
+<div class="grid grid--main-side"><div class="stack" th:replace="~{hazardreport/showReportDetails :: evidence(${page})}"></div><div class="stack">
+
+<!--/* S02: the decision (a candidate is preselected; "Verify and Link" only when there is one). */-->
+<th:block th:if="${state == 'DECIDE'}">
+<form id="verify-form" method="post" th:action="@{/hazardreport/{id}/verify(id=${page.report.reportId})}"></form>
+<section th:replace="~{hazardreport/showReportDetails :: candidates(${page}, true)}"></section>
+<section class="card "><div class="card__head"><div><h2 class="card__title">Decision</h2></div></div><div class="stack" style="gap:10px"><button type="submit" form="verify-form" class="btn btn--primary btn--block" th:unless="${#lists.isEmpty(page.candidates)}">Verify and Link</button>
+<a class="btn btn--secondary btn--block" th:href="@{/hazardreport/{id}/new-hazard(id=${page.report.reportId})}">Verify as New Hazard</a>
+<a class="btn btn--danger btn--block" th:href="@{/hazardreport/{id}/reject(id=${page.report.reportId})}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>Reject</a>
+<p class="help">Verification never issues or changes a warning.</p></div></section>
+</th:block>
+
+<!--/* S02c and S02d: the new-hazard form; each error stands under its field and the values are kept. */-->
+<th:block th:if="${state == 'NEW_HAZARD'}">
+<section th:replace="~{hazardreport/showReportDetails :: candidates(${page}, false)}"></section>
+<section class="card "><div class="card__head"><div><h2 class="card__title">Verify as new hazard</h2></div></div>
+<form method="post" class="stack" style="gap:10px" th:action="@{/hazardreport/{id}/new-hazard(id=${page.report.reportId})}">
+<div class="field" th:classappend="${fieldErrors?.get('severity') != null} ? 'field--error'"><label class="label" for="severity">Severity *</label><select class="select" id="severity" name="severity"><option th:each="option : ${severityOptions}" th:value="${option.code}" th:text="${option.label}" th:selected="${option.code == form.severity}">Medium</option></select>
+<p class="error-text" role="alert" th:if="${fieldErrors?.get('severity') != null}" th:text="${fieldErrors.get('severity')}">Severity is required</p></div>
+<div class="field" th:classappend="${fieldErrors?.get('districts') != null} ? 'field--error'"><span class="label">Districts *</span><div class="chips" th:style="${fieldErrors?.get('districts') != null} ? 'border:2px solid var(--danger);border-radius:10px;padding:8px'"><label class="chip" th:each="option : ${districtOptions}" th:classappend="${form.districts.contains(option.code)} ? 'is-selected'"><input type="checkbox" name="districts" th:value="${option.code}" th:checked="${form.districts.contains(option.code)}"> <span th:text="${option.label}">Kalutara</span></label></div>
+<p class="error-text" role="alert" th:if="${fieldErrors?.get('districts') != null}" th:text="${fieldErrors.get('districts')}">Districts are required</p></div>
+<div class="field" th:classappend="${fieldErrors?.get('locationName') != null} ? 'field--error'"><label class="label" for="locationName">Place name *</label><input class="input" id="locationName" name="locationName" type="text" th:value="${form.locationName}">
+<p class="error-text" role="alert" th:if="${fieldErrors?.get('locationName') != null}" th:text="${fieldErrors.get('locationName')}">Place name is required</p></div>
+<div class="field"><label class="label" for="description">Description</label><textarea class="textarea" id="description" name="description" rows="3" th:text="${form.description}"></textarea></div>
+<p class="small">Hazard type <strong th:text="${page.report.hazardType}">Flood</strong> (from the report)<br>Source Verified report</p>
+<div class="row"><button type="submit" class="btn btn--primary">Verify as New Hazard</button><a class="btn btn--secondary" th:href="@{/hazardreport/{id}(id=${page.report.reportId})}">Cancel</a></div>
+</form></section>
+</th:block>
+
+<!--/* S02h: the report was decided (E10); nothing is recorded by this attempt. */-->
+<th:block th:if="${state == 'DECIDED'}">
+<section class="card "><p class="row" style="font-size:18px;font-weight:800"><svg class="icon" style="width:22px;height:22px" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>This report has already been decided</p>
+<div style="margin-top:12px"><dl class="details"><dt>Recorded status</dt><dd><span th:replace="~{hazardreport/showReportDetails :: statusTag(${page.decision.status}, ${page.decision.statusCode})}"></span></dd><dt>Decision time</dt><dd th:text="${page.decision.decisionTime}">21 May 2026, 08:15</dd></dl></div>
+<div style="margin-top:16px"><a class="btn btn--secondary" th:href="@{/hazardreport}">Back to queue</a></div></section>
+</th:block>
+
+</div></div>
 </main>
 </div>
 </div>

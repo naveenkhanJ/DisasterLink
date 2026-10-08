@@ -107,16 +107,17 @@ public class Citizen extends User implements Recipient {
   }
 
   /**
-   * Changes the citizen's preferred language.
+   * Changes the citizen's preferred language (sequence diagram SD2, message 2.1.1.1). The language
+   * decides the language of the alerts and notices the citizen receives.
    *
-   * <p>Placeholder owned by Afham: the body is written on his branch (implementation standards
-   * section 3, "Operations on shared entities").
+   * <p>Implements CH-21 and CH-25. The body is Afham's (implementation standards section 3,
+   * "Operations on shared entities").
    *
    * @param language the new preferred language
-   * @throws UnsupportedOperationException always, until the operation is implemented
+   * @throws NullPointerException if {@code language} is {@code null}
    */
   public void changePreferredLanguage(Language language) {
-    throw new UnsupportedOperationException("not implemented yet — Afham");
+    this.preferredLanguage = Objects.requireNonNull(language, "language");
   }
 
   @Override

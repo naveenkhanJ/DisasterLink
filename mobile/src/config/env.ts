@@ -175,6 +175,30 @@ export function parseEnv(raw: RawEnv): AppEnv {
   };
 }
 
+/** What the settings page is called when the app's own name is not known. */
+const FALLBACK_APP_NAME = 'this app';
+
+/** The name of the app that holds the permission when the code runs inside Expo Go. */
+const EXPO_GO_NAME = 'Expo Go';
+
+/**
+ * The name under which the phone's Settings list this app, for the lines that send the citizen
+ * there (standards section 10 item 14, "Wording", P225).
+ *
+ * Source: `Constants.expoGoConfig` is "populated when running in Expo Go" (Expo documentation), so
+ * the name is "Expo Go"; otherwise it is `Constants.expoConfig.name` ("DisasterLink", from
+ * `app.json`), and "this app" when neither is known. The documentation does not say what
+ * `expoGoConfig` holds in a development build; this function relies only on what it states.
+ *
+ * @returns the name to show in a sentence such as "Allow location access for <name> in Settings"
+ */
+export function hostAppName(): string {
+  if (Constants.expoGoConfig) {
+    return EXPO_GO_NAME;
+  }
+  return Constants.expoConfig?.name ?? FALLBACK_APP_NAME;
+}
+
 /**
  * Reads the settings from `process.env` and the Expo development server's address. When
  * `EXPO_PUBLIC_API_URL` is `auto`, the address that was built is logged once at INFO level.

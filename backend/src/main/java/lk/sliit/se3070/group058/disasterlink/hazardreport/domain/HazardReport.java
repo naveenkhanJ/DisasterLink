@@ -28,8 +28,9 @@ import lk.sliit.se3070.group058.disasterlink.shared.domain.ReportStatus;
 /**
  * A hazard report a citizen submitted, waiting for or already decided by a duty officer.
  *
- * <p>Implements CH-18 and CH-26 (A4, A5, A6). The rules of the report (verify, reject, isPending)
- * are written by its owner.
+ * <p>Implements CH-18 and CH-26 (A4, A5, A6). The report is decided once: {@link #isPending} is
+ * true until {@link #verify} or {@link #reject} gives it a status, and a decided report is never
+ * decided again.
  */
 @Entity
 public class HazardReport {
@@ -297,6 +298,74 @@ public class HazardReport {
    */
   public Optional<Hazard> getHazard() {
     return Optional.ofNullable(hazard);
+  }
+
+  /**
+   * Tells whether the report still waits for a duty officer's decision. The control checks this
+   * before it verifies or rejects (standards section 4, {@code ReportAlreadyDecidedException}).
+   *
+   * @return {@code true} if the status is {@code PENDING_VERIFICATION}
+   */
+  public boolean isPending() {
+    return status == ReportStatus.PENDING_VERIFICATION;
+  }
+
+  /**
+   * Verifies the report: records the officer's decision and links the report to the hazard it
+   * confirms (sequence diagram SD2, the "verify" decision; model dictionary section 3).
+   *
+   * <p>The control has already checked {@link #isPending}, so calling this on a decided report is a
+   * programming error.
+   *
+   * @param officer the duty officer who decides
+   * @param hazard the hazard the report is linked to
+   * @param at the time of the decision
+   * @throws NullPointerException if an argument is {@code null}
+   * @throws IllegalStateException if the report is not pending
+   */
+  public void verify(DMCDutyOfficer officer, Hazard hazard, LocalDateTime at) {
+    Objects.requireNonNull(officer, "officer");
+    Objects.requireNonNull(hazard, "hazard");
+    Objects.requireNonNull(at, "at");
+    requirePending();
+    this.status = ReportStatus.VERIFIED;
+    this.reviewer = officer;
+    this.hazard = hazard;
+    this.verificationTime = at;
+  }
+
+  /**
+   * Rejects the report: records the officer's decision and the reason (sequence diagram SD2, the
+   * "reject" decision; model dictionary section 3). The report is linked to no hazard.
+   *
+   * <p>The control has already checked {@link #isPending} and that a reason was entered (its {@code
+   * ReasonRequiredException}), so a decided report or a blank reason here is a programming error.
+   *
+   * @param officer the duty officer who decides
+   * @param reason why the report is rejected; stored without surrounding white space
+   * @param at the time of the decision
+   * @throws NullPointerException if an argument is {@code null}
+   * @throws IllegalStateException if the report is not pending
+   * @throws IllegalArgumentException if {@code reason} is blank
+   */
+  public void reject(DMCDutyOfficer officer, String reason, LocalDateTime at) {
+    Objects.requireNonNull(officer, "officer");
+    Objects.requireNonNull(reason, "reason");
+    Objects.requireNonNull(at, "at");
+    requirePending();
+    if (reason.isBlank()) {
+      throw new IllegalArgumentException("a rejection needs a reason");
+    }
+    this.status = ReportStatus.REJECTED;
+    this.reviewer = officer;
+    this.rejectionReason = reason.strip();
+    this.verificationTime = at;
+  }
+
+  private void requirePending() {
+    if (!isPending()) {
+      throw new IllegalStateException("report " + reportId + " is already " + status);
+    }
   }
 
   @Override

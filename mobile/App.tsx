@@ -1,113 +1,140 @@
 /**
- * App.tsx — entry point of the citizen app UI prototype (UC2, P89).
+ * App.tsx — entry point of the citizen app (UC2). It builds the services once, awaits the
+ * notification set-up before anything can alert (standards section 10, "Permission order"), then
+ * starts the connectivity triggers (start-up replay, offline to online, foreground retry and the
+ * 30 s timed retry while a draft is QUEUED, P206) and the push polling; both are stopped when the
+ * app unmounts; the push poll's result and the network listener feed the shell's connection strip
+ * (P213). It also connects Android's hardware Back button to the hook's `goBack` (the history
+ * of the in-memory navigator). The composition root wires `hasQueuedDrafts` from the draft store;
+ * that is wiring, not a boundary input. The screens are `CitizenApp`; the inputs of the screen
+ * boundary are `useCitizenAppUI`.
  *
- * A minimal in-memory navigator moves between the wireframe screens so the scenario's flow can be followed;
- * there is no server, storage, GPS or camera behaviour yet. On the web preview the starting screen can be
- * picked with the URL hash, e.g. index.html#WF2P-S03.
+ * Implements CH-10, CH-25, CH-26, CH-27.
  */
 import React, { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import * as Network from 'expo-network';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
-import { AppHeader, SoonNotice, TabBar } from './src/components/ui';
-import {
-  ChooseHazardTypeScreen, HomeScreen, ReportFormScreen, ReportStatusScreen, ReviewReportScreen, SubmissionResultScreen,
-  FLOW, SHOT_NAMES, type ScreenId,
-} from './src/screens/screens';
-import { colors } from './src/theme';
+import { AppState, BackHandler, StyleSheet } from 'react-native';
+import { createAppServices } from './src/app/appServices';
+import { useCitizenAppUI } from './src/app/useCitizenAppUI';
 import { configureNotifications } from './src/notifications/notifications';
-
-/** Reads "#WF2P-S03" (web preview only); otherwise the app starts on the home screen. */
-function initialScreen(): ScreenId {
-  const hash = typeof window !== 'undefined' && window.location ? window.location.hash.replace('#', '').split('&')[0] : '';
-  return (FLOW as string[]).includes(hash) ? (hash as ScreenId) : 'WF2P-S01';
-}
-
-/** Web preview screenshots pass "&shot" in the hash to hide the label; on a phone it is always available. */
-const HIDE_SHOT_LABEL = typeof window !== 'undefined' && !!window.location && window.location.hash.includes('shot');
+import { startPushPolling } from './src/notifications/pushPoller';
+import { CitizenApp } from './src/screens/CitizenApp';
+import {
+  isOnline,
+  isOnlineState,
+  startConnectivityTriggers,
+} from './src/sync/connectivityTriggers';
+import { colors } from './src/theme';
 
 /**
- * Prototype only (P95): shows "NN / 42 · save as <name>" for 3 seconds whenever the screen changes, so each
- * screenshot can be named; ‹ › step through all nine screens in screenshot order (including the states that
- * no button reaches). Tap the app header to show it again. Delete this component when the app is wired.
+ * The citizen app.
+ *
+ * @returns the app, or nothing while the fonts load
  */
-function ShotLabel({ screen, onGo }: { screen: ScreenId; onGo: (to: ScreenId) => void }) {
-  const i = FLOW.indexOf(screen);
-  return (
-    <View style={styles.shot}>
-      <Pressable accessibilityLabel="Previous screen" onPress={() => onGo(FLOW[Math.max(0, i - 1)])} style={styles.shotBtn}>
-        <Text style={styles.shotText}>‹</Text>
-      </Pressable>
-      <Text style={[styles.shotText, { flex: 1, textAlign: 'center' }]}>
-        {SHOT_NAMES[screen].slice(0, 2)} / 42 · save as{'\n'}<Text style={{ color: '#F59E0B' }}>{SHOT_NAMES[screen]}</Text>
-      </Text>
-      <Pressable accessibilityLabel="Next screen" onPress={() => onGo(FLOW[Math.min(FLOW.length - 1, i + 1)])} style={styles.shotBtn}>
-        <Text style={styles.shotText}>›</Text>
-      </Pressable>
-    </View>
-  );
-}
-
 export default function App() {
-  const [screen, setScreen] = useState<ScreenId>(initialScreen);
-  const [soon, setSoon] = useState<string | null>(null); // label of a signposted item the user pressed (P91)
-  const [shotVisible, setShotVisible] = useState(!HIDE_SHOT_LABEL); // prototype-only screenshot label (P95)
-  useEffect(() => {
-    if (HIDE_SHOT_LABEL) { return undefined; }
-    // Both changes are scheduled (not made in the effect body), as the React lint rule asks.
-    const show = setTimeout(() => setShotVisible(true), 0);
-    const hide = setTimeout(() => setShotVisible(false), 3000);
-    return () => { clearTimeout(show); clearTimeout(hide); };
-  }, [screen]);
-  useEffect(() => {
-    // Notification handler, Android channel and permission, once at start-up (standards §10).
-    void configureNotifications();
-  }, []);
+  const [services] = useState(createAppServices);
+  const ui = useCitizenAppUI(services);
+  const {
+    openHome,
+    goBack,
+    onAppForeground,
+    onNetworkChange,
+    onServerReachability,
+    onConnectivityRestored,
+    receiveAlert,
+    receiveReportDecision,
+  } = ui;
   const [fontsLoaded] = useFonts({
     Manrope: require('./assets/fonts/Manrope-VariableFont_wght.ttf'),
     NotoSansSinhala: require('./assets/fonts/NotoSansSinhala-Regular.ttf'),
     NotoSansTamil: require('./assets/fonts/NotoSansTamil-Regular.ttf'),
   });
+
+  useEffect(() => {
+    void openHome();
+  }, [openHome]);
+
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => goBack());
+    return () => subscription.remove();
+  }, [goBack]);
+
+  useEffect(() => {
+    // Coming back from Settings: the location access and the fix are read again (UC2-7b G1). Kept apart
+    // from the connectivity triggers, which are about synchronisation.
+    const subscription = AppState.addEventListener('change', (next) => {
+      if (next === 'active') {
+        void onAppForeground();
+      }
+    });
+    return () => subscription.remove();
+  }, [onAppForeground]);
+
+  useEffect(() => {
+    // The shell's connection strip follows the phone's network at once (standards §10 item 11, P213).
+    let stopped = false;
+    void isOnline().then((online) => {
+      if (!stopped) {
+        onNetworkChange(online);
+      }
+    });
+    const subscription = Network.addNetworkStateListener((state) =>
+      onNetworkChange(isOnlineState(state)),
+    );
+    return () => {
+      stopped = true;
+      subscription.remove();
+    };
+  }, [onNetworkChange]);
+
+  useEffect(() => {
+    let unmounted = false;
+    let stopTriggers: (() => void) | undefined;
+    let stopPolling: (() => void) | undefined;
+    const notificationsReady = configureNotifications().catch((error: unknown) => {
+      console.warn('[App] the notification set-up failed:', error);
+      return false;
+    });
+    void notificationsReady.then(() => {
+      if (unmounted) {
+        return;
+      }
+      stopTriggers = startConnectivityTriggers(
+        () => void onConnectivityRestored(),
+        async () => (await services.store.findPending()).some((draft) => draft.status === 'QUEUED'),
+      );
+      stopPolling = startPushPolling({
+        recipientId: services.env.citizenId,
+        api: services.pollApi,
+        onAlert: receiveAlert,
+        onDecision: receiveReportDecision,
+        onReachability: onServerReachability,
+        prepare: () => notificationsReady,
+      });
+    });
+    return () => {
+      unmounted = true;
+      stopTriggers?.();
+      stopPolling?.();
+    };
+  }, [services, onConnectivityRestored, receiveAlert, receiveReportDecision, onServerReachability]);
+
   if (!fontsLoaded) {
     return null; // keep the splash screen until the three scripts' fonts are ready
   }
-
-  const nav = (to: ScreenId) => { setSoon(null); setScreen(to); };
-  const homeTab = screen === 'WF2P-S01' || screen === 'WF2P-S01e' || screen === 'WF2P-S06';
-
-  let body: React.ReactNode;
-  switch (screen) {
-    case 'WF2P-S01': body = <HomeScreen nav={nav} />; break;
-    case 'WF2P-S01e': body = <HomeScreen nav={nav} notice />; break;
-    case 'WF2P-S02': body = <ChooseHazardTypeScreen nav={nav} />; break;
-    case 'WF2P-S03': body = <ReportFormScreen nav={nav} />; break;
-    case 'WF2P-S03e': body = <ReportFormScreen nav={nav} withErrors />; break;
-    case 'WF2P-S04': body = <ReviewReportScreen nav={nav} />; break;
-    case 'WF2P-S05': body = <SubmissionResultScreen nav={nav} />; break;
-    case 'WF2P-S05a': body = <SubmissionResultScreen nav={nav} queued />; break;
-    case 'WF2P-S06': body = <ReportStatusScreen />; break;
-  }
-
   return (
     <SafeAreaProvider>
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <StatusBar style="dark" />
-      <AppHeader onPress={HIDE_SHOT_LABEL ? undefined : () => setShotVisible(true)} />
-      {soon ? <SoonNotice label={soon} onClose={() => setSoon(null)} /> : null}
-      <View style={styles.body}>{body}</View>
-      <TabBar active={homeTab ? 'Home' : 'Report'} onHome={() => nav('WF2P-S01')} onReport={() => nav('WF2P-S02')} onSoon={setSoon} />
-      {shotVisible ? <ShotLabel screen={screen} onGo={nav} /> : null}
-    </SafeAreaView>
+      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+        <StatusBar style="dark" />
+        <CitizenApp ui={ui} />
+      </SafeAreaView>
     </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.card },
-  body: { flex: 1, backgroundColor: colors.pageBg },
-  shot: { position: 'absolute', left: 12, right: 12, bottom: 84, flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingVertical: 8, paddingHorizontal: 6, borderRadius: 16, backgroundColor: '#0F172A' },
-  shotBtn: { paddingHorizontal: 12, paddingVertical: 4 },
-  shotText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
 });
