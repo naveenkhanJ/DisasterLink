@@ -135,4 +135,24 @@ class DonorReportViewTest {
         .andExpect(view().name("organisation/showNotShared"))
         .andExpect(model().attribute("notSharedError", "Not shared"));
   }
+
+  @Test
+  @DisplayName(
+      "SC4 Step 16 / PR15 — openSharedReports resolves custom organizationId and falls back on blank")
+  void openSharedReportsResolvesOrganizationId() throws Exception {
+    when(analyticsController.getSharedReports("ORG-2")).thenReturn(List.of(sampleHeader));
+
+    mockMvc
+        .perform(get("/organisation/reports").param("organizationId", "ORG-2"))
+        .andExpect(status().isOk())
+        .andExpect(view().name("organisation/showSharedReports"))
+        .andExpect(model().attribute("organizationId", "ORG-2"));
+
+    when(analyticsController.getSharedReports("ORG-1")).thenReturn(List.of(sampleHeader));
+    mockMvc
+        .perform(get("/organisation/reports").param("organizationId", "   "))
+        .andExpect(status().isOk())
+        .andExpect(view().name("organisation/showSharedReports"))
+        .andExpect(model().attribute("organizationId", "ORG-1"));
+  }
 }

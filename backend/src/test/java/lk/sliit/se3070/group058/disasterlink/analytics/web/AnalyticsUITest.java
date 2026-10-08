@@ -372,4 +372,78 @@ class AnalyticsUITest {
         .andExpect(view().name("analytics/exportShareChosen"))
         .andExpect(model().attribute("exportError", "Renderer failure"));
   }
+
+  @Test
+  @DisplayName(
+      "SC4 Step 6f / FX-05 — confirmAdjustedCriteria redisplays workspace on validation failure")
+  void confirmAdjustedCriteriaRedisplaysWorkspaceOnFailure() throws Exception {
+    CriteriaCheck check =
+        new CriteriaCheck(new ValidationResult(false, List.of("Invalid dates")), Set.of(), null);
+    when(analyticsController.validateCriteria(sampleCriteria, "OFF-1")).thenReturn(check);
+
+    mockMvc
+        .perform(
+            post("/analytics/confirmAdjustedCriteria")
+                .sessionAttr("adjustedCriteriaSession", sampleCriteria))
+        .andExpect(status().isOk())
+        .andExpect(view().name("analytics/analyticsWorkspace"))
+        .andExpect(model().attributeExists("validationErrors"));
+  }
+
+  @Test
+  @DisplayName(
+      "SC4 Step 6f / FX-05 — confirmAdjustedCriteria displays no records suggestion when count is 0")
+  void confirmAdjustedCriteriaDisplaysNoRecordsSuggestion() throws Exception {
+    CriteriaCheck check = new CriteriaCheck(new ValidationResult(true, List.of()), Set.of(), null);
+    when(analyticsController.validateCriteria(sampleCriteria, "OFF-1")).thenReturn(check);
+
+    ReportResults emptyResults =
+        new ReportResults(0, List.of(), Map.of(), 0, List.of(), 0, List.of(), Set.of());
+    DisasterReport emptyReport =
+        new DisasterReport(
+            "DR-EMPTY",
+            "Empty",
+            LocalDateTime.now(),
+            sampleCriteria,
+            emptyResults,
+            sampleOfficer,
+            List.of());
+    when(analyticsController.generateReport(sampleCriteria, "OFF-1")).thenReturn(emptyReport);
+
+    mockMvc
+        .perform(
+            post("/analytics/confirmAdjustedCriteria")
+                .sessionAttr("adjustedCriteriaSession", sampleCriteria))
+        .andExpect(status().isOk())
+        .andExpect(view().name("analytics/analyticsWorkspace"))
+        .andExpect(model().attributeExists("noRecordsSuggestion"));
+  }
+
+  @Test
+  @DisplayName("SC4 Step 12 / CH-32 — exportReport delivers Excel and CSV downloads")
+  void exportReportDeliversExcelAndCsv() throws Exception {
+    ExportFile excelFile =
+        new ExportFile("DR-report.xlsx", ExportFormat.EXCEL, "xlsx bytes".getBytes());
+    when(analyticsController.exportReport("DR-2026-0184", ExportFormat.EXCEL, "OFF-1"))
+        .thenReturn(excelFile);
+
+    mockMvc
+        .perform(
+            get("/analytics/export").param("reportId", "DR-2026-0184").param("format", "EXCEL"))
+        .andExpect(status().isOk())
+        .andExpect(
+            header()
+                .string(
+                    HttpHeaders.CONTENT_TYPE,
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+
+    ExportFile csvFile = new ExportFile("DR-report.csv", ExportFormat.CSV, "csv bytes".getBytes());
+    when(analyticsController.exportReport("DR-2026-0184", ExportFormat.CSV, "OFF-1"))
+        .thenReturn(csvFile);
+
+    mockMvc
+        .perform(get("/analytics/export").param("reportId", "DR-2026-0184").param("format", "CSV"))
+        .andExpect(status().isOk())
+        .andExpect(header().string(HttpHeaders.CONTENT_TYPE, "text/csv"));
+  }
 }
