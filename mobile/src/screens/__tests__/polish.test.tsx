@@ -428,7 +428,7 @@ describe('alerts (standards §10 item 7)', () => {
     expect(screen.getByText('Discard this report?')).toBeTruthy();
     await run(() => fireEvent.press(screen.getByRole('button', { name: 'Discard' })));
 
-    expect(screen.getByText('My reports — waiting on this phone')).toBeTruthy();
+    expect(screen.getByText('Not sent yet')).toBeTruthy();
   });
 });
 

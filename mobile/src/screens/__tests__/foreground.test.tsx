@@ -32,7 +32,7 @@ describe('returning to the foreground re-reads the location (standards §10 item
     await run(() => ui().onAppForeground());
 
     expect(screen.getByText('6.5888 N, 79.9640 E')).toBeTruthy();
-    expect(screen.getByText('GPS · accuracy ±8 m')).toBeTruthy();
+    expect(screen.getByText(/^GPS · ±8 m · near /)).toBeTruthy();
     expect(screen.queryByText(ALLOW)).toBeNull();
     expect(ui().draft?.locationFromGps).toBe(true);
     expect(ui().locationUnavailable).toBe(false);
@@ -56,12 +56,14 @@ describe('returning to the foreground re-reads the location (standards §10 item
     rig.controller.captureLocation.mockResolvedValue(undefined);
     rig.locationAccess.check.mockResolvedValue('blocked');
     await renderApp(rig);
-    expect(screen.getByText(`Current location · ${ALLOW}`)).toBeTruthy();
+    expect(screen.getByText('Current location unavailable')).toBeTruthy();
+    expect(screen.getByText('Allow location access for Expo Go in Settings')).toBeTruthy();
     rig.controller.captureLocation.mockResolvedValue(KALUTARA_BRIDGE);
 
     await run(() => ui().onAppForeground());
 
     expect(screen.getByText('Current location · 6.5888 N, 79.9640 E')).toBeTruthy();
+    expect(screen.queryByText('Current location unavailable')).toBeNull();
     expect(rig.controller.loadHome).toHaveBeenCalledTimes(1);
   });
 

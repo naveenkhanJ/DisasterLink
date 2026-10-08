@@ -7,6 +7,7 @@ import * as Crypto from 'expo-crypto';
 import { createHttpClient } from '../api/httpClient';
 import { createReportApi, type ReportApi } from '../api/reportApi';
 import { createSkeletonApi, type SkeletonApi } from '../api/skeletonApi';
+import { POLL_TIMEOUT_MS } from '../constants';
 import { getEnv, type AppEnv } from '../config/env';
 import { createLocationService, type LocationService } from '../location/LocationService';
 import { createLocationAccess, type LocationAccess } from '../location/locationAccess';
@@ -23,6 +24,8 @@ import { isOnline } from '../sync/connectivityTriggers';
 export interface AppServices {
   env: AppEnv;
   skeletonApi: SkeletonApi;
+  /** The skeleton's calls over a client with the push poll's own short timeout (`POLL_TIMEOUT_MS`, P222). */
+  pollApi: SkeletonApi;
   reportApi: ReportApi;
   store: OfflineReportStore;
   homeCache: HomeCache;
@@ -41,6 +44,8 @@ export function createAppServices(): AppServices {
   const env = getEnv();
   const client = createHttpClient(env.apiUrl);
   const skeletonApi = createSkeletonApi(client);
+  // The push poll is also the server signal of the connection strip: a short timeout (standards §10 item 11, P222).
+  const pollApi = createSkeletonApi(createHttpClient(env.apiUrl, undefined, POLL_TIMEOUT_MS));
   const reportApi = createReportApi(client);
   const store = createOfflineReportStore();
   const homeCache = createHomeCache(env.citizenLanguage);
@@ -63,6 +68,7 @@ export function createAppServices(): AppServices {
   return {
     env,
     skeletonApi,
+    pollApi,
     reportApi,
     store,
     homeCache,

@@ -80,7 +80,7 @@ describe('the Back link, the discard question and Android Back (standards §10 i
     expect(await pressBack()).toBe(true);
 
     expect(screen.queryByText('Discard this report?')).toBeNull();
-    expect(screen.getByText('My reports — waiting on this phone')).toBeTruthy();
+    expect(screen.getByText('Not sent yet')).toBeTruthy();
     expect(ui().draft).toBeUndefined();
   });
 
@@ -94,7 +94,7 @@ describe('the Back link, the discard question and Android Back (standards §10 i
     expect(screen.getByText('Discard this report?')).toBeTruthy();
     expect(screen.getByText('What you entered on this report will be lost.')).toBeTruthy();
     await run(() => fireEvent.press(screen.getByRole('button', { name: 'Discard' })));
-    expect(screen.getByText('My reports — waiting on this phone')).toBeTruthy();
+    expect(screen.getByText('Not sent yet')).toBeTruthy();
     expect(screen.queryByText('Discard this report?')).toBeNull();
   });
 
@@ -168,7 +168,7 @@ describe('the Back link, the discard question and Android Back (standards §10 i
 
     await run(() => fireEvent.press(back()));
 
-    expect(screen.getByText('My reports — waiting on this phone')).toBeTruthy();
+    expect(screen.getByText('Not sent yet')).toBeTruthy();
   });
 
   it('WF2P-S06: Back goes to the confirmation when the status was opened from "Track report status"', async () => {
@@ -197,7 +197,7 @@ describe('the Back link, the discard question and Android Back (standards §10 i
     await run(() => fireEvent.press(back()));
 
     expect(screen.queryByText('Discard this report?')).toBeNull();
-    expect(screen.getByText('My reports — waiting on this phone')).toBeTruthy();
+    expect(screen.getByText('Not sent yet')).toBeTruthy();
   });
 
   it('standards §10 item 2: no question for a draft that has only a GPS location', async () => {
@@ -220,7 +220,7 @@ describe('the Back link, the discard question and Android Back (standards §10 i
     await run(() => fireEvent.press(screen.getByRole('button', { name: 'Discard' })));
 
     expect(rig.photos.deletePhoto).toHaveBeenCalledWith('file:///documents/draft-1.jpg');
-    expect(screen.getByText('My reports — waiting on this phone')).toBeTruthy();
+    expect(screen.getByText('Not sent yet')).toBeTruthy();
   });
 
   it('standards §10 item 2: a manual location alone makes the draft worth asking about', async () => {
@@ -319,7 +319,7 @@ describe('the Back link, the discard question and Android Back (standards §10 i
 
     await run(() => ui().confirmDiscard());
 
-    expect(screen.getByText('My reports — waiting on this phone')).toBeTruthy();
+    expect(screen.getByText('Not sent yet')).toBeTruthy();
   });
 
   it('standards §10 item 2: a draft that was queued keeps its photo copy when its form is left', async () => {

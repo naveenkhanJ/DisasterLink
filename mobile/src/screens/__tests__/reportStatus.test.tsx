@@ -99,7 +99,7 @@ describe('report status', () => {
     await run(() => ui().openReportStatus('RPT-2026-KLT-0847'));
 
     await run(() => fireEvent.press(screen.getByRole('tab', { name: /^Home/ })));
-    expect(screen.getByText('My reports — waiting on this phone')).toBeTruthy();
+    expect(screen.getByText('Not sent yet')).toBeTruthy();
 
     await run(() => ui().openReportStatus('RPT-2026-KLT-0847'));
     await run(() => fireEvent.press(screen.getByRole('tab', { name: /Report/ })));

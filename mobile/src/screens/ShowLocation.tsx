@@ -2,14 +2,15 @@
  * ShowLocation.tsx — `showLocation(location)`: the report's location as text, "6.5888 N, 79.9640 E"
  * with "GPS · accuracy ±8 m" or "Entered manually"; no map beside it (standards section 10). A manual
  * location chosen near a named place reads "near <place>, <lat> N, <lon> E — Entered manually", and a
- * manual location has a "Change" link that reopens the picker (SC2 step 14, A1 12d; WF2P-S03, S03a,
- * P213).
+ * manual location has a "Change" link that reopens the picker. Under a GPS fix the line also names the
+ * nearest place within 10 km ("GPS · ±8 m · near <place>"; SC2 step 14, A1 12d; WF2P-S03, S03a, P213, P222).
  *
  * Implements CH-27 (FD-12).
  */
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import type { GeoPoint } from '../api/reportApi';
+import { nearestPlace } from '../location/placeIndex';
 import { Icon, styles as ui } from '../components/ui';
 import { screenStyles as s } from './Screen';
 import {
@@ -38,6 +39,10 @@ export function ShowLocation({
   onChange?: () => void;
 }) {
   const named = !fromGps && placeName !== undefined;
+  const near = useMemo(
+    () => (fromGps ? nearestPlace(location)?.name : undefined),
+    [fromGps, location],
+  );
   return (
     <View style={[s.rowCenter, { justifyContent: 'space-between' }]}>
       <View style={[s.rowCenter, { flex: 1 }]}>
@@ -49,7 +54,7 @@ export function ShowLocation({
           ) : (
             <>
               <Text style={s.strong}>{formatCoordinates(location)}</Text>
-              <Text style={ui.muted}>{locationSource(location, fromGps)}</Text>
+              <Text style={ui.muted}>{locationSource(location, fromGps, near)}</Text>
             </>
           )}
         </View>

@@ -123,7 +123,7 @@ describe('review and submission', () => {
 
     await run(() => fireEvent.press(screen.getByRole('button', { name: 'Back to home' })));
 
-    expect(screen.getByText('My reports — waiting on this phone')).toBeTruthy();
+    expect(screen.getByText('Not sent yet')).toBeTruthy();
     expect(rig.controller.loadHome).toHaveBeenCalledTimes(2);
   });
 

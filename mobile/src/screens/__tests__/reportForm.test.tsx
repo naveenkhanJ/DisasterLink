@@ -47,7 +47,7 @@ describe('hazard-type list and report form', () => {
     expect(screen.getByText('Report a hazard')).toBeTruthy();
     expect(screen.getByText('Flood')).toBeTruthy();
     expect(screen.getByText('6.5888 N, 79.9640 E')).toBeTruthy();
-    expect(screen.getByText('GPS · accuracy ±8 m')).toBeTruthy();
+    expect(screen.getByText(/^GPS · ±8 m · near /)).toBeTruthy();
     expect(screen.getByText('0 / 500')).toBeTruthy();
     expect(rig.controller.captureLocation).toHaveBeenCalledTimes(2); // the home, then the form
   });
@@ -282,7 +282,7 @@ describe('hazard-type list and report form', () => {
 
     await run(() => ui().openDraft('missing'));
 
-    expect(screen.getByText('My reports — waiting on this phone')).toBeTruthy();
+    expect(screen.getByText('Not sent yet')).toBeTruthy();
   });
 
   it('SC2 steps 7-14: inputs without a draft change nothing', async () => {

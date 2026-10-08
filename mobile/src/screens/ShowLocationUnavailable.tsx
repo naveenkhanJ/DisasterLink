@@ -2,26 +2,47 @@
  * ShowLocationUnavailable.tsx — `showLocationUnavailable()`: the notice that there is no GPS fix
  * ("GPS location is unavailable", or the S03g notice when the cause is known), "Enter location
  * manually", and then a field "Type a town or village" whose type-ahead list (from the bundled
- * GeoNames places, so it works offline) sits directly under it, above a map with a pin over its
- * centre. Choosing a place moves the map there; the citizen drags the map to the exact spot and
- * "Use this location" sends the map's centre. A point outside Sri Lanka is refused with its error
- * under the map (SC2 A1 12a to 12d, E3 12e to 12f; WF2P-S03a and S03b; standards §10 "Manual
- * location", P213). The same block, opened at once, is the "Change" of a manual location, with "Keep
- * this location" to close it.
+ * GeoNames places and the sourced supplement, so it works offline) sits directly under it, above a map
+ * with a pin over its centre. Choosing a place moves the map there; the citizen drags the map to the
+ * exact spot and "Use this location" sends the map's centre. Under the map a live label says which
+ * place is nearest to the pin (recomputed when the map stops moving); a pin outside Sri Lanka says so
+ * and disables "Use this location". Dragging more than 1 km from a chosen place clears the choice. A
+ * point outside Sri Lanka is also refused with its error under the map (SC2 A1 12a to 12d, E3 12e to
+ * 12f; WF2P-S03a and S03b; standards §10 "Manual location", P213, P222). The same block, opened at
+ * once, is the "Change" of a manual location, with the button "Keep this location" to close it.
  *
- * There are no coordinate fields and no online geocoder (P213). Place names: GeoNames (CC BY 4.0).
+ * Opening the picker scrolls the place field into view and focuses it; the list appearing scrolls it
+ * above the keyboard (standards §10 item 13, P222). The place names are phone-side labels, never
+ * stored or sent. There are no coordinate fields and no online geocoder (P213). Place names:
+ * GeoNames (CC BY 4.0).
  *
  * Implements CH-27 (FD-12).
  */
-import React, { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import MapView from 'react-native-maps';
 import type { GeoPoint } from '../api/reportApi';
 import { Banner, Button, ErrorText, Icon, TextField, styles as ui } from '../components/ui';
-import { MANUAL_PLACE_RADIUS_KM } from '../constants';
-import { distanceKm, searchPlaces, type PlaceMatch } from '../location/placeIndex';
+import { CHOSEN_PLACE_KEEP_KM, MANUAL_PLACE_RADIUS_KM } from '../constants';
+import { resolveDistrict } from '../location/LocationService';
+import {
+  distanceKm,
+  nearestPlace,
+  searchPlaces,
+  type NearestPlace,
+  type PlaceMatch,
+} from '../location/placeIndex';
 import { colors, fonts, radius, space } from '../theme';
-import { KEEP_LOCATION_LABEL, PLACE_CREDIT, PLACE_FIELD_LABEL, placeRowText } from './texts';
+import { useScrollIntoView } from './Screen';
+import {
+  KEEP_LOCATION_LABEL,
+  nearestPlaceLabel,
+  NO_TOWN_TEXT,
+  OUTSIDE_ISLAND_TEXT,
+  PLACE_CREDIT,
+  PLACE_FIELD_LABEL,
+  placeRowText,
+} from './texts';
 
 /** How much of the map is visible when it opens on the district centre, in degrees. */
 const START_DELTA = 0.3;
@@ -64,9 +85,12 @@ export interface ShowLocationUnavailableProps {
   initiallyOpen?: boolean;
   /** Tells the form whether the picker is open (it shows the address field while it is). */
   onOpenChange?: (open: boolean) => void;
-  /** Closes the picker and keeps the location (the "Keep this location" link; only for "Change"). */
+  /** Closes the picker and keeps the location (the "Keep this location" button; only for "Change"). */
   onKeep?: () => void;
 }
+
+/** What the live label says about the centre of the map. */
+type CentreLabel = { kind: 'outside' } | { kind: 'none' } | { kind: 'near'; near: NearestPlace };
 
 function regionAround(point: GeoPoint, delta: number): Region {
   return {
@@ -75,6 +99,15 @@ function regionAround(point: GeoPoint, delta: number): Region {
     latitudeDelta: delta,
     longitudeDelta: delta,
   };
+}
+
+/** Works out the live label for a point: outside Sri Lanka, no town nearby, or the nearest place. */
+function labelFor(point: GeoPoint): CentreLabel {
+  if (resolveDistrict(point) === undefined) {
+    return { kind: 'outside' };
+  }
+  const near = nearestPlace(point);
+  return near ? { kind: 'near', near } : { kind: 'none' };
 }
 
 /** The inline list of up to eight suggestions under the place field. */
@@ -105,6 +138,23 @@ function Suggestions({
   );
 }
 
+/** The live label under the map caption. */
+function CentreLine({ label }: { label: CentreLabel }) {
+  return (
+    <View accessibilityLiveRegion="polite" testID="centre-label">
+      {label.kind === 'outside' ? (
+        <ErrorText>{OUTSIDE_ISLAND_TEXT}</ErrorText>
+      ) : (
+        <Text style={ui.muted}>
+          {label.kind === 'none'
+            ? NO_TOWN_TEXT
+            : nearestPlaceLabel(label.near.name, label.near.district, label.near.distanceKm)}
+        </Text>
+      )}
+    </View>
+  );
+}
+
 /**
  * Draws the manual-entry block.
  *
@@ -119,7 +169,28 @@ export function ShowLocationUnavailable(props: ShowLocationUnavailableProps) {
   );
   const [query, setQuery] = useState('');
   const [chosen, setChosen] = useState<PlaceMatch>();
+  const fieldRef = useRef<View>(null);
+  const inputRef = useRef<TextInput>(null);
+  const scrollIntoView = useScrollIntoView();
   const matches = useMemo(() => (chosen ? [] : searchPlaces(query)), [query, chosen]);
+  const label = useMemo(
+    () => labelFor({ latitude: region.latitude, longitude: region.longitude }),
+    [region.latitude, region.longitude],
+  );
+  const listShown = matches.length > 0;
+
+  useEffect(() => {
+    if (open) {
+      scrollIntoView(fieldRef);
+      inputRef.current?.focus();
+    }
+  }, [open, scrollIntoView]);
+
+  useEffect(() => {
+    if (listShown) {
+      scrollIntoView(fieldRef);
+    }
+  }, [listShown, scrollIntoView]);
 
   function openPicker(): void {
     setOpen(true);
@@ -137,10 +208,22 @@ export function ShowLocationUnavailable(props: ShowLocationUnavailableProps) {
     setChosen(undefined);
   }
 
+  /** The map stopped: a settle more than 1 km from the chosen place clears the choice and the field. */
+  function settle(next: Region): void {
+    setRegion(next);
+    if (chosen && distanceKm(chosen.point, next) > CHOSEN_PLACE_KEEP_KM) {
+      setChosen(undefined);
+      setQuery('');
+    }
+  }
+
   function usePlace(): void {
     const centre = { latitude: region.latitude, longitude: region.longitude };
-    const near = chosen !== undefined && distanceKm(chosen.point, centre) <= MANUAL_PLACE_RADIUS_KM;
-    onPlaceNamed(near ? chosen.name : undefined);
+    const nearby =
+      label.kind === 'near' && label.near.distanceKm <= MANUAL_PLACE_RADIUS_KM
+        ? label.near.name
+        : undefined;
+    onPlaceNamed(chosen?.name ?? nearby);
     onEnter(centre);
   }
 
@@ -164,18 +247,21 @@ export function ShowLocationUnavailable(props: ShowLocationUnavailableProps) {
       )}
       {open ? (
         <>
-          <TextField
-            label={PLACE_FIELD_LABEL}
-            value={query}
-            onChangeText={change}
-            returnKeyType="search"
-          />
+          <View ref={fieldRef} testID="place-field" collapsable={false}>
+            <TextField
+              label={PLACE_FIELD_LABEL}
+              value={query}
+              onChangeText={change}
+              returnKeyType="search"
+              inputRef={inputRef}
+            />
+          </View>
           <Suggestions matches={matches} onChoose={choose} />
           <View style={styles.mapBox}>
             <MapView
               style={styles.map}
               region={region}
-              onRegionChangeComplete={setRegion}
+              onRegionChangeComplete={settle}
               pitchEnabled={false}
               rotateEnabled={false}
             />
@@ -184,14 +270,15 @@ export function ShowLocationUnavailable(props: ShowLocationUnavailableProps) {
             </View>
           </View>
           <Text style={ui.muted}>Drag the map to put the pin on the spot you saw</Text>
+          <CentreLine label={label} />
           {error ? <ErrorText>{error}</ErrorText> : null}
           <Text style={styles.credit}>{PLACE_CREDIT}</Text>
-          <Button label="Use this location" onPress={usePlace} />
-          {onKeep ? (
-            <Pressable accessibilityRole="button" onPress={onKeep} style={styles.keep}>
-              <Text style={styles.keepText}>{KEEP_LOCATION_LABEL}</Text>
-            </Pressable>
-          ) : null}
+          <Button
+            label="Use this location"
+            disabled={label.kind === 'outside'}
+            onPress={usePlace}
+          />
+          {onKeep ? <Button label={KEEP_LOCATION_LABEL} kind="secondary" onPress={onKeep} /> : null}
         </>
       ) : null}
     </View>
@@ -230,12 +317,4 @@ const styles = StyleSheet.create({
     marginLeft: -PIN_SIZE / 2,
   },
   credit: { fontFamily: fonts.ui, fontSize: 11, color: colors.muted },
-  keep: { minHeight: ROW_HEIGHT, justifyContent: 'center', alignItems: 'center' },
-  keepText: {
-    fontFamily: fonts.ui,
-    fontSize: 14,
-    fontWeight: '700',
-    textDecorationLine: 'underline',
-    color: colors.text,
-  },
 });

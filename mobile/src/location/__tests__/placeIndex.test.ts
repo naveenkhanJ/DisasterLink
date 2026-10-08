@@ -1,9 +1,10 @@
 import type { District } from '../../api/types';
-import { distanceKm, normalisePlaceText, searchPlaces } from '../placeIndex';
+import { resolveDistrict } from '../LocationService';
+import { distanceKm, nearestPlace, normalisePlaceText, searchPlaces } from '../placeIndex';
 
 /**
- * The demo's places and the district each lies in (SC2 storyline, standards §10 "Demo"). Malabe is not here: see
- * the test below.
+ * The demo's places and the district each lies in (SC2 storyline, standards §10 "Demo"). Malabe is tested with the supplement
+ * below.
  */
 const DEMO_PLACES: [string, District][] = [
   ['Kaduwela', 'COLOMBO'],
@@ -20,11 +21,22 @@ describe('searchPlaces with the real GeoNames list', () => {
     expect(found).toBeDefined();
   });
 
-  it('SC2 A1 12c: Malabe is in the list only as the village in KURUNEGALA, not as the Malabe of COLOMBO (a gap of the GeoNames data, reported in UC2-7d)', () => {
-    const malabe = searchPlaces('Malabe').filter((match) => match.name === 'Malabe');
+  it('SC2 A1 12c (P222, G11): "malabe" finds the Malabe of Colombo first, from the supplement, then the village in Kurunegala', () => {
+    const matches = searchPlaces('malabe');
 
-    expect(malabe.map((match) => match.district)).toEqual(['KURUNEGALA']);
-    expect(searchPlaces('Malabe').some((match) => match.district === 'COLOMBO')).toBe(false);
+    expect(matches[0]).toMatchObject({ name: 'Malabe', district: 'COLOMBO' });
+    expect(matches[0].point).toEqual({ latitude: 6.9036, longitude: 79.9547 });
+    expect(
+      matches.filter((match) => match.name === 'Malabe').map((match) => match.district),
+    ).toEqual(['COLOMBO', 'KURUNEGALA']);
+  });
+
+  it('SC2 A1 12c (P222, G11): "mala" lists Malabe among the first three', () => {
+    const names = searchPlaces('mala')
+      .slice(0, 3)
+      .map((match) => match.name);
+
+    expect(names).toContain('Malabe');
   });
 
   it('SC2 A1 12c: "kalu" lists Kalutara among the first three', () => {
@@ -123,5 +135,79 @@ describe('distanceKm', () => {
 
     expect(km).toBeGreaterThan(35);
     expect(km).toBeLessThan(45);
+  });
+});
+
+describe('nearestPlace (standards §10 "Manual location", Nearest-place label, P222)', () => {
+  it("SC2 A1 12c: a point at Kaduwela's coordinates gives Kaduwela, in COLOMBO, at about 0 km", () => {
+    const kaduwela = searchPlaces('Kaduwela').find((match) => match.district === 'COLOMBO');
+
+    const found = nearestPlace(kaduwela?.point ?? { latitude: 0, longitude: 0 });
+
+    expect(found?.name).toBe('Kaduwela');
+    expect(found?.district).toBe('COLOMBO');
+    expect(found?.distanceKm).toBeLessThan(0.1);
+  });
+
+  it("SC2 A1 12c: the supplement's Malabe is found at its own point", () => {
+    const found = nearestPlace({ latitude: 6.9036, longitude: 79.9547 });
+
+    expect(found?.name).toBe('Malabe');
+    expect(found?.district).toBe('COLOMBO');
+  });
+
+  it('SC2 A1 12c: a point between two towns gives the closer one', () => {
+    const near = { latitude: 6.9, longitude: 79.9 };
+    const first = nearestPlace(near);
+    const second = nearestPlace({
+      latitude: first?.point.latitude ?? 0,
+      longitude: (first?.point.longitude ?? 0) + 0.01,
+    });
+
+    expect(first).toBeDefined();
+    expect(distanceKm(near, first?.point ?? near)).toBeLessThanOrEqual(10);
+    // No other place is closer than the one found.
+    for (const match of searchPlaces(first?.name ?? '', 50)) {
+      expect(distanceKm(near, match.point)).toBeGreaterThanOrEqual((first?.distanceKm ?? 0) - 1e-9);
+    }
+    expect(second?.distanceKm).toBeLessThan(2);
+  });
+
+  it('SC2 A1 12c: a point 20 km out at sea gives undefined', () => {
+    expect(nearestPlace({ latitude: 6.5, longitude: 79.2 })).toBeUndefined();
+  });
+
+  it('SC2 A1 12c: a wider radius finds a place the default does not', () => {
+    const sea = { latitude: 6.5, longitude: 79.45 };
+
+    expect(nearestPlace(sea)).toBeUndefined();
+    expect(nearestPlace(sea, 60)?.distanceKm).toBeGreaterThan(10);
+  });
+
+  it("SC2 step 18: the district is the pin's, not the place's, near a district border", () => {
+    // Just inside Kalutara, close to the Colombo border; the nearest village may be in Colombo.
+    const pin = { latitude: 6.7, longitude: 79.93 };
+    const found = nearestPlace(pin);
+
+    expect(found?.district).toBe(resolveDistrict(pin));
+  });
+
+  it('SC2 A1 12c: ties are decided by population (the more populous place wins)', () => {
+    // A point exactly on a place with population: the exact match has distance 0.
+    const colombo = searchPlaces('Colombo')[0];
+
+    expect(nearestPlace(colombo.point)?.distanceKm).toBeLessThan(0.5);
+  });
+
+  it('SC2 A1 12c: one call over the real data takes a few milliseconds', () => {
+    nearestPlace({ latitude: 6.9, longitude: 79.9 }); // builds the index
+    const start = performance.now();
+    for (let i = 0; i < 20; i += 1) {
+      nearestPlace({ latitude: 6.9 + i * 0.01, longitude: 79.9 });
+    }
+    const perCall = (performance.now() - start) / 20;
+    console.info(`nearestPlace: ${perCall.toFixed(2)} ms per call over the real data`);
+
+    expect(perCall).toBeLessThan(50);
   });
 });

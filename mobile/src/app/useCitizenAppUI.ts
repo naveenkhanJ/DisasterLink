@@ -124,6 +124,8 @@ export interface CitizenAppState {
   report: HazardReport | undefined;
   /** An online action failed with a technical fault: the common error banner (C1). */
   serviceUnavailable: boolean;
+  /** When the last Retry ended with the fault still there; cleared when the banner goes (P222). */
+  retriedAt: Date | undefined;
   /** The last synchronisation results (`showSyncResults`). */
   syncResults: SyncResult[];
   /** A rejected draft was just discarded (WF2P-S01d). */
@@ -258,6 +260,7 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
   const [sentReportId, setSentReportId] = useState<string>();
   const [report, setReport] = useState<HazardReport>();
   const [serviceUnavailable, setServiceUnavailable] = useState(false);
+  const [retriedAt, setRetriedAt] = useState<Date>();
   const [syncResults, setSyncResults] = useState<SyncResult[]>([]);
   const [draftDiscarded, setDraftDiscarded] = useState(false);
   const [alerts, setAlerts] = useState<AlertNotice[]>([]);
@@ -278,6 +281,7 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
   const accessRef = useRef<LocationAccessState>(undefined);
   const discardQuestionRef = useRef(false);
   const unavailableRef = useRef(false);
+  const serviceRef = useRef(false);
   const descriptionRef = useRef('');
   const addressRef = useRef('');
   const connectionRef = useRef<ConnectionState>('online');
@@ -346,12 +350,19 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
   }, [setAccess, setResult, setLocationUnavailable]);
 
   /** Runs an online action; a failure shows the common error banner and changes nothing (C1). */
-  const guarded = useCallback(async (action: () => Promise<void>) => {
-    setServiceUnavailable(false);
+  const guarded = useCallback(async (action: () => Promise<void>, keepBanner = false) => {
+    serviceRef.current = false;
+    // Retry keeps the banner on screen while it runs (it shows "Trying again…"); it goes when the call works.
+    if (!keepBanner) {
+      setServiceUnavailable(false);
+      setRetriedAt(undefined);
+    }
     try {
       await action();
+      setServiceUnavailable(false);
     } catch (error) {
       console.warn('[CitizenAppUI] an online action failed:', error);
+      serviceRef.current = true;
       setServiceUnavailable(true);
     }
   }, []);
@@ -636,11 +647,17 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
    * `showLoading: false`, so only the pull indicator shows, as on the home.
    */
   const readReport = useCallback(
-    async (reportId: string, { showLoading = true }: { showLoading?: boolean } = {}) => {
+    async (
+      reportId: string,
+      {
+        showLoading = true,
+        keepBanner = false,
+      }: { showLoading?: boolean; keepBanner?: boolean } = {},
+    ) => {
       const read = async () => {
         setReport(await controller.getReportStatus(reportId));
       };
-      await guarded(() => (showLoading ? withLoading(read) : read()));
+      await guarded(() => (showLoading ? withLoading(read) : read()), keepBanner);
     },
     [controller, guarded, withLoading],
   );
@@ -861,12 +878,22 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
 
   const retry = useCallback(async () => {
     const current = routeRef.current;
-    if (current.name === 'reportStatus') {
-      await readReport(current.reportId);
-    } else {
-      await guarded(refreshHome);
-    }
-  }, [readReport, guarded, refreshHome]);
+    await withLoading(async () => {
+      if (current.name === 'reportStatus') {
+        await readReport(current.reportId, { showLoading: false, keepBanner: true });
+      } else {
+        await guarded(refreshHome, true);
+      }
+    });
+    // The banner stays when the status call failed again, or the home loaded with part of it failing.
+    const still =
+      serviceRef.current || (routeRef.current.name === 'home' && homeRef.current?.error === true);
+    setRetriedAt(still ? new Date() : undefined);
+  }, [withLoading, readReport, guarded, refreshHome]);
+
+  // The "tried at" line belongs to the banner: it is shown only while the banner condition holds, and a new
+  // online action clears it (so an old time never comes back with a later banner).
+  const bannerCondition = serviceUnavailable || (route.name === 'home' && home.error === true);
 
   useEffect(() => {
     if (route.name !== 'submissionResult' || result?.state !== 'INVALID') {
@@ -903,6 +930,7 @@ export function useCitizenAppUI(services: UiServices): CitizenAppUI {
     sentReportId,
     report,
     serviceUnavailable,
+    retriedAt: bannerCondition ? retriedAt : undefined,
     syncResults,
     draftDiscarded,
     alerts,

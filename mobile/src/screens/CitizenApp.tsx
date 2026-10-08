@@ -10,6 +10,7 @@
  */
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useAutoDismiss } from '../app/useAutoDismiss';
 import type { CitizenAppUI } from '../app/useCitizenAppUI';
 import {
   AppHeader,
@@ -19,7 +20,12 @@ import {
   TabBar,
   styles as ui,
 } from '../components/ui';
-import { MAX_ALERTS_SHOWN } from '../constants';
+import {
+  DISCARDED_NOTICE_MS,
+  MAX_ALERTS_SHOWN,
+  SENT_NOTICE_MS,
+  SOON_NOTICE_MS,
+} from '../constants';
 import { colors, space } from '../theme';
 import { ChooseHazardType } from './ChooseHazardType';
 import { ConnectionStrip } from './ConnectionStrip';
@@ -56,6 +62,7 @@ function CurrentScreen({ ui: app }: { ui: CitizenAppUI }) {
           locationAccess={app.locationAccess}
           draftDiscarded={app.draftDiscarded}
           onSelectLanguage={(language) => void app.selectLanguage(language)}
+          onAllowLocationAccess={() => void app.allowLocationAccess()}
           onReportHazard={app.startReport}
           onOpenReport={(reportId) => void app.openReportStatus(reportId)}
           onOpenDraft={(draftId) => void app.openDraft(draftId)}
@@ -140,25 +147,34 @@ function CurrentScreen({ ui: app }: { ui: CitizenAppUI }) {
  * @returns the app
  */
 export function CitizenApp({ ui: app }: { ui: CitizenAppUI }) {
-  const [soon, setSoon] = useState<string | null>(null);
+  const [soon, setSoon] = useState<{ label: string; at: number } | null>(null);
   const homeTab = app.route.name === 'home' || app.route.name === 'reportStatus';
   const bannerShown =
     app.serviceUnavailable || (app.route.name === 'home' && app.home.error === true);
   const shownAlerts = app.alerts.slice(-MAX_ALERTS_SHOWN);
   const hiddenAlerts = app.alerts.length - shownAlerts.length;
+  // Notices that need no action fade (standards §10 item 12, P222); a sync result that was rejected,
+  // alerts, the decision card, the C1 banner and the S03g notice stay until closed or fixed.
+  const sentOnly =
+    app.syncResults.length > 0 && app.syncResults.every((result) => result.outcome !== 'REJECTED');
+  useAutoDismiss(soon !== null, SOON_NOTICE_MS, () => setSoon(null), soon?.at);
+  useAutoDismiss(sentOnly, SENT_NOTICE_MS, app.dismissSyncResults, app.syncResults);
+  useAutoDismiss(app.draftDiscarded, DISCARDED_NOTICE_MS, app.dismissDiscarded);
   const noticeShown = bannerShown || app.syncResults.length > 0 || app.alerts.length > 0;
   return (
     <View style={styles.app}>
       <AppHeader onBack={BACK_ROUTES.has(app.route.name) ? () => void app.goBack() : undefined} />
       <ConnectionStrip state={app.connection} />
       {app.loading ? <LoadingRow /> : null}
-      {soon ? <SoonNotice label={soon} onClose={() => setSoon(null)} /> : null}
+      {soon ? <SoonNotice label={soon.label} onClose={() => setSoon(null)} /> : null}
       {noticeShown ? (
         <View style={styles.notices}>
           {bannerShown ? (
             <ServiceUnavailableBanner
               text={SERVICE_UNAVAILABLE_TEXT}
               onRetry={() => void app.retry()}
+              busy={app.loading}
+              retriedAt={app.retriedAt}
             />
           ) : null}
           {app.syncResults.length > 0 ? (
@@ -196,7 +212,7 @@ export function CitizenApp({ ui: app }: { ui: CitizenAppUI }) {
         active={homeTab ? 'Home' : 'Report'}
         onHome={() => app.requestLeave(app.openHome)}
         onReport={() => app.requestLeave(app.startReport)}
-        onSoon={setSoon}
+        onSoon={(label) => setSoon({ label, at: Date.now() })}
       />
     </View>
   );

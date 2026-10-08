@@ -123,3 +123,46 @@ export const MANUAL_PLACE_RADIUS_KM = 5;
 
 /** The longest "Address or landmark" text, in characters (standards §10 "The address", P214). */
 export const MAX_ADDRESS_LENGTH = 200;
+
+/** The farthest a place can be from the pin and still be named in the picker's label, in kilometres (P222). */
+export const NO_TOWN_RADIUS_KM = 10;
+
+/**
+ * How far the map may move from a place chosen in the list before the choice is cleared, in
+ * kilometres (standards §10 "Manual location", Nearest-place label, P222).
+ */
+export const CHOSEN_PLACE_KEEP_KM = 1;
+
+/** The kilometres in one degree of latitude, for the box that pre-filters the nearest-place search. */
+export const KM_PER_DEGREE = 111.2;
+
+/**
+ * How long a request of the push poll may take before it counts as a network failure, in milliseconds
+ * (standards §10 item 11, P222): "Server not reachable" then appears about 5 to 9 seconds after the
+ * server stops. Other requests keep `REQUEST_TIMEOUT_MS`.
+ */
+export const POLL_TIMEOUT_MS = 4_000;
+
+/** How long "<item> — not available in this version" shows before it fades, in milliseconds (standards §10 item 12, P222). */
+export const SOON_NOTICE_MS = 3_000;
+
+/** How long the sync-result banner "Report sent — …" shows before it fades, in milliseconds (standards §10 item 12, P222). */
+export const SENT_NOTICE_MS = 6_000;
+
+/** How long "Draft discarded — nothing was sent" shows before it fades, in milliseconds (standards §10 item 12, P222). */
+export const DISCARDED_NOTICE_MS = 4_000;
+
+/** The space kept above content that is scrolled into view, in points (standards §10 item 13, P222). */
+export const SCROLL_TOP_MARGIN = 16;
+
+/** The padding above the icon of every tab of the tab bar, in points (standards §10 item 15, P222). */
+export const TAB_PADDING_TOP = 8;
+
+/** The inset at each side of the active tab's underline, in points (standards §10 item 15, P222). */
+export const TAB_UNDERLINE_INSET = 16;
+
+/** The height of the active tab's underline, in points (standards §10 item 15, P222). */
+export const TAB_UNDERLINE_HEIGHT = 2;
+
+/** The distance of "Not in this version" from the bottom of its tab, in points (standards §10 item 15, P222). */
+export const TAB_SOON_BOTTOM = 3;

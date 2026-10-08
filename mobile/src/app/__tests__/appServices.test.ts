@@ -1,3 +1,4 @@
+import * as httpClient from '../../api/httpClient';
 import { getEnv } from '../../config/env';
 import { createAppServices } from '../appServices';
 
@@ -19,6 +20,11 @@ jest.mock('expo-network', () => ({ getNetworkStateAsync: jest.fn() }));
 jest.mock('@react-native-async-storage/async-storage', () =>
   jest.requireActual('@react-native-async-storage/async-storage/jest/async-storage-mock'),
 );
+
+jest.mock('../../api/httpClient', () => {
+  const actual = jest.requireActual('../../api/httpClient');
+  return { ...actual, createHttpClient: jest.fn(actual.createHttpClient) };
+});
 
 describe('createAppServices', () => {
   it('builds the services once from the environment, with a working capture controller', () => {
@@ -42,5 +48,19 @@ describe('createAppServices', () => {
         'controller',
       ]),
     );
+  });
+
+  it('standards §10 item 11 (P222): the push poll has its own client with the 4 s timeout; the other calls keep the default', () => {
+    jest.mocked(httpClient.createHttpClient).mockClear();
+
+    const services = createAppServices();
+
+    const calls = jest.mocked(httpClient.createHttpClient).mock.calls;
+    expect(calls).toHaveLength(2);
+    expect(calls[0]).toEqual(['http://192.168.1.100:8080']);
+    expect(calls[1]).toEqual(['http://192.168.1.100:8080', undefined, 4000]);
+    expect(services.pollApi).toBeDefined();
+    expect(services.pollApi).not.toBe(services.skeletonApi);
+    expect(Object.keys(services.pollApi)).toEqual(Object.keys(services.skeletonApi));
   });
 });

@@ -41,6 +41,7 @@ const stopTriggers = jest.fn();
 const stopPolling = jest.fn();
 let notificationsReady: () => void = () => undefined;
 const skeletonApi = { pollOutbox: jest.fn(), acknowledge: jest.fn() };
+const pollApi = { pollOutbox: jest.fn(), acknowledge: jest.fn() };
 const controller = {
   loadHome: jest.fn(async () => HOME),
   captureLocation: jest.fn(async () => undefined),
@@ -62,6 +63,7 @@ describe('App start-up', () => {
     jest.mocked(createAppServices).mockReturnValue({
       env: { citizenId: 'CIT-KLT-0001', citizenLanguage: 'ENGLISH', citizenDistrict: 'KALUTARA' },
       skeletonApi,
+      pollApi,
       controller,
       store: { findPending },
       locationAccess,
@@ -125,7 +127,8 @@ describe('App start-up', () => {
 
     const options = jest.mocked(startPushPolling).mock.calls[0][0];
     expect(options.recipientId).toBe('CIT-KLT-0001');
-    expect(options.api).toBe(skeletonApi);
+    expect(options.api).toBe(pollApi);
+    expect(options.api).not.toBe(skeletonApi);
     expect(typeof options.onAlert).toBe('function');
     expect(typeof options.onDecision).toBe('function');
     await expect(options.prepare?.()).resolves.toBe(true);

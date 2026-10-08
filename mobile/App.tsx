@@ -108,7 +108,7 @@ export default function App() {
       );
       stopPolling = startPushPolling({
         recipientId: services.env.citizenId,
-        api: services.skeletonApi,
+        api: services.pollApi,
         onAlert: receiveAlert,
         onDecision: receiveReportDecision,
         onReachability: onServerReachability,

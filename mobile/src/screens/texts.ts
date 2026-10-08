@@ -256,15 +256,22 @@ export function formatCoordinates(location: GeoPoint): string {
  *
  * @param location the place
  * @param fromGps whether it is a GPS fix
- * @returns "GPS · accuracy ±8 m", "GPS" when no accuracy is known, or "Entered manually"
+ * @param near the nearest place within 10 km, if any (P222)
+ * @returns "GPS · accuracy ±8 m" ("GPS" when no accuracy is known), "GPS · ±8 m · near <place>" with a
+ *   nearest place, or "Entered manually"
  */
-export function locationSource(location: GeoPoint, fromGps: boolean): string {
+export function locationSource(location: GeoPoint, fromGps: boolean, near?: string): string {
   if (!fromGps) {
     return 'Entered manually';
   }
-  return location.accuracyMetres == null
-    ? 'GPS'
-    : `GPS · accuracy ±${Math.round(location.accuracyMetres)} m`;
+  const known = location.accuracyMetres != null;
+  if (near !== undefined) {
+    // SC2 step 14 words the plain line verbatim; the nearest place (P222) makes it "GPS · ±8 m · near X".
+    return known
+      ? `GPS · ±${Math.round(location.accuracyMetres as number)} m · near ${near}`
+      : `GPS · near ${near}`;
+  }
+  return known ? `GPS · accuracy ±${Math.round(location.accuracyMetres as number)} m` : 'GPS';
 }
 
 /**
@@ -428,3 +435,70 @@ export function decisionNoticeText(notice: ReportDecisionNotice, language: Langu
     ? patterns.rejected(notice.reportId, when, notice.reason ?? '')
     : patterns.verified(notice.reportId, when);
 }
+
+/** The line under the map when no town lies within the radius (standards §10, Nearest-place label, P222). */
+export const NO_TOWN_TEXT = 'No town nearby — the point is still used';
+
+/** The error line under the map when the pin is outside Sri Lanka; "Use this location" is disabled (P222). */
+export const OUTSIDE_ISLAND_TEXT = 'Outside Sri Lanka — move the pin onto the island';
+
+/**
+ * Words the live label under the map for the place nearest to the pin.
+ *
+ * @param place the nearest place's name
+ * @param district the pin's district, if the pin is inside one
+ * @param km the distance from the pin to the place, in kilometres
+ * @returns "Near <place> — <District> · <d> km", one decimal under 10 km
+ */
+export function nearestPlaceLabel(
+  place: string,
+  district: District | undefined,
+  km: number,
+): string {
+  const distance = km < 10 ? km.toFixed(1) : String(Math.round(km));
+  return `Near ${placeRowText(place, district)} · ${distance} km`;
+}
+
+/** The title of the home's location card when there is no fix (E1, G6, P222). */
+export const LOCATION_UNAVAILABLE_TITLE = 'Current location unavailable';
+
+/**
+ * Gives the muted second line of the home's location card when there is no fix.
+ *
+ * @param access why there is no fix, when it is known
+ * @returns the reason and the action, or a plain waiting line when nothing is known
+ */
+export function homeLocationReason(
+  access: 'granted' | 'askable' | 'blocked' | 'servicesOff' | undefined,
+): string {
+  switch (access) {
+    case 'blocked':
+      return 'Allow location access for Expo Go in Settings';
+    case 'askable':
+      return 'Allow location access to show it here';
+    case 'servicesOff':
+      return 'Turn on Location Services in Settings';
+    default:
+      return 'The phone has not found its position yet';
+  }
+}
+
+/** The label of Retry while it runs (standards §10 item 12, P222). */
+export const RETRYING_LABEL = 'Trying again…';
+
+/**
+ * Words the line that the C1 banner adds when Retry found the fault still there.
+ *
+ * @param at when the retry ended (the phone's local time)
+ * @returns "Still unavailable — tried at HH:MM" (24-hour)
+ */
+export function stillUnavailableText(at: Date): string {
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `Still unavailable — tried at ${pad(at.getHours())}:${pad(at.getMinutes())}`;
+}
+
+/** The title of the home's second list (deviation D-UC2-5 from SC2's "Not sent yet"; P222). */
+export const UNSENT_SECTION_TITLE = 'Not sent yet';
+
+/** The muted line under the title of the home's second list (deviation D-UC2-5; P222). */
+export const UNSENT_SECTION_LINE = 'Saved on this phone — sent automatically when you are online';

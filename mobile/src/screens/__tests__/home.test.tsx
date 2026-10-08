@@ -23,7 +23,7 @@ describe('home screen', () => {
     expect(screen.getByText(WARNING.message.english)).toBeTruthy();
     expect(screen.getByText(WARNING.instructions.english)).toBeTruthy();
     expect(screen.getByText('Current location · 6.5888 N, 79.9640 E')).toBeTruthy();
-    expect(screen.getByText('GPS · accuracy ±8 m')).toBeTruthy();
+    expect(screen.getByText(/^GPS · ±8 m · near /)).toBeTruthy();
     expect(screen.getByText('No reports yet')).toBeTruthy();
     expect(screen.getByText('Nothing waiting')).toBeTruthy();
     expect(rig.controller.loadHome).toHaveBeenCalledTimes(1);
@@ -121,7 +121,8 @@ describe('home screen', () => {
     await renderApp(rig);
 
     expect(screen.getByText('No active warnings')).toBeTruthy();
-    expect(screen.getByText('Current location · not available')).toBeTruthy();
+    expect(screen.getByText('Current location unavailable')).toBeTruthy();
+    expect(screen.getByText('The phone has not found its position yet')).toBeTruthy();
   });
 
   it('SC2 step 2: "My reports" lists the reports with their status and opens one', async () => {

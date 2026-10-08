@@ -10,11 +10,13 @@
  * §10 "Phone screens beyond the frames" item 9, P206, P213). The location block shows the S03g notice
  * when the cause of a missing fix is known and the place-list and map-pin picker when the citizen
  * enters the place, with "Change" on a manual location; under it the optional "Address or landmark"
- * (standards §10 "The address", P214).
+ * (standards §10 "The address", P214). Content that appears in answer to the citizen is scrolled into
+ * view: the address field, the S03g notice, and the first field with an error after "Review Report"
+ * (standards §10 item 13, P222).
  *
  * Implements CH-25, CH-27 (SC2 steps 7 to 15, A1, A3, E1 to E3, E8; WF2P-S03, S03a to S03g).
  */
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { GeoPoint } from '../api/reportApi';
 import type { PhotoSource } from '../app/useCitizenAppUI';
@@ -34,7 +36,7 @@ import {
 } from '../components/ui';
 import { MAX_ADDRESS_LENGTH, MAX_DESCRIPTION_LENGTH } from '../constants';
 import { colors, space } from '../theme';
-import { Screen, screenStyles as s } from './Screen';
+import { Screen, screenStyles as s, useScrollIntoView, useScrollWhenShown } from './Screen';
 import { CameraPermissionNotice, ShowPhotoError } from './ShowPhotoError';
 import { ShowLocation } from './ShowLocation';
 import { ShowLocationUnavailable } from './ShowLocationUnavailable';
@@ -43,6 +45,7 @@ import { ShowValidationErrors } from './ShowValidationErrors';
 import {
   ADDRESS_FIELD_LABEL,
   formatDateTime,
+  hasErrors,
   hazardTypeIcon,
   hazardTypeLabel,
   rejectionText,
@@ -122,7 +125,7 @@ function PhotoBlock({
             style={{ flex: 1 }}
             onPress={() => setPreviewing(true)}
           />
-          <Button label="Remove" kind="secondary" style={{ flex: 1 }} onPress={onRemove} />
+          <Button label="Remove" kind="danger" style={{ flex: 1 }} onPress={onRemove} />
         </View>
       ) : null}
       <ModalCard visible={previewing} onRequestClose={() => setPreviewing(false)}>
@@ -160,7 +163,8 @@ function PhotoBlock({
         <Button
           label={attached ? 'Choose another' : 'Choose from gallery'}
           kind="secondary"
-          style={{ flex: 1.3, paddingHorizontal: 8 }}
+          icon="image"
+          style={{ flex: 1, paddingHorizontal: 8 }}
           onPress={() => onPick('gallery')}
         />
       </View>
@@ -171,13 +175,8 @@ function PhotoBlock({
   );
 }
 
-/**
- * Draws the report form.
- *
- * @param props the draft, its errors and the handlers
- * @returns the screen
- */
-export function ReportForm(props: ReportFormProps) {
+/** The content of the form; it sits inside the `Screen`, so it can use the screen's `scrollIntoView`. */
+function ReportFormContent(props: ReportFormProps) {
   const { draft, errors } = props;
   const manual = draft.location !== undefined && !draft.locationFromGps;
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -198,8 +197,37 @@ export function ReportForm(props: ReportFormProps) {
     />
   );
   const addressShown = manual || pickerOpen || props.changingLocation || props.addressText !== '';
+  const noticeShown = props.locationUnavailable && hasLocationNotice(props.locationAccess);
+  const scrollIntoView = useScrollIntoView();
+  const hazardRef = useRef<View>(null);
+  const descriptionRef = useRef<View>(null);
+  const photoRef = useRef<View>(null);
+  const locationRef = useRef<View>(null);
+  const addressRef = useRef<View>(null);
+  useScrollWhenShown(addressShown, addressRef);
+  useScrollWhenShown(noticeShown, locationRef);
+  // A review gives a new `other` list (a photo or location edit keeps the old one), so only a review
+  // scrolls to the first field with an error.
+  const seenReview = useRef(errors.other);
+  useEffect(() => {
+    if (errors.other === seenReview.current) {
+      return;
+    }
+    seenReview.current = errors.other;
+    if (!hasErrors(errors)) {
+      return;
+    }
+    const first = errors.hazardType
+      ? hazardRef
+      : errors.description
+        ? descriptionRef
+        : errors.photo
+          ? photoRef
+          : locationRef;
+    scrollIntoView(first);
+  }, [errors, scrollIntoView]);
   return (
-    <Screen>
+    <>
       <ScreenTitle title="Report a hazard" />
       {draft.status === 'REJECTED' ? (
         <Banner kind="error" icon="error">
@@ -208,7 +236,7 @@ export function ReportForm(props: ReportFormProps) {
           </Text>
         </Banner>
       ) : null}
-      <View>
+      <View ref={hazardRef} testID="hazard-row" collapsable={false}>
         <View style={styles.typeRow}>
           <View style={s.rowCenter}>
             <Text style={ui.label}>Hazard type</Text>
@@ -224,58 +252,66 @@ export function ReportForm(props: ReportFormProps) {
       <Text style={ui.muted}>
         {`Capture time ${formatDateTime(draft.capturedAt)} — recorded automatically`}
       </Text>
-      <TextArea
-        label="Description *"
-        value={props.descriptionText}
-        onChangeText={props.onEnterDescription}
-        counter={`${(draft.description ?? '').length} / ${MAX_DESCRIPTION_LENGTH}`}
-        error={errors.description}
-      />
-      <PhotoBlock
-        draft={draft}
-        error={errors.photo}
-        permissionDenied={props.permissionDenied}
-        onPick={props.onPickPhoto}
-        onRemove={props.onRemovePhoto}
-      />
-      {draft.location ? (
-        <>
-          <ShowLocation
-            location={draft.location}
-            fromGps={draft.locationFromGps}
-            placeName={props.manualPlaceName}
-            onChange={props.changingLocation ? undefined : props.onChangeManualLocation}
-          />
-          {props.changingLocation && manual
-            ? picker({
-                noFix: false,
-                start: draft.location,
-                initiallyOpen: true,
-                onKeep: props.onKeepManualLocation,
-              })
-            : errors.location
-              ? picker({ noFix: false })
-              : null}
-        </>
-      ) : props.locationUnavailable ? (
-        picker({
-          accessNotice: hasLocationNotice(props.locationAccess) ? (
-            <LocationAccessNotice
-              state={props.locationAccess}
-              onAllow={props.onAllowLocationAccess}
-            />
-          ) : undefined,
-        })
-      ) : (
-        <Text style={ui.muted}>Finding your location…</Text>
-      )}
-      {addressShown ? (
-        <TextField
-          label={ADDRESS_FIELD_LABEL}
-          value={props.addressText}
-          onChangeText={props.onEnterAddress}
-          maxLength={MAX_ADDRESS_LENGTH}
+      <View ref={descriptionRef} testID="description-field" collapsable={false}>
+        <TextArea
+          label="Description *"
+          value={props.descriptionText}
+          onChangeText={props.onEnterDescription}
+          counter={`${(draft.description ?? '').length} / ${MAX_DESCRIPTION_LENGTH}`}
+          error={errors.description}
         />
+      </View>
+      <View ref={photoRef} testID="photo-block" collapsable={false}>
+        <PhotoBlock
+          draft={draft}
+          error={errors.photo}
+          permissionDenied={props.permissionDenied}
+          onPick={props.onPickPhoto}
+          onRemove={props.onRemovePhoto}
+        />
+      </View>
+      <View ref={locationRef} testID="location-block" collapsable={false} style={{ gap: space.sm }}>
+        {draft.location ? (
+          <>
+            <ShowLocation
+              location={draft.location}
+              fromGps={draft.locationFromGps}
+              placeName={props.manualPlaceName}
+              onChange={props.changingLocation ? undefined : props.onChangeManualLocation}
+            />
+            {props.changingLocation && manual
+              ? picker({
+                  noFix: false,
+                  start: draft.location,
+                  initiallyOpen: true,
+                  onKeep: props.onKeepManualLocation,
+                })
+              : errors.location
+                ? picker({ noFix: false })
+                : null}
+          </>
+        ) : props.locationUnavailable ? (
+          picker({
+            accessNotice: hasLocationNotice(props.locationAccess) ? (
+              <LocationAccessNotice
+                state={props.locationAccess}
+                onAllow={props.onAllowLocationAccess}
+              />
+            ) : undefined,
+          })
+        ) : (
+          <Text style={ui.muted}>Finding your location…</Text>
+        )}
+      </View>
+      {addressShown ? (
+        <View ref={addressRef} testID="address-field" collapsable={false}>
+          <TextField
+            label={ADDRESS_FIELD_LABEL}
+            value={props.addressText}
+            onChangeText={props.onEnterAddress}
+            maxLength={MAX_ADDRESS_LENGTH}
+          />
+        </View>
       ) : null}
       {errors.location && !draft.location && !props.locationUnavailable ? (
         <ErrorText>{errors.location}</ErrorText>
@@ -290,6 +326,20 @@ export function ReportForm(props: ReportFormProps) {
           onPress={() => props.onDiscardDraft(draft.draftId)}
         />
       ) : null}
+    </>
+  );
+}
+
+/**
+ * Draws the report form.
+ *
+ * @param props the draft, its errors and the handlers
+ * @returns the screen
+ */
+export function ReportForm(props: ReportFormProps) {
+  return (
+    <Screen>
+      <ReportFormContent {...props} />
     </Screen>
   );
 }

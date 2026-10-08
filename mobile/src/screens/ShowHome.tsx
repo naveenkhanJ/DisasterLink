@@ -2,15 +2,19 @@
  * ShowHome.tsx — `showHome(view)` with `showLocation` for the current location: the connectivity
  * row, the language selector (disabled while the home comes from the saved copy, N13), the active
  * warnings in the chosen language, "Report Hazard", the current location, "My reports" and "My
- * reports — waiting on this phone" (SC2 steps 1 to 4, A8 2a to 2d; WF2P-S01, S01a to S01d).
+ * reports — waiting on this phone" (SC2 steps 1 to 4, A8 2a to 2d; WF2P-S01, S01a to S01d). The second
+ * list is "Not sent yet" (deviation D-UC2-5 from SC2's title, P222), and the location card wraps its text,
+ * names the nearest place under a fix and, without a fix, gives the reason and an "Allow location access"
+ * button when that can help (standards §10 items 14 and 15, P222; CH-25).
  *
  * Implements CH-25, CH-27 (FD-12).
  */
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { GeoPoint, HazardReport } from '../api/reportApi';
 import type { ActiveWarning, Language } from '../api/types';
 import type { LocationAccessState } from '../location/locationAccess';
+import { nearestPlace } from '../location/placeIndex';
 import type { HomeView, ReportDraft } from '../report/ReportDraft';
 import { Banner, Button, Card, Icon, Tag, styles as ui } from '../components/ui';
 import { colors, fonts, radius, space } from '../theme';
@@ -22,8 +26,11 @@ import {
   hazardTypeLabel,
   LANGUAGE_OPTIONS,
   LEVEL_LABELS,
-  LOCATION_ALLOW_TEXT,
-  LOCATION_SERVICES_OFF_TEXT,
+  LOCATION_UNAVAILABLE_TITLE,
+  homeLocationReason,
+  locationSource,
+  UNSENT_SECTION_LINE,
+  UNSENT_SECTION_TITLE,
   LEVEL_TONES,
   localised,
   rejectionText,
@@ -37,6 +44,8 @@ export interface ShowHomeProps {
   locationAccess: LocationAccessState | undefined;
   draftDiscarded: boolean;
   onSelectLanguage: (language: Language) => void;
+  /** "Allow location access" on the location card (blocked or askable). */
+  onAllowLocationAccess: () => void;
   onReportHazard: () => void;
   onOpenReport: (reportId: string) => void;
   onOpenDraft: (draftId: string) => void;
@@ -160,39 +169,44 @@ function PendingRow({ draft, onOpen }: { draft: ReportDraft; onOpen: (id: string
   );
 }
 
-/** Why the current location is not shown: the S03g sentence when the cause is known. */
-function unavailableText(access: LocationAccessState | undefined): string {
-  if (access === 'servicesOff') {
-    return LOCATION_SERVICES_OFF_TEXT;
-  }
-  return access === 'askable' || access === 'blocked' ? LOCATION_ALLOW_TEXT : 'not available';
-}
-
-/** The current-location card (`showLocation`): coordinates and accuracy as text, no map. */
+/** The current-location card (`showLocation`): coordinates and the GPS line as text, no map. */
 function CurrentLocation({
   location,
   access,
+  onAllowAccess,
 }: {
   location: GeoPoint | undefined;
   access: LocationAccessState | undefined;
+  onAllowAccess: () => void;
 }) {
+  const near = useMemo(() => (location ? nearestPlace(location)?.name : undefined), [location]);
+  const canAllow = access === 'blocked' || access === 'askable';
   return (
-    <Card style={s.rowCenter}>
-      <Icon name="pin" size={20} />
-      <View>
-        <Text style={s.strong}>
-          {location
-            ? `Current location · ${formatCoordinates(location)}`
-            : `Current location · ${unavailableText(access)}`}
-        </Text>
-        {location ? (
-          <Text style={ui.muted}>
-            {location.accuracyMetres == null
-              ? 'GPS'
-              : `GPS · accuracy ±${Math.round(location.accuracyMetres)} m`}
-          </Text>
-        ) : null}
+    <Card>
+      <View style={s.rowCenter}>
+        <Icon name="pin" size={20} />
+        <View style={{ flex: 1 }}>
+          {location ? (
+            <>
+              <Text style={s.strong}>{`Current location · ${formatCoordinates(location)}`}</Text>
+              <Text style={ui.muted}>{locationSource(location, true, near)}</Text>
+            </>
+          ) : (
+            <>
+              <Text style={s.strong}>{LOCATION_UNAVAILABLE_TITLE}</Text>
+              <Text style={ui.muted}>{homeLocationReason(access)}</Text>
+            </>
+          )}
+        </View>
       </View>
+      {!location && canAllow ? (
+        <Button
+          label="Allow location access"
+          kind="secondary"
+          onPress={onAllowAccess}
+          style={{ marginTop: space.sm }}
+        />
+      ) : null}
     </Card>
   );
 }
@@ -232,7 +246,11 @@ export function ShowHome(props: ShowHomeProps) {
         )}
       </Card>
       <Button label="Report Hazard" icon="plus" big onPress={props.onReportHazard} />
-      <CurrentLocation location={props.currentLocation} access={props.locationAccess} />
+      <CurrentLocation
+        location={props.currentLocation}
+        access={props.locationAccess}
+        onAllowAccess={props.onAllowLocationAccess}
+      />
       <View style={{ gap: 6 }}>
         <Text style={s.section}>My reports</Text>
         {view.myReports.length === 0 ? (
@@ -244,7 +262,8 @@ export function ShowHome(props: ShowHomeProps) {
         )}
       </View>
       <View style={{ gap: 6 }}>
-        <Text style={s.section}>My reports — waiting on this phone</Text>
+        <Text style={s.section}>{UNSENT_SECTION_TITLE}</Text>
+        <Text style={ui.muted}>{UNSENT_SECTION_LINE}</Text>
         {view.pendingDrafts.length === 0 ? (
           <Text style={[ui.muted, { fontSize: 15 }]}>Nothing waiting</Text>
         ) : (

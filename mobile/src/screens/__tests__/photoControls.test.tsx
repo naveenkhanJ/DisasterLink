@@ -1,4 +1,5 @@
 import { fireEvent, screen } from '@testing-library/react-native';
+import { StyleSheet } from 'react-native';
 import { FILLED_DRAFT, makeRig, ONLINE_HOME, renderApp, run, ui, type Rig } from './support';
 
 jest.mock('../../notifications/notifications', () => ({
@@ -13,6 +14,15 @@ async function toForm(rig: Rig): Promise<void> {
   await renderApp(rig);
   await run(() => fireEvent.press(screen.getByRole('button', { name: 'Report Hazard' })));
   await run(() => fireEvent.press(screen.getByRole('button', { name: 'Flood' })));
+}
+
+/** The element types drawn inside a host element, to tell which icon a button has. */
+function typesIn(element: { type?: unknown; children?: unknown[] }): string[] {
+  const own = typeof element.type === 'string' ? [element.type] : [];
+  const children = (element.children ?? []).filter(
+    (child): child is { type?: unknown; children?: unknown[] } => typeof child === 'object',
+  );
+  return own.concat(...children.map(typesIn));
 }
 
 const shownUri = () => screen.getByLabelText('Photo of the hazard').props.source.uri;
@@ -126,5 +136,37 @@ describe('photo replace with visible controls (standards §10 item 9, P213; UC2-
     expect(screen.queryByRole('button', { name: 'View' })).toBeNull();
     expect(screen.queryByText('A new photo replaces this one')).toBeNull();
     expect(screen.getByRole('button', { name: 'Take photo' })).toBeTruthy();
+  });
+
+  it('WF2P-S03 (G1): the gallery button has the image icon (a rounded rectangle), the camera button its camera icon, and both buttons have the same width', async () => {
+    const rig = makeRig();
+    rig.photos.takePhoto.mockResolvedValue({ kind: 'photo', uri: FIRST });
+    await toForm(rig);
+
+    const gallery = screen.getByRole('button', { name: 'Choose from gallery' });
+    const camera = screen.getByRole('button', { name: 'Take photo' });
+
+    expect(typesIn(gallery).join(' ')).toContain('RNSVGRect');
+    expect(typesIn(camera).join(' ')).not.toContain('RNSVGRect');
+    expect(StyleSheet.flatten(gallery.props.style).flex).toBe(1);
+    expect(StyleSheet.flatten(camera.props.style).flex).toBe(1);
+    await run(() => fireEvent.press(camera));
+    const another = screen.getByRole('button', { name: 'Choose another' });
+    expect(typesIn(another).join(' ')).toContain('RNSVGRect');
+    expect(StyleSheet.flatten(another.props.style).flex).toBe(1);
+  });
+
+  it('WF2P-S03 (G2): "Remove" under the photo is a danger button (red border, red text); "View" stays secondary', async () => {
+    const rig = makeRig();
+    rig.photos.takePhoto.mockResolvedValue({ kind: 'photo', uri: FIRST });
+    await toForm(rig);
+    await run(() => fireEvent.press(screen.getByRole('button', { name: 'Take photo' })));
+
+    const remove = StyleSheet.flatten(screen.getByRole('button', { name: 'Remove' }).props.style);
+    const view = StyleSheet.flatten(screen.getByRole('button', { name: 'View' }).props.style);
+
+    expect(remove.borderColor).toBe('#EF4444');
+    expect(remove.borderWidth).toBe(2);
+    expect(view.borderColor).not.toBe('#EF4444');
   });
 });

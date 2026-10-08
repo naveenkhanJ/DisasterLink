@@ -17,9 +17,16 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
-import Svg, { Circle, Path } from 'react-native-svg';
+import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { ICONS, type IconElement, type IconName } from './iconData';
 
+import {
+  TAB_PADDING_TOP,
+  TAB_SOON_BOTTOM,
+  TAB_UNDERLINE_HEIGHT,
+  TAB_UNDERLINE_INSET,
+} from '../constants';
+import { RETRYING_LABEL, stillUnavailableText } from '../screens/texts';
 import { colors, fonts, radius, space, type Tone } from '../theme';
 
 /**
@@ -50,13 +57,26 @@ export function Icon({
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      {ICON_SET[name].map(([tag, attrs], i) =>
-        tag === 'circle' ? (
-          <Circle key={i} cx={attrs.cx} cy={attrs.cy} r={attrs.r} />
-        ) : (
+      {ICON_SET[name].map(([tag, attrs], i) => {
+        if (tag === 'circle') {
+          return <Circle key={i} cx={attrs.cx} cy={attrs.cy} r={attrs.r} />;
+        }
+        if (tag === 'rect') {
+          return (
+            <Rect
+              key={i}
+              x={attrs.x}
+              y={attrs.y}
+              width={attrs.width}
+              height={attrs.height}
+              rx={attrs.rx}
+            />
+          );
+        }
+        return (
           <Path key={i} d={attrs.d} fill={attrs.fill === 'currentColor' ? color : undefined} />
-        ),
-      )}
+        );
+      })}
     </Svg>
   );
 }
@@ -265,6 +285,7 @@ export function TextField({
   returnKeyType = 'done',
   onSubmitEditing,
   maxLength,
+  inputRef,
 }: {
   label: string;
   value: string;
@@ -274,11 +295,14 @@ export function TextField({
   returnKeyType?: ReturnKeyTypeOptions;
   onSubmitEditing?: () => void;
   maxLength?: number;
+  /** Gives the input, so the screen can focus it (the place field when the picker opens, P222). */
+  inputRef?: React.Ref<TextInput>;
 }) {
   return (
     <View style={{ flex: 1 }}>
       <Text style={styles.label}>{label}</Text>
       <TextInput
+        ref={inputRef}
         accessibilityLabel={label}
         value={value}
         onChangeText={onChangeText}
@@ -325,11 +349,34 @@ export function Banner({
 }
 
 /** The common error banner (C1): the service is unavailable and nothing was changed; Retry. */
-export function ServiceUnavailableBanner({ text, onRetry }: { text: string; onRetry: () => void }) {
+export function ServiceUnavailableBanner({
+  text,
+  onRetry,
+  busy = false,
+  retriedAt,
+}: {
+  text: string;
+  onRetry: () => void;
+  /** Retry is running: the button is disabled and reads "Trying again…" (standards §10 item 12, P222). */
+  busy?: boolean;
+  /** When the last retry ended with the fault still there: adds "Still unavailable — tried at HH:MM". */
+  retriedAt?: Date;
+}) {
   return (
     <Banner kind="error" icon="error">
       <Text style={[styles.bannerText, { color: colors.errorText }]}>{text}</Text>
-      <Button label="Retry" kind="secondary" onPress={onRetry} style={styles.retry} />
+      {retriedAt ? (
+        <Text style={[styles.bannerText, { color: colors.errorText }]}>
+          {stillUnavailableText(retriedAt)}
+        </Text>
+      ) : null}
+      <Button
+        label={busy ? RETRYING_LABEL : 'Retry'}
+        kind="secondary"
+        disabled={busy}
+        onPress={onRetry}
+        style={styles.retry}
+      />
     </Banner>
   );
 }
@@ -360,16 +407,15 @@ export function TabBar({
   onReport: () => void;
   onSoon: (label: string) => void;
 }) {
+  // Every tab has the same layout (icon at a fixed top offset, label under it); the underline and
+  // "Not in this version" are absolutely positioned, so nothing moves the icons (standards §10 item 15, P222).
   const tab = (name: Tab, icon: IconName, onPress: () => void) => {
     const on = name === active;
     return (
-      <Pressable
-        accessibilityRole="tab"
-        onPress={onPress}
-        style={[styles.tab, on && styles.tabActive]}
-      >
+      <Pressable accessibilityRole="tab" onPress={onPress} style={styles.tab}>
         <Icon name={icon} size={22} color={on ? colors.text : colors.muted} />
         <Text style={[styles.tabText, on && styles.tabTextActive]}>{name}</Text>
+        {on ? <View testID="tab-underline" style={styles.tabUnderline} /> : null}
       </Pressable>
     );
   };
@@ -585,8 +631,21 @@ export const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
-  tab: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2 },
-  tabActive: { borderBottomWidth: 2, borderBottomColor: colors.text },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: TAB_PADDING_TOP,
+    gap: 2,
+  },
+  tabUnderline: {
+    position: 'absolute',
+    bottom: 0,
+    left: TAB_UNDERLINE_INSET,
+    right: TAB_UNDERLINE_INSET,
+    height: TAB_UNDERLINE_HEIGHT,
+    backgroundColor: colors.text,
+  },
   tabText: { fontFamily: fonts.ui, fontSize: 12, fontWeight: '600', color: colors.muted },
   tabTextActive: { color: colors.text, fontWeight: '800' },
   soonTag: {
@@ -599,6 +658,8 @@ export const styles = StyleSheet.create({
     borderColor: colors.borderStrong,
     borderRadius: 4,
     paddingHorizontal: 4,
+    position: 'absolute',
+    bottom: TAB_SOON_BOTTOM,
   },
   soonNotice: {
     flexDirection: 'row',
