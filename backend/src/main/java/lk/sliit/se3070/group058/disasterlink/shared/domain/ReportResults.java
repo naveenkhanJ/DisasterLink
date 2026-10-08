@@ -64,6 +64,44 @@ public record ReportResults(
    * @throws UnsupportedOperationException always, until the operation is implemented
    */
   public ReportResults merge(ReportResults other) {
-    throw new UnsupportedOperationException("not implemented yet — Naveenkhan");
+    java.util.Objects.requireNonNull(other, "other");
+    int newCount = this.matchedRecordCount + other.matchedRecordCount;
+
+    java.util.List<AlertTimelineEntry> mergedTimeline =
+        new java.util.ArrayList<>(this.alertTimeline);
+    mergedTimeline.addAll(other.alertTimeline);
+
+    java.util.Map<NotificationChannel, Integer> mergedByChannel =
+        new java.util.EnumMap<>(NotificationChannel.class);
+    mergedByChannel.putAll(this.citizensReachedByChannel);
+    for (java.util.Map.Entry<NotificationChannel, Integer> entry :
+        other.citizensReachedByChannel.entrySet()) {
+      mergedByChannel.merge(entry.getKey(), entry.getValue(), Integer::sum);
+    }
+
+    int newReachedTotal = Math.max(this.citizensReachedTotal, other.citizensReachedTotal);
+
+    java.util.List<OccupancyPoint> mergedOccupancy =
+        new java.util.ArrayList<>(this.occupancyOverTime);
+    mergedOccupancy.addAll(other.occupancyOverTime);
+
+    int newCapacity = Math.max(this.combinedCapacity, other.combinedCapacity);
+
+    java.util.List<DistributionLine> mergedDistributions =
+        new java.util.ArrayList<>(this.distributionLines);
+    mergedDistributions.addAll(other.distributionLines);
+
+    java.util.Set<ReportMetric> mergedFailed = new java.util.HashSet<>(this.failedMetrics);
+    mergedFailed.addAll(other.failedMetrics);
+
+    return new ReportResults(
+        newCount,
+        mergedTimeline,
+        mergedByChannel,
+        newReachedTotal,
+        mergedOccupancy,
+        newCapacity,
+        mergedDistributions,
+        mergedFailed);
   }
 }
