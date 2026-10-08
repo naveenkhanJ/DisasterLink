@@ -8,7 +8,10 @@ the skeleton's modules around it. **UC2's screens and behaviour are Afham's** an
 
 1. Node 22 or later (checked with 24.13) and `npm ci` in this folder.
 2. Copy `.env.example` to `.env` and set the address of the PC that runs the server:
-   - `EXPO_PUBLIC_API_URL=http://<the PC's LAN IP>:8080` — find the address with `ipconfig` (the IPv4 address of the Wi-Fi
+   - `EXPO_PUBLIC_API_URL=auto` (the default) — the app takes the PC's address from the Expo development server, which runs
+     on the same PC as the back end, and uses port 8080; it works on any network as long as Expo runs in LAN mode
+     (`npx expo start`, not `--tunnel`). Alternatively set the address yourself:
+     `EXPO_PUBLIC_API_URL=http://<the PC's LAN IP>:8080` — find the address with `ipconfig` (the IPv4 address of the Wi-Fi
      adapter). `npx expo start --tunnel` tunnels only the Metro bundler, not the API, so it does not replace this.
    - `EXPO_PUBLIC_CITIZEN_ID=CIT-KLT-0001` (the demo citizen; the default).
    - `EXPO_PUBLIC_CITIZEN_DISTRICT=KALUTARA` and `EXPO_PUBLIC_CITIZEN_LANGUAGE=ENGLISH` — the demo citizen's registered
@@ -17,11 +20,12 @@ the skeleton's modules around it. **UC2's screens and behaviour are Afham's** an
    - `.env` is git-ignored; `.env.example` is committed.
 3. Let the phone reach the server: the iPhone and the PC on the **same Wi-Fi**, and a **Windows Firewall inbound rule for
    TCP port 8080 on Private networks** (Windows Defender Firewall → Advanced settings → Inbound Rules → New Rule → Port →
-   TCP 8080 → Allow → Private only). If every call fails with "The server could not be reached.", check that (a) the
-   IPv4 address of the PC's Wi-Fi adapter (`ipconfig`) is still the one in `EXPO_PUBLIC_API_URL` — the router may give the
-   PC a new address — and restart Expo with `npx expo start --clear` after changing `.env`; (b) Windows has the Wi-Fi
-   network as **Private** (Settings → Network & internet → Wi-Fi → the network → Network profile type), because the
-   firewall rule covers Private networks only; (c) `http://<that address>:8080/` opens in the iPhone's browser.
+   TCP 8080 → Allow → Private only). If every call fails with "The server could not be reached.", check that (a) with an
+   explicit address only, the IPv4 address of the PC's Wi-Fi adapter (`ipconfig`) is still the one in
+   `EXPO_PUBLIC_API_URL` — the router may give the PC a new address — and restart Expo with `npx expo start --clear` after
+   changing `.env` (with `auto` there is nothing to change); (b) Windows has the Wi-Fi network as **Private** (Settings →
+   Network & internet → Wi-Fi → the network → Network profile type), because the firewall rule covers Private networks
+   only; (c) `http://<that address>:8080/` opens in the iPhone's browser.
 4. Start the back end with the `dev` profile (seeded demo): from the repository root, `cd backend` and
    `.\mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=dev`.
 5. In this folder run `npx expo start`, scan the QR code with the iPhone camera and open it in **Expo Go (SDK 57)**. Each
