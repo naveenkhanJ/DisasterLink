@@ -1,13 +1,17 @@
 package lk.sliit.se3070.group058.disasterlink.hazardreport.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
+import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.Citizen;
+import lk.sliit.se3070.group058.disasterlink.shared.domain.DMCDutyOfficer;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.District;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.GeoPoint;
+import lk.sliit.se3070.group058.disasterlink.shared.domain.Hazard;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.HazardType;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.RejectionReason;
 import lk.sliit.se3070.group058.disasterlink.shared.domain.ReportDraft;
@@ -18,6 +22,8 @@ import lk.sliit.se3070.group058.disasterlink.shared.domain.SyncResult;
 import lk.sliit.se3070.group058.disasterlink.testsupport.FeatureFixtures;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /** Tests of {@link HazardReport} and of the value types that live beside it. */
 class HazardReportTest {
@@ -198,5 +204,113 @@ class HazardReportTest {
       assertThatNullPointerException()
           .isThrownBy(() -> new HazardReport("RPT-1", REPORTER, draft, "p.jpg", RECEIVED));
     }
+  }
+
+  private static final DMCDutyOfficer OFFICER = SampleEntities.dutyOfficer("DMC-0002");
+  private static final Hazard HAZARD = SampleEntities.hazard("HZ-2026-0142");
+  private static final LocalDateTime DECIDED = RECEIVED.plusMinutes(30);
+
+  @Test
+  @DisplayName("SC2 step 25: a new report is pending, a decided one is not")
+  void isPendingFollowsTheStatus() {
+    HazardReport pending = pendingReport();
+    HazardReport verified = pendingReport();
+    verified.verify(OFFICER, HAZARD, DECIDED);
+    HazardReport rejected = pendingReport();
+    rejected.reject(OFFICER, "Not a flood", DECIDED);
+
+    assertThat(pending.isPending()).isTrue();
+    assertThat(verified.isPending()).isFalse();
+    assertThat(rejected.isPending()).isFalse();
+  }
+
+  @Test
+  @DisplayName("SC2 step 26: verify records the officer, the hazard and the decision time")
+  void verifyRecordsTheDecision() {
+    HazardReport report = pendingReport();
+
+    report.verify(OFFICER, HAZARD, DECIDED);
+
+    assertThat(report.getStatus()).isEqualTo(ReportStatus.VERIFIED);
+    assertThat(report.getReviewer()).containsSame(OFFICER);
+    assertThat(report.getHazard()).containsSame(HAZARD);
+    assertThat(report.getVerificationTime()).contains(DECIDED);
+    assertThat(report.getRejectionReason()).isEmpty();
+  }
+
+  @Test
+  @DisplayName("SC2 E10: verify on a decided report is a programming error")
+  void verifyRefusesADecidedReport() {
+    HazardReport verified = pendingReport();
+    verified.verify(OFFICER, HAZARD, DECIDED);
+    HazardReport rejected = pendingReport();
+    rejected.reject(OFFICER, "Not a flood", DECIDED);
+
+    assertThatIllegalStateException()
+        .isThrownBy(() -> verified.verify(OFFICER, HAZARD, DECIDED))
+        .withMessageContaining("RPT-2026-KLT-1000");
+    assertThatIllegalStateException().isThrownBy(() -> rejected.verify(OFFICER, HAZARD, DECIDED));
+    assertThat(rejected.getStatus()).isEqualTo(ReportStatus.REJECTED);
+  }
+
+  @Test
+  @DisplayName("SC2 step 26: verify needs the officer, the hazard and the time")
+  void verifyRejectsNullArguments() {
+    HazardReport report = pendingReport();
+
+    assertThatNullPointerException().isThrownBy(() -> report.verify(null, HAZARD, DECIDED));
+    assertThatNullPointerException().isThrownBy(() -> report.verify(OFFICER, null, DECIDED));
+    assertThatNullPointerException().isThrownBy(() -> report.verify(OFFICER, HAZARD, null));
+    assertThat(report.isPending()).isTrue();
+  }
+
+  @Test
+  @DisplayName("SC2 A4: reject records the officer, the trimmed reason and the decision time")
+  void rejectRecordsTheDecision() {
+    HazardReport report = pendingReport();
+
+    report.reject(OFFICER, "  Not a flood  ", DECIDED);
+
+    assertThat(report.getStatus()).isEqualTo(ReportStatus.REJECTED);
+    assertThat(report.getReviewer()).containsSame(OFFICER);
+    assertThat(report.getRejectionReason()).contains("Not a flood");
+    assertThat(report.getVerificationTime()).contains(DECIDED);
+    assertThat(report.getHazard()).isEmpty();
+  }
+
+  @Test
+  @DisplayName("SC2 E10: reject on a decided report is a programming error")
+  void rejectRefusesADecidedReport() {
+    HazardReport verified = pendingReport();
+    verified.verify(OFFICER, HAZARD, DECIDED);
+    HazardReport rejected = pendingReport();
+    rejected.reject(OFFICER, "first reason", DECIDED);
+
+    assertThatIllegalStateException().isThrownBy(() -> verified.reject(OFFICER, "late", DECIDED));
+    assertThatIllegalStateException().isThrownBy(() -> rejected.reject(OFFICER, "again", DECIDED));
+    assertThat(rejected.getRejectionReason()).contains("first reason");
+  }
+
+  @ParameterizedTest(name = "[{index}] reason \"{0}\"")
+  @ValueSource(strings = {"", "   ", "\t\n"})
+  @DisplayName(
+      "SC2 E7: reject with a blank reason is a programming error (the control checks first)")
+  void rejectRefusesABlankReason(String reason) {
+    HazardReport report = pendingReport();
+
+    assertThatIllegalArgumentException().isThrownBy(() -> report.reject(OFFICER, reason, DECIDED));
+    assertThat(report.isPending()).isTrue();
+    assertThat(report.getRejectionReason()).isEmpty();
+  }
+
+  @Test
+  @DisplayName("SC2 A4: reject needs the officer, a reason and the time")
+  void rejectRejectsNullArguments() {
+    HazardReport report = pendingReport();
+
+    assertThatNullPointerException().isThrownBy(() -> report.reject(null, "r", DECIDED));
+    assertThatNullPointerException().isThrownBy(() -> report.reject(OFFICER, null, DECIDED));
+    assertThatNullPointerException().isThrownBy(() -> report.reject(OFFICER, "r", null));
+    assertThat(report.isPending()).isTrue();
   }
 }
