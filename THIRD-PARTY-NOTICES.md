@@ -42,3 +42,16 @@ The citizen app carries the same outlines in `mobile/src/location/districtOutlin
 says so in its header.
 
 The sidebar of every officer screen shows the credit "Map data © OpenStreetMap contributors (ODbL), via geoBoundaries".
+
+## GeoNames — Sri Lanka place names (`LK` country file) — CC BY 4.0
+
+Source: https://download.geonames.org/export/dump/LK.zip. Licence: Creative Commons Attribution 4.0 International
+(CC BY 4.0), https://creativecommons.org/licenses/by/4.0/. GeoNames' own statement, from
+https://download.geonames.org/export/dump/readme.txt, reads:
+
+> This work is licensed under a Creative Commons Attribution 4.0 License,
+> see https://creativecommons.org/licenses/by/4.0/
+> The Data is provided "as is" without warranty or any representation of accuracy, timeliness or completeness.
+
+Used in the citizen app's manual-location place list (`mobile/src/location/placeData.ts`), derived (filtered to populated
+places). The app shows the credit "Place names: GeoNames (CC BY 4.0)".
