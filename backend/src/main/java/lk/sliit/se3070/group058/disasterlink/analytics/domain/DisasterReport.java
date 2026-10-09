@@ -253,6 +253,57 @@ public class DisasterReport {
     return Collections.unmodifiableList(sharedWith);
   }
 
+  /**
+   * Records the findings written by the officer.
+   *
+   * <p>Implements CH-31, CH-32.
+   *
+   * @param text the findings text
+   * @throws NullPointerException if {@code text} is {@code null}
+   */
+  public void recordFindings(String text) {
+    this.findings = Objects.requireNonNull(text, "text");
+  }
+
+  /**
+   * Marks the given districts as provisional with their earliest unsynchronised contact times.
+   *
+   * <p>Implements CH-31 (A3, PD4).
+   *
+   * @param since the provisional districts with their timestamps
+   * @throws NullPointerException if {@code since} is {@code null}
+   */
+  public void markProvisional(Map<District, LocalDateTime> since) {
+    Objects.requireNonNull(since, "since");
+    this.provisionalSince.putAll(since);
+  }
+
+  /**
+   * Returns whether this report has provisional data for any district.
+   *
+   * <p>Implements CH-31.
+   *
+   * @return {@code true} if provisional, {@code false} if final
+   */
+  public boolean isProvisional() {
+    return !provisionalSince.isEmpty();
+  }
+
+  /**
+   * Records that this report was shared with the given organisation.
+   *
+   * <p>Implements CH-31, CH-32 (A23).
+   *
+   * @param organization the organisation to share with
+   * @throws NullPointerException if {@code organization} is {@code null}
+   */
+  public void shareWith(Organization organization) {
+    Objects.requireNonNull(organization, "organization");
+    if (!this.sharedWith.contains(organization)) {
+      this.sharedWith.add(organization);
+    }
+  }
+
   @Override
   public boolean equals(Object other) {
     return this == other

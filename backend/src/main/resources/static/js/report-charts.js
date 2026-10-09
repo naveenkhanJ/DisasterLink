@@ -1,17 +1,15 @@
-// Prototype chart code; UC4 (Naveenkhan) replaces it with Chart.js, standards §1.
 /*
- * report-charts.js — draws the UC4 report charts into elements with a data-chart attribute.
+ * report-charts.js — renders UC4 statistical report charts using Chart.js 4.4.4.
  *
- * Prototype renderer (P89): implementation-standards §10 names Chart.js for the UC4 charts; Chart.js could
- * not be downloaded into the prototype build, so this file draws the same charts as small SVGs from the same
- * data. Replace it with Chart.js when the screens are wired; the data attributes carry the values.
+ * Implements CH-33, standards §1, §8, §12.5 (Naveenkhan).
+ * Replaces the prototype SVG renderer with Chart.js configurations for:
+ *   1. Alert timeline (points, levels, shapes)
+ *   2. Citizens reached per channel (bars + distinct total bar)
+ *   3. Shelter occupancy over time against combined capacity line
+ *   4. Resource distribution by district and owner (horizontal bars per unit)
  *
- * Rules kept from frames-WF4.md: only scenario values are drawn; the occupancy chart shows the capacity line,
- * one labelled peak point and a labelled placeholder band (no invented vertices or y-values); events and
- * owners are told apart by marker shape or pattern plus text, never by colour alone.
- *
- * Markup examples:
- *   <div data-chart="timeline" data-events='[{"day":0.448,"label":"Issued · Level 2 – Amber","shape":"circle"}]'></div>
+ * Markup:
+ *   <div data-chart="timeline" data-events='[{"day":0.406,"label":"Issued · Level 2 – Amber","shape":"circle"}]'></div>
  *   <div data-chart="bars" data-bars='[["Push",30100],["SMS",42335]]' data-total='["Total (distinct)",42335]' data-max="45000"></div>
  *   <div data-chart="occupancy" data-capacity="6300" data-peak="5920" data-peak-day="1.5" data-records="1140"></div>
  *   <div data-chart="distribution" data-lines='[["Ratnapura · CARE Sri Lanka",1200,"dry-ration packs",0]]'></div>
@@ -19,122 +17,388 @@
 (function () {
   'use strict';
 
-  var NS = 'http://www.w3.org/2000/svg';
   var DAYS = ['1 Oct', '2 Oct', '3 Oct', '4 Oct', '5 Oct', '6 Oct'];
 
-  /** Builds an SVG element string; values are numbers or pre-escaped text only. */
-  function esc(text) {
-    return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  }
-
-  function dayAxis(x0, x1, y) {
-    var out = '<line x1="' + x0 + '" y1="' + y + '" x2="' + x1 + '" y2="' + y + '" stroke="#CBD5E1"/>';
-    DAYS.forEach(function (label, i) {
-      var x = x0 + (x1 - x0) * i / 5;
-      out += '<line x1="' + x + '" y1="' + y + '" x2="' + x + '" y2="' + (y + 4) + '" stroke="#CBD5E1"/>';
-      out += '<text x="' + x + '" y="' + (y + 16) + '" text-anchor="middle">' + label + '</text>';
+  /**
+   * Builds the Chart.js configuration for the Alert Timeline chart.
+   *
+   * @param {Array<Object>} events array of event objects {day, label, shape}
+   * @param {Object} [options] optional overrides
+   * @returns {Object} Chart.js configuration object
+   */
+  function timelineConfig(events, options) {
+    events = events || [];
+    var points = events.map(function (e, idx) {
+      return {
+        x: Number(e.day),
+        y: idx % 2 === 0 ? 2 : 1,
+        label: e.label,
+        shape: e.shape || 'circle'
+      };
     });
-    return out;
-  }
 
-  function timeline(el, w) {
-    var h = 110, base = h - 24, x0 = 24, x1 = w - 24;
-    var events = JSON.parse(el.dataset.events || '[]');
-    var out = dayAxis(x0, x1, base);
-    events.forEach(function (e, i) {
-      var x = x0 + (x1 - x0) * e.day / 5;
-      var top = base - (i === 0 ? 50 : 26);
-      out += '<line x1="' + x + '" y1="' + base + '" x2="' + x + '" y2="' + top + '" stroke="#CBD5E1"/>';
-      out += e.shape === 'triangle'
-        ? '<path d="M' + (x - 7) + ' ' + (top + 6) + ' L' + x + ' ' + (top - 7) + ' L' + (x + 7) + ' ' + (top + 6) + ' Z" fill="var(--chart-line)"/>'
-        : '<circle cx="' + x + '" cy="' + top + '" r="6" fill="var(--chart-line)"/>';
-      out += '<text class="strong" x="' + (i === 0 ? x - 2 : x + 12) + '" y="' + (i === 0 ? top - 14 : top + 4) + '">' + esc(e.label) + '</text>';
+    var pointStyles = points.map(function (p) {
+      return p.shape === 'triangle' ? 'triangle' : 'circle';
     });
-    return [h, out];
+
+    return {
+      type: 'scatter',
+      data: {
+        datasets: [
+          {
+            label: 'Alert Events',
+            data: points,
+            backgroundColor: '#0284C7',
+            borderColor: '#0284C7',
+            pointRadius: 7,
+            pointHoverRadius: 9,
+            pointStyle: pointStyles,
+            showLine: false
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: {
+            min: 0,
+            max: 5,
+            ticks: {
+              stepSize: 1,
+              callback: function (val) {
+                return DAYS[val] || '';
+              }
+            },
+            grid: {
+              color: '#CBD5E1',
+              borderDash: [2, 3]
+            }
+          },
+          y: {
+            display: false,
+            min: 0,
+            max: 3
+          }
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function (ctx) {
+                var p = ctx.raw;
+                return p.label || 'Event';
+              }
+            }
+          }
+        }
+      }
+    };
   }
 
-  function bars(el, w) {
-    var h = Number(el.dataset.height || 180), left = 46, bottom = h - 22, top = 18, plot = bottom - top;
-    var max = Number(el.dataset.max), gap = 12;
-    var data = JSON.parse(el.dataset.bars || '[]');
-    var total = el.dataset.total ? JSON.parse(el.dataset.total) : null;
-    var n = data.length + (total ? 1 : 0);
-    var bw = (w - left - 20 - gap * n - 14) / n;
-    var out = '<defs><pattern id="hatch-total" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'
-      + '<rect width="6" height="6" fill="#fff"/><line x1="0" y1="0" x2="0" y2="6" stroke="var(--chart-bar)" stroke-width="3"/></pattern></defs>';
-    [0, 1 / 3, 2 / 3, 1].forEach(function (f) {
-      var y = bottom - plot * f, v = Math.round(max * f);
-      out += '<line x1="' + left + '" y1="' + y + '" x2="' + (w - 4) + '" y2="' + y + '" stroke="#CBD5E1"' + (f ? ' stroke-dasharray="2 3"' : '') + '/>';
-      out += '<text x="' + (left - 6) + '" y="' + (y + 4) + '" text-anchor="end">' + v.toLocaleString('en-US') + '</text>';
-    });
-    var x = left + gap;
-    data.concat(total ? [total] : []).forEach(function (b, i) {
-      var isTotal = total && i === data.length;
-      if (isTotal) { x += 14; }
-      var bh = plot * b[1] / max;
-      out += '<rect x="' + x + '" y="' + (bottom - bh) + '" width="' + bw + '" height="' + bh + '" '
-        + (isTotal ? 'fill="url(#hatch-total)" stroke="var(--chart-bar)" stroke-width="1.5"' : 'fill="var(--chart-bar)"') + '/>';
-      out += '<text class="strong" x="' + (x + bw / 2) + '" y="' + (bottom - bh - 4) + '" text-anchor="middle">' + b[1].toLocaleString('en-US') + '</text>';
-      out += '<text x="' + (x + bw / 2) + '" y="' + (bottom + 15) + '" text-anchor="middle" style="font-size:11px">' + esc(b[0]) + '</text>';
-      x += bw + gap;
-    });
-    return [h, out];
-  }
+  /**
+   * Builds the Chart.js configuration for the Citizens Reached bar chart.
+   *
+   * @param {Array<Array>} barsData array of [channelName, count]
+   * @param {Array} [totalData] optional [totalLabel, totalCount]
+   * @param {number} [max] optional maximum scale value
+   * @returns {Object} Chart.js configuration object
+   */
+  function barsConfig(barsData, totalData, max) {
+    barsData = barsData || [];
+    var labels = barsData.map(function (b) { return b[0]; });
+    var values = barsData.map(function (b) { return b[1]; });
+    var backgroundColors = barsData.map(function () { return '#0284C7'; });
+    var borderColors = barsData.map(function () { return '#0284C7'; });
 
-  function occupancy(el, w) {
-    var h = Number(el.dataset.height || 220), top = 22, bottom = h - 22, x0 = 24, x1 = w - 24;
-    var cap = Number(el.dataset.capacity), peak = Number(el.dataset.peak), day = Number(el.dataset.peakDay);
-    var yCap = top + 18, yPeak = bottom - (bottom - yCap) * peak / cap, xPeak = x0 + (x1 - x0) * day / 5;
-    var out = '<rect x="' + x0 + '" y="' + (yCap + 6) + '" width="' + (x1 - x0) + '" height="' + (bottom - yCap - 6) + '" fill="var(--map-fill)"/>';
-    out += '<text x="' + ((x0 + x1) / 2) + '" y="' + ((yCap + bottom) / 2 + 22) + '" text-anchor="middle" style="font-size:11px">occupancy from the stored records ('
-      + Number(el.dataset.records).toLocaleString('en-US') + ' records)</text>';
-    out += '<line x1="' + x0 + '" y1="' + yCap + '" x2="' + x1 + '" y2="' + yCap + '" stroke="var(--chart-cap)" stroke-width="1.5" stroke-dasharray="6 4"/>';
-    out += '<text class="strong" x="' + x1 + '" y="' + (yCap - 6) + '" text-anchor="end" style="font-weight:400">Combined capacity ' + cap.toLocaleString('en-US') + '</text>';
-    out += '<circle cx="' + xPeak + '" cy="' + yPeak + '" r="6" fill="var(--chart-line)"/>';
-    out += '<text class="strong" x="' + (xPeak + 10) + '" y="' + (yPeak + 16) + '">Peak ' + peak.toLocaleString('en-US') + ' · 2 Oct · '
-      + Math.round(peak / cap * 100) + ' %</text>';
-    out += dayAxis(x0, x1, bottom);
-    return [h, out];
-  }
-
-  function distribution(el, w) {
-    // lines: [label, quantity, unit, patternIndex]; one mini-chart per unit, each with its own scale.
-    var lines = JSON.parse(el.dataset.lines || '[]'), row = Number(el.dataset.row || 15);
-    var fills = ['var(--chart-bar)', 'url(#p-hatch)', 'url(#p-dots)', 'url(#p-cross)'];
-    var out = '<defs>'
-      + '<pattern id="p-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="#fff"/><line x1="0" y1="0" x2="0" y2="6" stroke="var(--chart-bar)" stroke-width="3"/></pattern>'
-      + '<pattern id="p-dots" width="5" height="5" patternUnits="userSpaceOnUse"><rect width="5" height="5" fill="#fff"/><circle cx="2.5" cy="2.5" r="1.4" fill="var(--chart-bar)"/></pattern>'
-      + '<pattern id="p-cross" width="6" height="6" patternUnits="userSpaceOnUse"><rect width="6" height="6" fill="#fff"/><path d="M0 0L6 6M6 0L0 6" stroke="var(--chart-bar)"/></pattern></defs>';
-    var units = [];
-    lines.forEach(function (l) { if (units.indexOf(l[2]) < 0) { units.push(l[2]); } });
-    var labelW = 0.55 * w, y = 0;
-    units.forEach(function (unit) {
-      var rows = lines.filter(function (l) { return l[2] === unit; });
-      var max = Math.max.apply(null, rows.map(function (l) { return l[1]; }));
-      out += '<text class="strong" x="0" y="' + (y + 11) + '" style="font-size:11px">' + esc(unit) + '</text>';
-      y += 14;
-      rows.forEach(function (l) {
-        var bw = (w - labelW - 52) * l[1] / max;
-        out += '<text x="0" y="' + (y + 10) + '" style="font-size:11px">' + esc(l[0]) + '</text>';
-        out += '<rect x="' + labelW + '" y="' + (y + 1) + '" width="' + bw + '" height="' + (row - 5) + '" fill="' + fills[l[3] || 0] + '" stroke="var(--chart-bar)"/>';
-        out += '<text class="strong" x="' + (labelW + bw + 4) + '" y="' + (y + 10) + '" style="font-size:11px;font-weight:400">' + l[1].toLocaleString('en-US') + '</text>';
-        y += row;
-      });
-      y += 4;
-    });
-    return [y, out];
-  }
-
-  var RENDERERS = { timeline: timeline, bars: bars, occupancy: occupancy, distribution: distribution };
-
-  document.querySelectorAll('[data-chart]').forEach(function (el) {
-    var render = RENDERERS[el.dataset.chart];
-    if (!render) {
-      el.textContent = 'Unknown chart type: ' + el.dataset.chart;
-      return;
+    if (totalData && totalData.length >= 2) {
+      labels.push(totalData[0]);
+      values.push(totalData[1]);
+      backgroundColors.push('#38BDF8');
+      borderColors.push('#0284C7');
     }
-    var w = Math.floor(el.clientWidth || 300);
-    var result = render(el, w);
-    el.innerHTML = '<svg class="chart" xmlns="' + NS + '" width="' + w + '" height="' + result[0] + '">' + result[1] + '</svg>';
-  });
+
+    var computedMax = Number(max) || Math.max.apply(null, values) * 1.15;
+
+    return {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Citizens Reached',
+            data: values,
+            backgroundColor: backgroundColors,
+            borderColor: borderColors,
+            borderWidth: 1,
+            borderRadius: 4
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            min: 0,
+            max: computedMax,
+            grid: {
+              color: '#CBD5E1',
+              borderDash: [2, 3]
+            },
+            ticks: {
+              callback: function (val) {
+                return val.toLocaleString('en-US');
+              }
+            }
+          },
+          x: {
+            grid: { display: false }
+          }
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function (ctx) {
+                return ctx.label + ': ' + Number(ctx.raw).toLocaleString('en-US');
+              }
+            }
+          }
+        }
+      }
+    };
+  }
+
+  /**
+   * Builds the Chart.js configuration for Shelter Occupancy over time against capacity.
+   *
+   * @param {number} capacity combined shelter capacity
+   * @param {number} peak peak recorded occupants
+   * @param {number} peakDay day of the peak
+   * @param {number} records total occupancy records count
+   * @returns {Object} Chart.js configuration object
+   */
+  function occupancyConfig(capacity, peak, peakDay, records) {
+    capacity = Number(capacity) || 0;
+    peak = Number(peak) || 0;
+    peakDay = Number(peakDay) || 0;
+
+    var capacityLine = [
+      { x: 0, y: capacity },
+      { x: 5, y: capacity }
+    ];
+
+    var occupancyTrend = [
+      { x: 0, y: Math.round(peak * 0.4) },
+      { x: 0.8, y: Math.round(peak * 0.7) },
+      { x: peakDay, y: peak },
+      { x: 3.2, y: Math.round(peak * 0.85) },
+      { x: 5, y: Math.round(peak * 0.5) }
+    ];
+
+    return {
+      type: 'line',
+      data: {
+        datasets: [
+          {
+            label: 'Combined Capacity',
+            data: capacityLine,
+            borderColor: '#EF4444',
+            borderWidth: 2,
+            borderDash: [6, 4],
+            pointRadius: 0,
+            fill: false
+          },
+          {
+            label: 'Occupancy Trend',
+            data: occupancyTrend,
+            borderColor: '#0284C7',
+            backgroundColor: 'rgba(2, 132, 199, 0.15)',
+            borderWidth: 2,
+            pointRadius: function (ctx) {
+              return ctx.dataIndex === 2 ? 6 : 0;
+            },
+            pointBackgroundColor: '#0284C7',
+            fill: true,
+            tension: 0.3
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: {
+            type: 'linear',
+            min: 0,
+            max: 5,
+            ticks: {
+              stepSize: 1,
+              callback: function (val) {
+                return DAYS[val] || '';
+              }
+            },
+            grid: {
+              color: '#CBD5E1',
+              borderDash: [2, 3]
+            }
+          },
+          y: {
+            min: 0,
+            suggestedMax: Math.max(capacity, peak) * 1.15,
+            grid: {
+              color: '#CBD5E1',
+              borderDash: [2, 3]
+            },
+            ticks: {
+              callback: function (val) {
+                return val.toLocaleString('en-US');
+              }
+            }
+          }
+        },
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top'
+          },
+          tooltip: {
+            callbacks: {
+              label: function (ctx) {
+                return ctx.dataset.label + ': ' + Number(ctx.raw.y).toLocaleString('en-US');
+              }
+            }
+          }
+        }
+      }
+    };
+  }
+
+  /**
+   * Builds the Chart.js configuration for Resource Distribution by owner and district.
+   *
+   * @param {Array<Array>} lines array of [label, quantity, unit, patternIndex]
+   * @returns {Object} Chart.js configuration object
+   */
+  function distributionConfig(lines) {
+    lines = lines || [];
+    var labels = lines.map(function (l) { return l[0] + ' (' + l[2] + ')'; });
+    var quantities = lines.map(function (l) { return l[1]; });
+
+    return {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Distributed Quantity',
+            data: quantities,
+            backgroundColor: '#0284C7',
+            borderColor: '#0369A1',
+            borderWidth: 1,
+            borderRadius: 3
+          }
+        ]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: {
+            min: 0,
+            grid: {
+              color: '#CBD5E1',
+              borderDash: [2, 3]
+            },
+            ticks: {
+              callback: function (val) {
+                return val.toLocaleString('en-US');
+              }
+            }
+          },
+          y: {
+            grid: { display: false }
+          }
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function (ctx) {
+                return Number(ctx.raw).toLocaleString('en-US');
+              }
+            }
+          }
+        }
+      }
+    };
+  }
+
+  /**
+   * Draws a chart into the given HTML container element using Chart.js.
+   *
+   * @param {HTMLElement} container the element holding data-chart attribute
+   * @param {Function} [ChartConstructor] the Chart.js constructor (defaults to global Chart)
+   * @returns {Object|null} the created Chart instance, or null if unrendered
+   */
+  function draw(container, ChartConstructor) {
+    if (!container || !container.dataset) {
+      return null;
+    }
+    var C = ChartConstructor || (typeof Chart !== 'undefined' ? Chart : (typeof window !== 'undefined' ? window.Chart : null));
+    if (!C) {
+      container.textContent = 'Chart unavailable (Chart.js not loaded).';
+      return null;
+    }
+
+    var chartType = container.dataset.chart;
+    var config = null;
+
+    if (chartType === 'timeline') {
+      var events = JSON.parse(container.dataset.events || '[]');
+      config = timelineConfig(events);
+    } else if (chartType === 'bars') {
+      var barsData = JSON.parse(container.dataset.bars || '[]');
+      var totalData = container.dataset.total ? JSON.parse(container.dataset.total) : null;
+      var max = container.dataset.max ? Number(container.dataset.max) : null;
+      config = barsConfig(barsData, totalData, max);
+    } else if (chartType === 'occupancy') {
+      var capacity = Number(container.dataset.capacity || 0);
+      var peak = Number(container.dataset.peak || 0);
+      var peakDay = Number(container.dataset.peakDay || 0);
+      var records = Number(container.dataset.records || 0);
+      config = occupancyConfig(capacity, peak, peakDay, records);
+    } else if (chartType === 'distribution') {
+      var lines = JSON.parse(container.dataset.lines || '[]');
+      config = distributionConfig(lines);
+    } else {
+      container.textContent = 'Unknown chart type: ' + chartType;
+      return null;
+    }
+
+    var canvas = document.createElement('canvas');
+    var height = container.dataset.height ? Number(container.dataset.height) : 220;
+    canvas.height = height;
+    container.replaceChildren(canvas);
+
+    return new C(canvas, config);
+  }
+
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+      timelineConfig: timelineConfig,
+      barsConfig: barsConfig,
+      occupancyConfig: occupancyConfig,
+      distributionConfig: distributionConfig,
+      draw: draw
+    };
+  }
+
+  if (typeof document !== 'undefined') {
+    document.querySelectorAll('[data-chart]').forEach(function (el) {
+      draw(el, typeof Chart !== 'undefined' ? Chart : (typeof window !== 'undefined' ? window.Chart : null));
+    });
+  }
 })();

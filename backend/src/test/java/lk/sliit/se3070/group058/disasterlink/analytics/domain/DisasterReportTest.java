@@ -157,4 +157,50 @@ class DisasterReportTest {
     assertThatNullPointerException().isThrownBy(() -> new ShareOutcome(report, null, List.of()));
     assertThatNullPointerException().isThrownBy(() -> new ShareOutcome(report, List.of(), null));
   }
+
+  @Test
+  @DisplayName("recordFindings updates the findings and rejects null")
+  void recordFindings() {
+    DisasterReport report =
+        new DisasterReport("DR-1", "T", NOW, CRITERIA, RESULTS, OFFICER, List.of());
+
+    assertThat(report.getFindings()).isEmpty();
+    report.recordFindings("Some findings text");
+    assertThat(report.getFindings()).contains("Some findings text");
+    assertThatNullPointerException().isThrownBy(() -> report.recordFindings(null));
+  }
+
+  @Test
+  @DisplayName("markProvisional records provisional districts and isProvisional reflects status")
+  void markProvisionalAndIsProvisional() {
+    DisasterReport report =
+        new DisasterReport("DR-1", "T", NOW, CRITERIA, RESULTS, OFFICER, List.of());
+
+    assertThat(report.isProvisional()).isFalse();
+    assertThat(report.getProvisionalSince()).isEmpty();
+
+    report.markProvisional(Map.of(District.KALUTARA, NOW.minusHours(2)));
+    assertThat(report.isProvisional()).isTrue();
+    assertThat(report.getProvisionalSince()).containsEntry(District.KALUTARA, NOW.minusHours(2));
+
+    assertThatNullPointerException().isThrownBy(() -> report.markProvisional(null));
+  }
+
+  @Test
+  @DisplayName("shareWith adds organisation uniquely and rejects null")
+  void shareWith() {
+    DisasterReport report =
+        new DisasterReport("DR-1", "T", NOW, CRITERIA, RESULTS, OFFICER, List.of());
+    Organization org = SampleEntities.organization("ORG-1");
+
+    assertThat(report.getSharedWith()).isEmpty();
+    report.shareWith(org);
+    assertThat(report.getSharedWith()).containsExactly(org);
+
+    // Adding again does not duplicate
+    report.shareWith(org);
+    assertThat(report.getSharedWith()).containsExactly(org);
+
+    assertThatNullPointerException().isThrownBy(() -> report.shareWith(null));
+  }
 }
