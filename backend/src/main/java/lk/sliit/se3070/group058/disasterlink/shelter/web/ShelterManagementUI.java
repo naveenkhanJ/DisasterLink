@@ -58,6 +58,16 @@ public class ShelterManagementUI {
   }
 
   /**
+   * Adds the current officer identifier for the browser-side offline submission metadata.
+   *
+   * @return the current district officer's identifier
+   */
+  @ModelAttribute("officerId")
+  public String officerId() {
+    return currentUserService.userId(DemoRole.DISTRICT_OFFICER);
+  }
+
+  /**
    * Opens the shelter management dashboard listing all shelters in the officer's district.
    *
    * @param model Spring MVC model
@@ -87,6 +97,7 @@ public class ShelterManagementUI {
     model.addAttribute("view", view);
     model.addAttribute("shelter", view.shelter());
     model.addAttribute("remainingCapacity", view.remainingCapacity());
+    model.addAttribute("pageTitle", view.shelter().getName());
     return "shelter/shelterDetails";
   }
 
@@ -120,6 +131,7 @@ public class ShelterManagementUI {
     model.addAttribute("view", view);
     model.addAttribute("shelter", view.shelter());
     model.addAttribute("organizations", organizations);
+    model.addAttribute("pageTitle", "Edit details — " + view.shelter().getName());
     return "shelter/editShelterDetails";
   }
 
@@ -140,6 +152,7 @@ public class ShelterManagementUI {
     log.debug("Searching alternative shelters in district {} for needed {}", district, needed);
     List<ShelterView> alternatives = shelterController.findAlternativeShelters(district, needed);
     model.addAttribute("alternatives", alternatives);
+    model.addAttribute("pageTitle", "Shelters with space");
     return "shelter/shelterDetails";
   }
 }

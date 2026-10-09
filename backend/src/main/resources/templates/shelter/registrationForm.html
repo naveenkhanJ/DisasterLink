@@ -1,23 +1,75 @@
 <!DOCTYPE html>
-<!-- WF3-S04 — Register Emergency Shelter. Prototype (P89): static sample data from the scenarios; no behaviour.
-     Bind the values with th:text / th:each when the controller is wired (implementation-standards §4). -->
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments/layout :: head('Register Emergency Shelter')}">
-<meta charset="utf-8"><title>Register Emergency Shelter — DMC Sri Lanka</title>
-<link rel="stylesheet" href="../../static/css/app.css">
-</head>
-<body>
+<head th:replace="~{fragments/layout :: head('Register Emergency Shelter')}"></head>
+<body data-shelter-page="true" th:attr="data-officer-id=${officerId}">
 <div class="app">
-<aside class="sidebar" th:replace="~{fragments/layout :: sidebar-district('Shelters')}"><div class="brand"><span class="brand__badge">DMC</span>DMC Sri Lanka</div><nav class="nav"><a class="nav__item is-active" href="../shelter/shelterManagement.html"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-5h4v5"/></svg>Shelters</a><button type="button" class="nav__item nav__item--soon" data-soon="Rescue teams"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span><span class="nav__label">Rescue teams</span><span class="soon-tag">Not in this version</span></span></button><button type="button" class="nav__item nav__item--soon" data-soon="Relief resources"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span><span class="nav__label">Relief resources</span><span class="soon-tag">Not in this version</span></span></button></nav></aside>
-<div class="main">
-<header class="topbar" th:replace="~{fragments/layout :: topbar('Register Emergency Shelter')}"><div><h1 class="topbar__title">Register Emergency Shelter</h1><p class="topbar__subtitle"><a href="shelterManagement.html">Shelters</a> › Colombo District</p></div><div class="user"><span class="user__avatar">DO</span><div><div class="user__name">District Officer</div><div class="user__role">Colombo District</div></div></div></header>
-<main class="page">
-<div class="sync-strip"><span class="row" style="gap:8px"><svg class="icon" style="width:20px;height:20px" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 21v-5h5"/><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5"/></svg>Waiting for synchronisation: 0</span><button type="button" class="btn btn--secondary" disabled><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 21v-5h5"/><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5"/></svg>Sync now</button></div><div class="grid grid--main-side"><section class="card "><div class="card__head"><div><h2 class="card__title">Shelter details</h2></div></div><div class="stack" style="gap:12px;max-width:480px"><div class="field"><label class="label">Name</label><input class="input" value="Wellampitiya Community Hall"></div><div class="field"><label class="label">Address</label><input class="input" value="Avissawella Road, Wellampitiya"></div><div class="field"><label class="label">District</label><div class="input row row--between" aria-readonly="true" style="background:var(--disabled-bg)"><span>Colombo</span><svg class="icon" style="width:16px;height:16px" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div></div><div class="field"><label class="label">Capacity</label><input class="input" value="250"></div><div class="field"><label class="label">Contact number</label><input class="input" value="011 253 4417"></div><div class="field"><label class="label">Operating organisation (optional)</label><select class="select"><option>None</option></select></div></div><div class="row row--end" style="margin-top:24px"><button type="button" class="btn btn--secondary">Cancel</button><a class="btn btn--primary" href="../shelter/showShelterRegistered.html">Register shelter</a></div></section>
-<div><div class="notice" role="status"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg><div>A new shelter starts with 0 occupants and status Open.</div></div></div></div>
-</main>
+  <aside th:replace="~{fragments/layout :: sidebar-district('Shelters')}"></aside>
+  <div class="main">
+    <header th:replace="~{fragments/layout :: topbar('Register Emergency Shelter')}"></header>
+    <main class="page">
+      <div class="offline-banner notice notice--warn" role="status" hidden></div>
+      <div class="notice page-notice" role="status" hidden></div>
+      <section class="sync-strip" aria-label="Offline synchronisation">
+        <span>Waiting for synchronisation: <strong class="pending-count">0</strong></span>
+        <button type="button" class="btn btn--secondary" data-sync-now>Sync now</button>
+      </section>
+      <section class="notice sync-results" role="status" hidden></section>
+      <div class="grid grid--main-side">
+        <section class="card">
+          <div class="card__head"><h2 class="card__title">Shelter details</h2></div>
+          <div class="form-errors" role="alert" hidden></div>
+          <form data-register-shelter-form data-district="COLOMBO" novalidate>
+            <div class="stack" style="gap:12px;max-width:480px">
+              <div class="field">
+                <label class="label" for="name">Name</label>
+                <input class="input" id="name" name="name">
+              </div>
+              <div class="field">
+                <label class="label" for="address">Address</label>
+                <input class="input" id="address" name="address">
+              </div>
+              <div class="field">
+                <span class="label">District</span>
+                <div class="input" aria-readonly="true">Colombo</div>
+              </div>
+              <div class="field">
+                <label class="label" for="capacity">Capacity</label>
+                <input class="input" id="capacity" name="capacity" inputmode="numeric">
+              </div>
+              <div class="field">
+                <label class="label" for="contactNumber">Contact number</label>
+                <input class="input" id="contactNumber" name="contactNumber">
+              </div>
+              <div class="field">
+                <label class="label" for="operatorId">Operating organisation (optional)</label>
+                <select class="select" id="operatorId" name="operatorId">
+                  <option value="">None</option>
+                  <option th:each="organization : ${organizations}"
+                          th:value="${organization.organizationId}"
+                          th:text="${organization.name}">Organization</option>
+                </select>
+              </div>
+            </div>
+            <div class="row row--end" style="margin-top:24px">
+              <a class="btn btn--secondary" th:href="@{/shelter}">Cancel</a>
+              <button class="btn btn--primary" type="submit">Register shelter</button>
+            </div>
+          </form>
+        </section>
+        <div class="stack">
+          <div class="notice" role="status">A new shelter starts with 0 occupants and status Open.</div>
+          <section class="card">
+            <div class="card__head"><h2 class="card__title">Pending on this computer</h2></div>
+            <p class="muted pending-empty">No entries waiting for synchronisation.</p>
+            <ul class="pending-list" hidden></ul>
+          </section>
+        </div>
+      </div>
+      <a class="link" th:href="@{/shelter}">Back to shelters</a>
+    </main>
+  </div>
 </div>
-</div>
-<script src="../../static/js/nav-notice.js" th:src="@{/js/nav-notice.js}"></script>
-<script src="../../static/js/districts.js" th:src="@{/js/districts.js}"></script>
+<script th:src="@{/js/nav-notice.js}"></script>
+<script type="module" th:src="@{/js/shelter-page.js}"></script>
 </body>
 </html>

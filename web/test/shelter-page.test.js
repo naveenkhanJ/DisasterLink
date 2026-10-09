@@ -203,17 +203,14 @@ describe('ShelterPage', () => {
 
       await page.enterNewOccupancy('SHL-1', 350);
 
-      expect(doc.querySelector('.sync-results').textContent).toBe('0 accepted, 1 rejected');
+      expect(doc.querySelector('.sync-results').textContent).toContain('0 accepted, 1 rejected');
+      expect(doc.querySelector('.sync-results').textContent).toContain('Rejected');
     });
 
-    test('handles updateOccupancy throwing an exception', async () => {
+    test('surfaces local outbox errors instead of reporting a saved offline update', async () => {
       fakeSync.updateOccupancy.mockRejectedValueOnce(new Error('Outbox write error'));
-      fakeSync.pendingCount.mockResolvedValueOnce(2);
-      fakeSync.getPending.mockResolvedValueOnce([]);
 
-      await page.enterNewOccupancy('SHL-1', 350);
-
-      expect(doc.querySelector('.page-notice').textContent).toContain('Saved offline – pending sync (2)');
+      await expect(page.enterNewOccupancy('SHL-1', 350)).rejects.toThrow('Outbox write error');
     });
   });
 
@@ -265,7 +262,8 @@ describe('ShelterPage', () => {
 
       await page.enterShelterDetails({ name: 'Wellampitiya', capacity: 250 });
 
-      expect(doc.querySelector('.sync-results').textContent).toBe('0 accepted, 1 rejected');
+      expect(doc.querySelector('.sync-results').textContent).toContain('0 accepted, 1 rejected');
+      expect(doc.querySelector('.sync-results').textContent).toContain('VALIDATION_FAILED');
     });
 
     test('handles offline queueing on network failure', async () => {
@@ -279,15 +277,13 @@ describe('ShelterPage', () => {
       expect(doc.querySelector('.page-notice').textContent).toContain('Saved offline – pending sync (1)');
     });
 
-    test('handles registerShelter throwing an exception', async () => {
+    test('surfaces local outbox errors instead of reporting a saved offline registration', async () => {
       fakeFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ valid: true, errors: [] }) });
       fakeSync.registerShelter.mockRejectedValueOnce(new Error('Write error'));
-      fakeSync.pendingCount.mockResolvedValueOnce(1);
-      fakeSync.getPending.mockResolvedValueOnce([]);
 
-      await page.enterShelterDetails({ name: 'Wellampitiya', capacity: 250 });
-
-      expect(doc.querySelector('.page-notice').textContent).toContain('Saved offline – pending sync (1)');
+      await expect(
+        page.enterShelterDetails({ name: 'Wellampitiya', capacity: 250 }),
+      ).rejects.toThrow('Write error');
     });
   });
 
@@ -338,18 +334,15 @@ describe('ShelterPage', () => {
 
       await page.editShelterDetails('SHL-1', { capacity: 550 });
 
-      expect(doc.querySelector('.sync-results').textContent).toBe('0 accepted, 1 rejected');
+      expect(doc.querySelector('.sync-results').textContent).toContain('0 accepted, 1 rejected');
+      expect(doc.querySelector('.sync-results').textContent).toContain('VALIDATION_FAILED');
     });
 
-    test('handles updateShelterDetails queued or throwing an exception', async () => {
+    test('surfaces local outbox errors instead of reporting a saved offline edit', async () => {
       fakeFetch.mockRejectedValueOnce(new Error('Network error'));
       fakeSync.updateShelterDetails.mockRejectedValueOnce(new Error('Write error'));
-      fakeSync.pendingCount.mockResolvedValueOnce(1);
-      fakeSync.getPending.mockResolvedValueOnce([]);
 
-      await page.editShelterDetails('SHL-1', { capacity: 550 });
-
-      expect(doc.querySelector('.page-notice').textContent).toContain('Saved offline – pending sync (1)');
+      await expect(page.editShelterDetails('SHL-1', { capacity: 550 })).rejects.toThrow('Write error');
     });
   });
 
@@ -391,7 +384,7 @@ describe('ShelterPage', () => {
 
       await page.syncNow();
 
-      expect(doc.querySelector('.sync-results').textContent).toBe('1 accepted, 1 rejected');
+      expect(doc.querySelector('.sync-results').textContent).toContain('1 accepted, 1 rejected');
     });
 
     test('dismissPending dismisses item and refreshes pending list', async () => {
@@ -428,6 +421,100 @@ describe('ShelterPage', () => {
       await page.init();
 
       expect(fakeSync.getPending).toHaveBeenCalled();
+    });
+
+    test('submits the occupancy form through the UC3 sync controller', async () => {
+      const isolatedDoc = document.implementation.createHTMLDocument('Shelter integration');
+      isolatedDoc.body.innerHTML = `
+        <div class="offline-banner" hidden></div>
+        <div class="page-notice" hidden></div>
+        <table><tbody class="shelter-list"></tbody></table>
+        <ul class="pending-list" hidden></ul>
+        <p class="pending-empty"></p>
+        <strong class="pending-count"></strong>
+        <div class="sync-results" hidden></div>
+        <form data-occupancy-form data-shelter-id="SHL-1">
+          <input name="newTotal" value="350">
+        </form>
+      `;
+      fakeFetch.mockResolvedValue({ ok: true, json: async () => [] });
+      fakeSync.updateOccupancy.mockResolvedValueOnce({
+        result: { outcome: SyncOutcome.ACCEPTED },
+        shelter: {
+          shelterId: 'SHL-1',
+          name: 'Rathmalana',
+          capacity: 500,
+          currentOccupancy: 350,
+          status: 'OPEN',
+        },
+        remainingCapacity: 150,
+      });
+      const integratedPage = new ShelterPage({
+        sync: fakeSync,
+        fetchFn: fakeFetch,
+        doc: isolatedDoc,
+        officerId: 'DO-COL-01',
+      });
+
+      await integratedPage.init();
+      isolatedDoc.querySelector('[data-occupancy-form]').dispatchEvent(
+        new Event('submit', { bubbles: true, cancelable: true }),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(fakeSync.updateOccupancy).toHaveBeenCalledWith(
+        expect.objectContaining({ shelterId: 'SHL-1', newTotal: 350 }),
+      );
+      expect(isolatedDoc.querySelector('.page-notice').textContent).toContain('Occupancy updated');
+    });
+
+    test('submits a registration form with the backend phone-number format', async () => {
+      const isolatedDoc = document.implementation.createHTMLDocument('Shelter registration');
+      isolatedDoc.body.innerHTML = `
+        <div class="offline-banner" hidden></div>
+        <div class="page-notice" hidden></div>
+        <ul class="pending-list" hidden></ul>
+        <p class="pending-empty"></p>
+        <strong class="pending-count"></strong>
+        <div class="sync-results" hidden></div>
+        <div class="form-errors" hidden></div>
+        <form data-register-shelter-form data-district="COLOMBO">
+          <input name="name" value="Wellampitiya Hall">
+          <input name="address" value="Avissawella Road">
+          <input name="capacity" value="250">
+          <input name="contactNumber" value="011 253 4417">
+          <select name="operatorId"><option value="" selected>None</option></select>
+        </form>
+      `;
+      fakeFetch.mockResolvedValue({ ok: true, json: async () => [] });
+      fakeSync.registerShelter.mockResolvedValueOnce({
+        result: { outcome: SyncOutcome.ACCEPTED },
+        shelter: { name: 'Wellampitiya Hall', capacity: 250 },
+        remainingCapacity: 250,
+      });
+      const registrationPage = new ShelterPage({
+        sync: fakeSync,
+        fetchFn: fakeFetch,
+        doc: isolatedDoc,
+        officerId: 'DO-COL-01',
+      });
+
+      await registrationPage.init();
+      isolatedDoc.querySelector('[data-register-shelter-form]').dispatchEvent(
+        new Event('submit', { bubbles: true, cancelable: true }),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(fakeSync.registerShelter).toHaveBeenCalledWith(
+        expect.objectContaining({
+          details: expect.objectContaining({
+            district: 'COLOMBO',
+            contactNumber: '0112534417',
+            operatorId: null,
+          }),
+        }),
+      );
+      expect(isolatedDoc.querySelector('.page-notice').textContent).toContain('Shelter registered');
     });
 
     test('startShelterPage bootstraps successfully with indexedDB', async () => {

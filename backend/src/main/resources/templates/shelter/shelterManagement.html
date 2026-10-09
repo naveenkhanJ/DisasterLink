@@ -1,26 +1,58 @@
 <!DOCTYPE html>
-<!-- WF3-S01 — Shelter Management. Prototype (P89): static sample data from the scenarios; no behaviour.
-     Bind the values with th:text / th:each when the controller is wired (implementation-standards §4). -->
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments/layout :: head('Shelter Management')}">
-<meta charset="utf-8"><title>Shelter Management — DMC Sri Lanka</title>
-<link rel="stylesheet" href="../../static/css/app.css">
-</head>
-<body>
+<head th:replace="~{fragments/layout :: head('Shelter Management')}"></head>
+<body data-shelter-page="true" th:attr="data-officer-id=${officerId}">
 <div class="app">
-<aside class="sidebar" th:replace="~{fragments/layout :: sidebar-district('Shelters')}"><div class="brand"><span class="brand__badge">DMC</span>DMC Sri Lanka</div><nav class="nav"><a class="nav__item is-active" href="../shelter/shelterManagement.html"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-5h4v5"/></svg>Shelters</a><button type="button" class="nav__item nav__item--soon" data-soon="Rescue teams"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span><span class="nav__label">Rescue teams</span><span class="soon-tag">Not in this version</span></span></button><button type="button" class="nav__item nav__item--soon" data-soon="Relief resources"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span><span class="nav__label">Relief resources</span><span class="soon-tag">Not in this version</span></span></button></nav></aside>
-<div class="main">
-<header class="topbar" th:replace="~{fragments/layout :: topbar('Shelter Management')}"><div><h1 class="topbar__title">Shelter Management</h1><p class="topbar__subtitle">Emergency shelters of Colombo District</p></div><div class="user"><span class="user__avatar">DO</span><div><div class="user__name">District Officer</div><div class="user__role">Colombo District</div></div></div></header>
-<main class="page">
-<div class="sync-strip"><span class="row" style="gap:8px"><svg class="icon" style="width:20px;height:20px" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 21v-5h5"/><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5"/></svg>Waiting for synchronisation: 0</span><button type="button" class="btn btn--secondary" disabled><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 21v-5h5"/><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5"/></svg>Sync now</button></div><div class="grid grid--main-side"><section class="card "><div class="card__head"><div><h2 class="card__title">Shelters — Colombo District</h2></div><a class="btn btn--primary" href="../shelter/registrationForm.html"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>Register Emergency Shelter</a></div><table class="table"><thead><tr><th>Shelter name</th><th>Capacity</th><th>Current occupancy</th><th>Status</th><th></th></tr></thead>
-<tbody><tr><td><strong>Rathmalana Maha Vidyalaya</strong></td><td>500</td><td>320 of 500<div class="progress" style="width:140px"><span style="width:64%"></span></div></td>
-<td><span class="tag tag--ok">Open</span></td><td class="num"><a class="link" href="../shelter/shelterDetails.html">Select</a></td></tr><tr><td><strong>Dehiwala Municipal Council Hall</strong></td><td>400</td><td>120 of 400<div class="progress" style="width:140px"><span style="width:30%"></span></div></td>
-<td><span class="tag tag--ok">Open</span></td><td class="num"><a class="link" href="../shelter/shelterDetails.html">Select</a></td></tr><tr><td><strong>Piliyandala Central College</strong></td><td>600</td><td>410 of 600<div class="progress" style="width:140px"><span style="width:68%"></span></div></td>
-<td><span class="tag tag--ok">Open</span></td><td class="num"><a class="link" href="../shelter/shelterDetails.html">Select</a></td></tr></tbody></table></section><section class="card "><div class="card__head"><div><h2 class="card__title">Pending on this computer</h2></div></div><p class="muted">No entries waiting for synchronisation.</p></section></div>
-</main>
+  <aside th:replace="~{fragments/layout :: sidebar-district('Shelters')}"></aside>
+  <div class="main">
+    <header th:replace="~{fragments/layout :: topbar('Shelter Management')}"></header>
+    <main class="page">
+      <div class="offline-banner notice notice--warn" role="status" hidden></div>
+      <div class="notice page-notice" role="status" hidden></div>
+      <section class="sync-strip" aria-label="Offline synchronisation">
+        <span>Waiting for synchronisation: <strong class="pending-count">0</strong></span>
+        <button type="button" class="btn btn--secondary" data-sync-now>Sync now</button>
+      </section>
+      <section class="notice sync-results" role="status" hidden></section>
+      <div class="grid grid--main-side">
+        <section class="card">
+          <div class="card__head">
+            <div>
+              <h2 class="card__title">Shelters — Colombo District</h2>
+              <p class="card__sub">Shelters in the district assigned to this officer.</p>
+            </div>
+            <a class="btn btn--primary" th:href="@{/shelter/register}">Register Emergency Shelter</a>
+          </div>
+          <table class="table">
+            <thead>
+              <tr><th>Shelter name</th><th>Capacity</th><th>Current occupancy</th><th>Status</th><th></th></tr>
+            </thead>
+            <tbody class="shelter-list">
+              <tr th:each="shelter : ${shelters}" th:attr="data-shelter-id=${shelter.shelterId}">
+                <td><strong th:text="${shelter.name}">Shelter</strong></td>
+                <td th:text="${shelter.capacity}">500</td>
+                <td th:text="${shelter.currentOccupancy}">320</td>
+                <td th:text="${#strings.capitalize(shelter.status.name().toLowerCase())}">Open</td>
+                <td class="num">
+                  <a class="link" th:href="@{/shelter/details(shelterId=${shelter.shelterId})}">Select</a>
+                </td>
+              </tr>
+              <tr th:if="${#lists.isEmpty(shelters)}">
+                <td colspan="5">No shelters are registered for this district yet.</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+        <section class="card">
+          <div class="card__head"><h2 class="card__title">Pending on this computer</h2></div>
+          <p class="muted pending-empty">No entries waiting for synchronisation.</p>
+          <ul class="pending-list" hidden></ul>
+        </section>
+      </div>
+    </main>
+  </div>
 </div>
-</div>
-<script src="../../static/js/nav-notice.js" th:src="@{/js/nav-notice.js}"></script>
-<script src="../../static/js/districts.js" th:src="@{/js/districts.js}"></script>
+<script th:src="@{/js/nav-notice.js}"></script>
+<script type="module" th:src="@{/js/shelter-page.js}"></script>
 </body>
 </html>
