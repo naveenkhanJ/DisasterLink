@@ -182,6 +182,94 @@ public class AnalyticsUI {
   }
 
   /**
+   * Prototype view endpoint for direct navigation to report results (WF4-S02).
+   *
+   * @param model the Spring MVC model
+   * @return the showResults view
+   */
+  @GetMapping({"/showResults.html", "/showResults"})
+  public String showResults(Model model) {
+    try {
+      String officerId = currentUserService.userId(DemoRole.DMC_OFFICER);
+      List<Hazard> closed = analyticsController.getClosedEvents();
+      if (!closed.isEmpty()) {
+        ReportCriteria criteria =
+            analyticsController.getCriteriaForEvent(closed.get(0).getHazardId());
+        DisasterReport report = analyticsController.generateReport(criteria, officerId);
+        model.addAttribute("report", report);
+        model.addAttribute("provisionalNotice", report.getProvisionalSince());
+        model.addAttribute("failedMetrics", report.getResults().failedMetrics());
+      }
+    } catch (Exception e) {
+      LOG.warn(
+          "Could not generate report dynamically, rendering prototype view: {}", e.getMessage());
+    }
+    populateCurrentUser(model);
+    return "analytics/showResults";
+  }
+
+  /**
+   * Prototype view endpoint for report results with findings saved (WF4-S03).
+   *
+   * @param model the Spring MVC model
+   * @return the showResultsWithFindings view
+   */
+  @GetMapping({"/showResultsWithFindings.html", "/showResultsWithFindings"})
+  public String showResultsWithFindings(Model model) {
+    try {
+      String officerId = currentUserService.userId(DemoRole.DMC_OFFICER);
+      List<Hazard> closed = analyticsController.getClosedEvents();
+      if (!closed.isEmpty()) {
+        ReportCriteria criteria =
+            analyticsController.getCriteriaForEvent(closed.get(0).getHazardId());
+        DisasterReport report = analyticsController.generateReport(criteria, officerId);
+        if (report != null && report.getReportId() != null && !report.getReportId().isBlank()) {
+          DisasterReport withFindings =
+              analyticsController.saveFindings(
+                  report.getReportId(),
+                  "The warning reached 42,335 citizens; SMS reached every registered citizen, the app channels 30,100. Shelter capacity was near its limit on 21 May (94 %), after the escalation to Level 3 – Red. Kalutara received no food distribution — review the stock pre-positioned with the Kalutara DDMCU.");
+          model.addAttribute("report", withFindings);
+          model.addAttribute("provisionalNotice", withFindings.getProvisionalSince());
+          model.addAttribute("failedMetrics", withFindings.getResults().failedMetrics());
+        }
+      }
+    } catch (Exception e) {
+      LOG.warn("Could not save findings dynamically, rendering prototype view: {}", e.getMessage());
+    }
+    populateCurrentUser(model);
+    return "analytics/showResultsWithFindings";
+  }
+
+  /**
+   * Prototype view endpoint for shared report outcome (WF4-S04c).
+   *
+   * @param model the Spring MVC model
+   * @return the showShared view
+   */
+  @GetMapping({"/showShared.html", "/showShared"})
+  public String showShared(Model model) {
+    try {
+      String officerId = currentUserService.userId(DemoRole.DMC_OFFICER);
+      List<Hazard> closed = analyticsController.getClosedEvents();
+      if (!closed.isEmpty()) {
+        ReportCriteria criteria =
+            analyticsController.getCriteriaForEvent(closed.get(0).getHazardId());
+        DisasterReport report = analyticsController.generateReport(criteria, officerId);
+        if (report != null && report.getReportId() != null && !report.getReportId().isBlank()) {
+          ShareOutcome outcome =
+              analyticsController.shareReport(report.getReportId(), List.of("ORG-0001"), officerId);
+          model.addAttribute("outcome", outcome);
+          model.addAttribute("reportId", report.getReportId());
+        }
+      }
+    } catch (Exception e) {
+      LOG.warn("Could not share report dynamically, rendering prototype view: {}", e.getMessage());
+    }
+    populateCurrentUser(model);
+    return "analytics/showShared";
+  }
+
+  /**
    * Confirms adjusted criteria following an out-of-scope notice with re-validation (Step 6f,
    * FX-05).
    *

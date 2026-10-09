@@ -54,7 +54,7 @@ public class DonorReportView {
    * @param model the Spring MVC model
    * @return the shared reports list view
    */
-  @GetMapping({"", "/", "/reports"})
+  @GetMapping({"", "/", "/reports", "/showSharedReports.html"})
   public String openSharedReports(
       @RequestParam(value = "organizationId", required = false) String organizationId,
       Model model) {
@@ -76,16 +76,29 @@ public class DonorReportView {
    * @param model the Spring MVC model
    * @return the scoped report view
    */
-  @GetMapping("/report")
+  @GetMapping({"/report", "/showScopedReport.html"})
   public String openSharedReport(
-      @RequestParam("reportId") String reportId,
+      @RequestParam(value = "reportId", required = false) String reportId,
       @RequestParam(value = "organizationId", required = false) String organizationId,
       Model model) {
     String orgId = resolveOrganizationId(organizationId);
-    LOG.info("Opening scoped report {} for organisation {}", reportId, orgId);
+    String targetReportId = reportId;
+    if (targetReportId == null || targetReportId.isBlank()) {
+      List<ReportHeader> reports = analyticsController.getSharedReports(orgId);
+      targetReportId = reports.isEmpty() ? null : reports.get(0).reportId();
+    }
+    LOG.info("Opening scoped report {} for organisation {}", targetReportId, orgId);
 
-    ScopedReport scopedReport = analyticsController.getScopedView(reportId, orgId);
-    model.addAttribute("scopedReport", scopedReport);
+    if (targetReportId != null) {
+      try {
+        ScopedReport scopedReport = analyticsController.getScopedView(targetReportId, orgId);
+        model.addAttribute("scopedReport", scopedReport);
+      } catch (ReportNotSharedException e) {
+        throw e;
+      } catch (Exception e) {
+        LOG.warn("Could not load scoped report: {}", e.getMessage());
+      }
+    }
     model.addAttribute("organizationId", orgId);
     populateCurrentUser(model);
     return "organisation/showScopedReport";
